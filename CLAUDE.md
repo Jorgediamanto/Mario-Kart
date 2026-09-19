@@ -51,11 +51,12 @@ three.js que no existan en la versión instalada (`node_modules/three/package.js
 
 Un agente en la nube trabaja en este repo cada noche. Su guion:
 
-1. Lee `IDEAS.md` (lista priorizada de mejoras, editada por el dueño) y `CHANGELOG.md`.
-2. Elige **una** mejora: primero los bugs anotados, luego el primer punto pendiente de `IDEAS.md`.
-   Debe ser algo que quepa en una sesión y quede terminado y probado, no a medias.
-3. Implementa, ejecuta `npm test` y corrige hasta que pase.
+1. Lee `IDEAS.md` (lista priorizada por fases, editada por el dueño) y `CHANGELOG.md`.
+2. Avanza por `IDEAS.md` **en orden**: primero los bugs anotados, luego el primer punto pendiente.
+   Cada punto tiene que quedar terminado y probado antes de pasar al siguiente; mejor dos perfectos
+   que tres a medias. Si un punto no cabe en una noche, deja una parte coherente y anota qué falta.
+3. Por cada punto: implementa, ejecuta `npm test` y corrige hasta que pase.
 4. Si pasa: marca el punto en `IDEAS.md`, añade una entrada fechada en `CHANGELOG.md` (qué cambió,
-   cómo probarlo en la fiesta) y sube a `main`.
-5. Si no pasa o hay dudas de que el juego siga funcionando: **no toques `main`**; sube una rama
-   `noche/AAAA-MM-DD` y abre un Pull Request explicando qué falta.
+   cómo probarlo en la fiesta) y sube a `main` (un commit por punto). Si queda sesión, siguiente punto.
+5. Si no pasa o hay dudas de que el juego siga funcionando: **no toques `main`** con ese punto; sube
+   una rama `noche/AAAA-MM-DD` y abre un Pull Request explicando qué falta.
