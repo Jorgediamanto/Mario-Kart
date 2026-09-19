@@ -26,6 +26,14 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   `tools/sim-race.js` — `npm run race`: carreras por consola con tabla, registro y histogramas, para
   equilibrar con datos (`npm run race -- --help`). `tools/check-all.js` — comprobación completa
   (`npm test`).
+- `public/modelos/*.glb` — los modelos 3D (kart, plátano, caparazón). **No se editan a mano**: los
+  genera `tools/blender/*.py` con Blender sin abrir ventana (`blender --background --python
+  tools/blender/kart.py`). Regla de los modelos: los materiales se llaman por su papel, no por su
+  color — `Carroceria` lleva el color del personaje y `Detalle` su acento; el resto (`Oscuro`,
+  `Metal`, `Goma`, `Piel`, `Claro`) los pinta `COLOR_MATERIAL` en `screen.js`. Si un modelo falta,
+  la tele monta el kart de cajas de siempre, así que la fiesta nunca se queda sin karts.
+- `public/visor.html` — herramienta de desarrollo para ver un modelo de cerca con la luz del juego:
+  `http://localhost:3000/visor.html?m=kart.glb` (`?ang=90` lo gira, `?girar=0` lo para).
 - `Abrir Kart Party.command` — lanzador de doble clic para macOS.
 
 Protocolo móvil ↔ servidor ↔ pantalla (JSON por WebSocket): `hello/welcome`, `lobby`, `roster`,
@@ -59,7 +67,17 @@ three.js que no existan en la versión instalada (`node_modules/three/package.js
 - Las físicas son exageradas pero controlables: los cambios de sensación (velocidad, gravedad, giro)
   deben ser pequeños y justificados. Constantes principales al inicio de `screen.js`.
 - Circuitos nuevos: añade la definición en `tracks.js` y pasa `npm run check` (sin solapes, radios de
-  curva válidos, cajas/paneles fuera de rampas).
+  curva válidos, cajas/paneles fuera de rampas). Los puntos de control van **repartidos a distancia
+  constante** (la spline es Catmull-Rom uniforme): con espaciados dispares salen radios de 37 px
+  donde tocan 200. Un trazado nuevo se genera con un script y se valida antes de pegarlo.
+- Los circuitos se piden **por nombre**, no por número: el orden de la lista ya ha cambiado una vez
+  (Arcoíris pasó a ser el primero) y las pruebas que necesitan una horquilla o un mundo grande
+  tienen que seguir cogiendo el circuito que les toca.
+- Gráficos: el estilo es dibujo animado — colores planos (`MeshToonMaterial`), contorno oscuro
+  (`ponerContorno` / `contornoInstanciado` en `screen.js`) y formas redondeadas. Los modelos se
+  hacen con Blender por script, nunca a mano, para que se puedan rehacer. Cada malla de contorno es
+  un dibujado más y la escena se pinta **una vez por panel**: con 8 jugadores, cada dibujado se
+  multiplica por 8. Mide los fps con la tecla `P` antes de dar por bueno un cambio de gráficos.
 - Commits en español, con un mensaje que explique el porqué.
 
 ## Trabajo nocturno automático

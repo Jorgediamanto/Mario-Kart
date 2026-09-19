@@ -45,6 +45,15 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       usan ese «tramo propio». Dos escenarios más en `check-sim.js`, y `sim-race.js` deja de contar
       las vueltas «de propina» de los karts ya terminados, que falseaban las medias.
 
+- [x] **Te quedas clavado contra el muro rebotando sin avanzar.** Al comerte el quitamiedos en
+      diagonal, rebotabas, volvías a entrar y así eternamente; el rescate no entraba porque
+      técnicamente te movías (la velocidad alternaba entre +300 y -100). La causa: el rebote llamaba
+      a `setVel()`, que cambia la velocidad pero **nunca `k.angle`**, así que seguías apuntando al
+      muro. **Hecho el 2026-09-19 (tarde)**: al rebotar, el morro gira también hacia la carretera
+      (`BUMPER_ENDEREZA = 0,6` en `sim.mjs`). Antes: 224 px en 6 s con el morro clavado a 63º.
+      Ahora: vuelve a rodar recto en 0,18 s y avanza 1.608 px. Escenario nuevo en `check-sim.js`
+      («quien se come el quitamiedos en diagonal vuelve a rodar en menos de 1,5 s»).
+
 - [x] **El contador de progreso se congela cuando un kart vuela por encima de un atajo.** Si un kart
       aterriza más de `win` muestras por delante de donde iba (por ejemplo, saliendo disparado de una
       rampa en Volcán Disco), `updateProgress` en `public/sim.mjs` deja de contarle avance hasta que
@@ -344,6 +353,12 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
            validador y los cuatro circuitos; es el cambio serio.
         3. **Trazados en serpiente** dentro del mapa de ahora: cumple el número, pero el circuito
            pierde gracia y con la cámara de detrás se vuelve mareante.
+        **Contestado y hecho para Arcoíris el 2026-09-19 (tarde)**: el dueño eligió la salida 2 (mapa
+        más grande), pero **por circuito**, no para todos: cada circuito puede traer su propio
+        `world: { w, h }`. Arcoíris se rehízo entero con un script (polígono alrededor de un centro
+        con las esquinas redondeadas) y quedó en 15.728 px dentro de 6550x4050, con **38,6 s de
+        vuelta media** — dentro de los 25-60 s que pide la comprobación. Falta hacer lo mismo con
+        los otros cuatro, que siguen en 9-12 s.
         Mientras no haya respuesta, lo que sí se puede hacer sin decidir nada: chicanes y curvas
         largas para el nivel 3 del derrape reaprovechando la longitud de ahora, y repasar el ancho.
       - Nota para quien lo haga: **la simulación no sabe de caminos alternativos** (`nearest` + `lat`

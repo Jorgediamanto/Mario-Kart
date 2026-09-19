@@ -3,7 +3,54 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
-<<<<<<< HEAD
+## 2026-09-19 (tarde) — Ya no te quedas clavado en el muro, Arcoíris de verdad y karts con cara
+
+Cuatro cosas, en el orden que las pidió el dueño.
+
+**1. Se acabó quedarse picoteando el quitamiedos.** Era lo que más molestaba jugando: entrabas en
+diagonal al muro, rebotabas, seguías apuntando al muro, el gas te metía otra vez, y así sin avanzar
+(el rescate tampoco entraba, porque técnicamente te movías). El rebote cambiaba la velocidad pero
+nunca **hacia dónde mira el kart**; ahora, al rebotar, el morro también gira hacia la carretera
+(`BUMPER_ENDEREZA` en `public/sim.mjs`). Medido en Arcoíris: antes 224 px en 6 s con el morro
+clavado a 63º; ahora vuelve a rodar recto en 0,18 s y avanza 1.608 px. Lo ata la prueba «quien se
+come el quitamiedos en diagonal vuelve a rodar en menos de 1,5 s».
+
+**2. Arcoíris es otro circuito.** Eran tres rectas larguísimas unidas por horquillas de 180º y no
+parecía un circuito. El trazado nuevo se generó con un script (un polígono alrededor de un centro
+con las esquinas redondeadas: redondeo grande = curva rápida, pequeño = curva cerrada) y se validó
+antes de pegarlo: recta de meta larga con la meta en mitad, curvón rapidísimo, barrido, dos curvas
+medias, **una cerrada de verdad** y un sector rápido de vuelta a meta. Mide **15.728 px** en un
+mundo de 6550x4050 (antes 12.632 en 3400x1950) y la vuelta media de los bots pasa de 30,3 s a
+**38,6 s**. Se mantiene lo bueno: 260 de ancho, quitamiedos en los dos lados de todo el recorrido,
+los saltos, el aro y el castillo. Además, como pidió el dueño, **Arcoíris es el primero de la
+lista** (el que sale por defecto) y **la carretera flota en el espacio**: sin terreno ni suelo
+debajo y un poco transparente, para que se vean las estrellas a través (`theme.cielo`).
+
+**3. Más fácil en general.** Tres ayudas que no quitan gracia: tras el trompo de un golpe el morro
+vuelve a apuntar a la carretera (`GOLPE_ENDEREZA`), los arcos de aviso salen 340 unidades antes en
+vez de 200, y el rescate entra a los 2,2 s en vez de 3.
+**A prueba, pendiente de que el dueño diga**: el volante mantiene el tope de 35º pero responde más
+fino cerca del centro (`CURVA` 0,18 → 0,32 en `public/volante.js`). Lo que hay que mirar jugando:
+si ahora cuesta menos ir recto y corregir sin volantazos, y si al final del recorrido sigue girando
+igual de fuerte. Si parece blando, se vuelve a 0,18 y no se toca nada más.
+
+**4. Gráficos «tipo Mario Kart».** El kart era un montón de cajas; ahora es un modelo de verdad
+(bañera redondeada, pontones, alerón, asiento con el piloto y ruedas gordas con llanta), y el
+plátano y el caparazón también. Están hechos **con Blender, por script**: `tools/blender/kart.py` y
+`tools/blender/objetos.py` se pueden volver a ejecutar y rehacen los `.glb` de `public/modelos/`.
+Encima, todo lleva **contorno oscuro de dibujo animado**: karts, objetos, quitamiedos y cajas. El
+alerón y el parachoques trasero llevan el color del personaje, que es lo que se ve desde la cámara
+de detrás. Si un modelo falta o falla, se dibuja lo de antes: la fiesta nunca se queda sin karts.
+
+- **Cómo probarlo**: `npm start` y abrir la pantalla. El circuito que sale es Arcoíris. Lánzate
+  contra el quitamiedos en diagonal: tienes que rebotar y seguir, no quedarte picoteando. Con
+  `/visor.html?m=kart.glb` se ve el kart de cerca (y con `?m=platano.glb`, el plátano).
+- **Medido en el navegador**: 60 fps con 8 karts y 8 paneles, con los modelos y los contornos.
+- **Pendiente de probar en fiesta**: el volante más fino (punto 3), si 38 s de vuelta se hacen
+  largos con 3 vueltas, y si la carretera transparente se ve bien en la tele de verdad (en el
+  portátil se ve; en una tele grande y con la luz de la fiesta puede pedir menos transparencia:
+  es `cielo ? 0.72 : 1` en `buildWorld`, en `public/screen.js`).
+
 ## 2026-09-19 — Una sola habilidad a la vez (ya era así, ahora está atado)
 
 - El dueño pidió que solo se pueda llevar una habilidad guardada. **Ya funcionaba así** desde el
@@ -194,7 +241,6 @@ circuito ancho, largo y en el que no te salgas.
   respaldo, el servidor reenvía la dirección decimal sin redondearla y recorta la basura, HTTPS
   sirve el mando, y en la simulación medio volante gira la mitad y un roce de volante no carga
   derrape.
-=======
 ## 2026-09-19 (noche 2) — «¡Vas al revés!» (Fase 3)
 
 - **Qué cambió**: si un kart lleva **más de 1,5 segundos avanzando contra el sentido del circuito**,
@@ -282,7 +328,6 @@ Lo que salga de aquí, a `IDEAS.md`: son los datos que el agente nocturno no pue
   que está anotada con números en `IDEAS.md`: la hoja de ruta pide vueltas de 25-60 s y hoy son de
   9-12 s, y para eso o se juegan más vueltas, o el mapa se hace más grande, o los circuitos se
   vuelven serpientes. Es una decisión del dueño, no del agente.
->>>>>>> origin/main
 
 ## 2026-09-19 — Nadie pierde una vuelta en la horquilla (segunda mitad del bug de los bots)
 
