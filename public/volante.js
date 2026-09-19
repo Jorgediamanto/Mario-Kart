@@ -33,7 +33,11 @@
    */
   const MUERTA = 5 * Math.PI / 180;    // zona muerta: por debajo de esto no cuenta como girar
   const TOPE = 35 * Math.PI / 180;     // a partir de aquí, volante a tope
-  const CURVA = 0.18;                  // cuánta parte de la respuesta es progresiva (0 = recta)
+  // 2026-09-19: **a prueba**. El dueño dice que el juego se le hace difícil, así que se sube la
+  // parte progresiva de 0,18 a 0,32: el tope sigue a 35º (lo de siempre, no se toca), pero cerca
+  // del centro el volante responde más fino y cuesta menos ir recto y corregir sin volantazos.
+  // Si le parece que el kart va blando, se vuelve a 0.18 y no se toca nada más.
+  const CURVA = 0.32;                  // cuánta parte de la respuesta es progresiva (0 = recta)
   const PLANO = 0.3;                   // con el móvil más plano que esto no se puede medir el giro
   const FILTRO = 0.35;                 // suavizado del temblor de la mano (0 = nada, 1 = sin filtrar)
 

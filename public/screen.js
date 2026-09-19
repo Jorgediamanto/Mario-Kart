@@ -425,7 +425,9 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     // Todo va en mallas instanciadas (dos o tres dibujados en total) porque la escena se pinta una
     // vez por panel y cada dibujado de más se multiplica por el número de jugadores.
     {
-      const ARCO_ANTES = 26;    // muestras de aviso (unas 200 unidades: algo más de medio segundo)
+      // Avisar con tiempo es de lo que más ayuda a quien no juega a menudo: con 42 muestras el
+      // arco aparece unas 340 unidades antes (casi un segundo a tope), suficiente para reaccionar.
+      const ARCO_ANTES = 42;    // muestras de aviso (unas 340 unidades: casi un segundo)
       const avisos = [];
       for (const r of t.ramps) avisos.push({ i: r.start, color: '#ffe600' });
       for (const i of t.pads) avisos.push({ i, color: th.pad });

@@ -30,7 +30,7 @@ export const ROULETTE_TIME = 1.6;
 export const BOX_RESPAWN = 5;
 // Rescate automático (el «Lakitu»): si un kart se queda clavado o muy lejos de la carretera,
 // se le recoloca en la pista mirando bien, y pierde un momento: esa es toda la penalización.
-export const RESCUE_AFTER = 3;    // segundos perdido o atascado antes de que lo recojan
+export const RESCUE_AFTER = 2.2;  // segundos perdido o atascado antes de que lo recojan
 export const RESCUE_TIME = 1.2;   // lo que tarda la maniobra (el kart no se mueve)
 export const RESCUE_FAR = 140;    // a esta distancia del borde de la carretera ya está «perdido»
 export const RESCUE_SLOW = 40;    // por debajo de esta velocidad se considera parado
@@ -57,6 +57,11 @@ export const STEER_FIRME = 0.55;
 // dos rebotes bastan para salir; con menos vuelve el atasco, con 1 el kart se endereza solo del
 // todo y el golpe deja de notarse.
 export const BUMPER_ENDEREZA = 0.6;
+// Igual que el rebote, pero al terminar el trompo de un golpe: el kart sale mirando hacia donde le
+// pilló el caparazón y hay que buscarse la carretera con el trompo aún en el cuerpo. Al acabar se
+// le endereza el morro hacia el sentido de la marcha, esta fracción de lo que le falta. Con 0,75
+// sales casi encarado pero el golpe se sigue notando; con 1 sería como si no hubiera pasado nada.
+export const GOLPE_ENDEREZA = 0.75;
 // Progreso: cuando un kart aparece de golpe muy por delante (ha volado por encima de un atajo), su
 // avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
 // clasificación congelada media vuelta.
@@ -324,6 +329,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0,
+      enderezaTrasGolpe: false,
       wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
@@ -413,6 +419,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const now = simTime;
     if (k.starUntil > now || k.invUntil > now || k.spinUntil > now) return false;
     k.spinUntil = now + SPIN_TIME;
+    k.enderezaTrasGolpe = true;      // al acabar el trompo se le pone el morro hacia la carretera
     k.invUntil = now + SPIN_TIME + HIT_IMMUNITY;
     k.speed *= 0.25;
     k.driftT = 0; k.driftLevel = 0; k.steerT = 0; k.boostUntil = 0; k.trick = false;
@@ -483,6 +490,14 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     // mientras lo recogen se queda quieto: es la penalización por salirse
     if (k.rescueUntil > now) { k.speed = 0; k.vz = 0; k.air = false; k.driftT = 0; k.driftLevel = 0; return; }
     const spinning = k.spinUntil > now;
+    // se acabó el trompo: el morro, hacia la carretera (ver GOLPE_ENDEREZA). Si no, después de
+    // cada caparazón toca buscarse la pista de nuevo, que es lo que más despista jugando.
+    if (k.enderezaTrasGolpe && !spinning) {
+      k.enderezaTrasGolpe = false;
+      const sm = t.samples[tramoDe(k).i];
+      k.angle = wrapAngle(k.angle + wrapAngle(sm.ang - k.angle) * GOLPE_ENDEREZA);
+      k.moveAngle = k.angle;
+    }
     const active = state.phase === 'race' && !spinning;
     // `inp.d` (el viejo botón de derrape) ya no se usa: el derrape sale solo. Se sigue aceptando en
     // el protocolo para no romper los móviles que lleven la página cargada de antes.

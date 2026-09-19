@@ -850,6 +850,28 @@ const escenarios = [
     },
   },
   {
+    // «Que te reencaminen al chocar»: tras el trompo de un caparazón, el kart sale mirando hacia
+    // donde le pilló el golpe. Ver GOLPE_ENDEREZA en sim.mjs.
+    nombre: 'después de un golpe el kart sale encarado hacia la carretera',
+    run(sim) {
+      const s = carrera(sim, { bots: 1 });
+      const k = humano(s);
+      const t = s.state.track;
+      // mirando de lado a la carretera y a buena velocidad, le cae un caparazón
+      const m = t.samples[t.nearest(k.x, k.y).i];
+      k.x = m.x; k.y = m.y; k.z = m.h; k.ground = m.h; k.air = false; k.vz = 0;
+      k.angle = m.ang + 1.4; k.moveAngle = k.angle; k.speed = 300; k.invUntil = 0;
+      if (!s.hitKart(k, null)) return 'el golpe no ha entrado';
+      const antes = Math.abs(sim.wrapAngle(k.angle - m.ang));
+      for (let f = 0; f < 60 * 2; f++) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
+      const n = t.nearest(k.x, k.y);
+      const desvio = Math.abs(sim.wrapAngle(k.angle - t.samples[n.i].ang));
+      if (antes < 1) return 'la prueba no ha llegado a torcerlo';
+      if (desvio > 0.6) return `tras el golpe sigue torcido ${(desvio * 180 / Math.PI).toFixed(0)}º respecto a la carretera`;
+      return null;
+    },
+  },
+  {
     nombre: 'quien está parado en la carretera sin tocar nada no molesta a nadie',
     run(sim) {
       let recogido = false;
