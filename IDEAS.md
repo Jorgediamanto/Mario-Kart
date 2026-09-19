@@ -279,6 +279,22 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       - **No se pudo hacer el looping** que pedía el dueño: la física es plana con altura (`z`), el
         kart nunca se pone boca abajo y permitirlo sería rehacer el motor. Queda el aro por el que
         se vuela. Si alguna vez se quiere de verdad, es un punto de Fase 8, no un retoque.
+- [x] **Fuera el caparazón verde, dentro el caracol.** Pedido por el dueño el 2026-09-19: «quita el
+      caparazón verde, y mete una habilidad, que sea menos común, que se pare el juego, y elijas a
+      quién quieres ir a hacer 75 % lento 3 segundos».
+      - **Hecho el 2026-09-19.** Constantes en `sim.mjs`: `SNAIL_SLOW` (0,25), `SNAIL_TIME` (3 s) y
+        `SNAIL_CHOICE_TIME` (6 s para elegir). Lo delicado y por qué está así:
+        1. **Parar el juego de verdad**: mientras `state.eligiendo` no es null, `update()` no toca
+           nada y **`simTime` tampoco avanza**. Si avanzara, los turbos, las estrellas y los trompos
+           de todo el mundo se irían consumiendo con el juego parado.
+        2. **Nunca se puede quedar colgado**: si se acaba el tiempo o si quien elige se va de la
+           partida (`removeKart`), se resuelve solo con el que va justo delante.
+        3. **El móvil sigue con dos botones**: la lista de víctimas es una vista a pantalla completa
+           que solo sale en ese momento, no un botón nuevo. Protocolo: `pick` (pantalla → móvil) y
+           `picked` (móvil → pantalla), con su comprobación en `check-protocol.js`.
+        4. **Medir el freno con la distancia recorrida, no con la velocidad**: al frenado le dan
+           empujones por detrás y la velocidad da saltos de 98 a 277. La prueba compara cuánto
+           avanza en esos 3 segundos, apartando antes a quien lo lanzó.
 - [x] **Los nombres tapaban la pantalla dividida.** Pedido por el dueño el 2026-09-19: «los nombres
       de la gente cubren toda la pantalla cuando somos más personas, que sea mucho más pequeño y
       que nos hagan grandes; que la visibilidad del jugador sea mucho más clara».

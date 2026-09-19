@@ -159,10 +159,12 @@ Si saltas por encima de un plátano o un caparazón, no te alcanzan.
 
 - 🍄 **Champiñón**: turbo (y en el césped no te frena).
 - 🍌 **Plátano**: lo dejas detrás; quien lo pise da un trompo y sale volando.
-- 🐢 **Caparazón verde**: sale recto hacia delante.
 - 🎯 **Caparazón rojo**: persigue al corredor que va justo delante de ti.
 - ⭐ **Estrella**: unos segundos invencible y más rápido; si tocas a otro, lo haces girar.
 - ⚡ **Rayo**: todos los demás se encogen y van más lentos un rato.
+- 🐌 **Caracol** (raro): **se para la carrera entera**, eliges en tu móvil a quién se lo plantas y
+  esa persona va un 75 % más lenta durante tres segundos. Si te lo piensas más de seis segundos,
+  se lo lleva quien vaya justo delante de ti. Al que va primero nunca le toca.
 
 ## Circuitos
 

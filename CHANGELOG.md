@@ -4,6 +4,29 @@ Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del a
 llevan la fecha en que se hicieron.
 
 <<<<<<< HEAD
+## 2026-09-19 — Fuera el caparazón verde, llega el caracol 🐌
+
+- **Se va el caparazón verde.** Era el objeto que menos hacía: salía recto y casi nunca acertaba.
+- **Llega el caracol**, y es otra cosa: al usarlo **se para la carrera entera**, en tu móvil sale
+  la lista de rivales, eliges a uno y esa persona va **un 75 % más lenta durante tres segundos**.
+  En la tele se ve el cartelón con quién está eligiendo y los candidatos numerados, para que todo
+  el mundo sepa por qué se ha parado todo y se vayan metiendo con el que tarda.
+- **Para que la fiesta no se quede colgada**: quien elige tiene **seis segundos**; si no elige, se
+  lo lleva quien vaya justo delante de él. Y si se le bloquea el móvil o se va en ese momento, se
+  resuelve solo igual. Con el juego parado no corre ni el reloj de vuelta ni los turbos ni las
+  estrellas de nadie: se congela todo de verdad.
+- **Es raro a propósito**: al que va primero nunca le sale, y al último le sale una de cada diez
+  cajas. Con el teclado se elige con los números 1 a 8.
+- **Reparto de objetos**: al quitar el verde, el que va primero se quedaba con champiñón o plátano
+  y casi siempre plátano; se le ha subido el champiñón para que sea mitad y mitad. La tabla exacta
+  por posición está en la prueba «el reparto de objetos por posición es el declarado».
+- **Cómo probarlo**: `npm start`, correr con un par de móviles hasta que a alguien le salga el
+  caracol (o con el teclado, forzarlo desde la consola: `KART_DEBUG.state.karts[0].item='snail'`).
+  Al usarlo todo tiene que congelarse, salir la lista en el móvil de quien lo usó y, al elegir,
+  seguir la carrera con el elegido arrastrándose y dejando baba verde.
+  **Pendiente de probar en fiesta**: si parar la carrera se hace pesado cuando pasa dos veces en
+  la misma vuelta, y si seis segundos para elegir son muchos o pocos.
+
 ## 2026-09-19 — Retoques pedidos: volante como antes, habilidad abajo a la izquierda
 
 - **El volante vuelve a ser el de siempre.** Me pasé de frenada al suavizarlo: el tope había subido

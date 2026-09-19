@@ -31,7 +31,8 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
 Protocolo móvil ↔ servidor ↔ pantalla (JSON por WebSocket): `hello/welcome`, `lobby`, `roster`,
 `phase`, `i` (botones: s analógico de -1 a 1, g, b, d), `use`, `start`, `again`, `set`, `st`
 (estado al móvil), `fx`, `spectate`, `vaciar` (la tele echa a todos), `kicked` (al móvil: te han
-echado, deja de reconectarte solo). Si cambias un mensaje, cambia las tres partes, añade su comprobación en
+echado, deja de reconectarte solo), `pick` (al móvil: elige víctima del caracol) y `picked` (del
+móvil: a quién ha elegido). Si cambias un mensaje, cambia las tres partes, añade su comprobación en
 `tools/check-protocol.js` y mantén compatibilidad con móviles que lleven la página cargada de antes
 (recarga automática no hay).
 

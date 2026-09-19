@@ -84,6 +84,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   const stage = document.getElementById('stage');
   const ui = document.getElementById('ui');
   const $ = (id) => document.getElementById(id);
+  const elegirEl = $('elegir');
   const lobbyEl = $('lobby'), resultsEl = $('results'), noticeEl = $('notice'), hudEl = $('hud'), bigEl = $('big'), toastsEl = $('toasts'), flashEl = $('flash');
   const timeChipEl = $('timechip'), fpsEl = $('fpsbox');
 
@@ -830,6 +831,25 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       onFx: (k, kind) => { if (k.playerId != null) toPlayer(k.playerId, { t: 'fx', kind }); },
       onShake: (n) => { state.shake = Math.max(state.shake, n); },
       onFlash: () => { flashEl.style.opacity = '0.85'; setTimeout(() => { flashEl.style.opacity = '0'; }, 60); },
+      /*
+       * Caracol: la carrera se para y quien lo ha usado elige a quién frenar. En la tele sale el
+       * cartelón con los candidatos numerados; al móvil de esa persona le mandamos la lista para
+       * que elija tocando, y a los demás un aviso para que sepan por qué se ha parado todo.
+       */
+      onChoosing: (k, candidatos) => {
+        eligiendoAhora = { kart: k, candidatos };
+        pintarElegir();
+        const opciones = candidatos.map((o) => ({ kart: o.id, name: o.name, emoji: o.emoji, color: o.color, pos: o.rank }));
+        if (k.playerId != null) toPlayer(k.playerId, { t: 'pick', opciones, segundos: Math.round(state.eligiendo ? state.eligiendo.queda : 6) });
+        for (const p of state.players.values()) if (p.id !== k.playerId) toPlayer(p.id, { t: 'fx', kind: 'pausa' });
+        sfx('snail');
+      },
+      onChosen: (quien, victima) => {
+        eligiendoAhora = null;
+        pintarElegir();
+        for (const p of state.players.values()) toPlayer(p.id, { t: 'fx', kind: 'sigue' });
+        if (victima) sfx('snailHit');
+      },
       onRescue: (k) => {
         // nubecita de humo y chispas en el sitio donde lo dejan
         particles.emit(k.x, k.z + 30, k.y, { n: 18, color: ['#ffffff', '#00e5ff', '#aab0e8'], spread: 150, vy: 120, life: 0.8, size: 5, g: 240 });
@@ -922,6 +942,12 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       case 'host': state.hostId = m.hostId; for (const p of state.players.values()) p.host = p.id === m.hostId; updateOverlays(); break;
       case 'i': { const p = state.players.get(m.id); if (p) p.input = { s: m.s, g: m.g, b: m.b, d: m.d }; break; }
       case 'use': { const k = state.karts.find((q) => q.playerId === m.id); if (k) sim.useItem(k); break; }
+      case 'picked': {
+        // solo cuenta si de verdad es quien está eligiendo
+        const k = state.karts.find((q) => q.playerId === m.id);
+        if (k && state.eligiendo && state.eligiendo.kartId === k.id) sim.elegirVictima(m.kart);
+        break;
+      }
       case 'start': startRace(); break;
       case 'again': if (state.phase === 'results') sim.backToLobby(); break;
       case 'set': applySettings(m.settings); updateOverlays(); break;
@@ -1066,6 +1092,22 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       t: 'st', pos: k.rank, n: state.karts.length, lap: sim.displayLap(k), laps: state.laps,
       item: k.item, rolling: !!k.rolling, fin: k.finished, finPos: k.finished ? k.finishRank : 0, phase: state.phase,
     });
+  }
+
+  let eligiendoAhora = null;
+  function pintarElegir() {
+    if (!eligiendoAhora) { elegirEl.classList.add('hidden'); return; }
+    const { kart, candidatos } = eligiendoAhora;
+    const filas = candidatos.map((o, i) => `<div class="cand" style="border-color:${o.color}"><span class="n">${i + 1}</span><span class="em">${o.emoji}</span><span>${esc(o.name)}</span></div>`).join('');
+    elegirEl.innerHTML = `<div class="quien">🐌 <b>${esc(kart.name)}</b> elige a quién frenar…</div>`
+      + `<div class="lista">${filas}</div>`
+      + `<div class="reloj" id="elegir-reloj"></div>`;
+    elegirEl.classList.remove('hidden');
+  }
+  function refrescarReloj() {
+    if (!eligiendoAhora || !state.eligiendo) return;
+    const el = $('elegir-reloj');
+    if (el) el.textContent = `${Math.max(0, Math.ceil(state.eligiendo.queda))} s… si no elige, se lo lleva el de delante`;
   }
 
   function toast(text, dur) {
@@ -1392,6 +1434,8 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       }
       if (boosting && Math.random() < 0.9) particles.emit(k.x - Math.cos(k.angle) * 24, k.z + 7, k.y - Math.sin(k.angle) * 24, { n: 2, color: ['#ff9f1c', '#ffe74c', '#ff2d95'], vx: -Math.cos(k.angle) * 200, vz: -Math.sin(k.angle) * 200, spread: 60, life: 0.35, size: 4, g: 0 });
       if (star && Math.random() < 0.7) particles.emit(k.x, k.z + 12, k.y, { n: 1, color: 'rainbow', spread: 80, vy: 70, life: 0.6, size: 4, g: 0 });
+      // caracol: baba verde pegada al suelo mientras va frenado, para que se vea a quién le ha caído
+      if (k.slowUntil > now && Math.random() < 0.8) particles.emit(k.x, k.z + 4, k.y, { n: 1, color: ['#7dff3f', '#39ff88', '#b9ff7a'], spread: 30, vy: 10, life: 0.9, size: 6, g: 40, flat: true });
       // etiquetas
       // solo el nombre: la posición ya la canta el mini-marcador de cada panel, y repetida sobre
       // ocho karts en ocho paneles tapaba la carretera
@@ -1507,6 +1551,12 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     }
     if (e.repeat) return;
     if (key === 'f' || key === 'F') { toggleFullscreen(); return; }
+    // caracol: si quien elige es el jugador de teclado, se elige con los números
+    if (eligiendoAhora && eligiendoAhora.kart.isKb && key >= '1' && key <= '8') {
+      const elegido = eligiendoAhora.candidatos[Number(key) - 1];
+      if (elegido) sim.elegirVictima(elegido.id);
+      return;
+    }
     // contador de fps: para comprobar en la fiesta que la pantalla dividida no se atraganta
     if (key === 'p' || key === 'P') { fpsEl.classList.toggle('hidden'); return; }
     if (state.phase === 'lobby') {
@@ -1582,6 +1632,8 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       case 'drift2': tone(700, 0.14, { type: 'square', to: 950, vol: 0.06 }); break;
       case 'drift3': [900, 1200, 1500].forEach((f, i) => tone(f, 0.1, { when: i * 0.05, type: 'square', vol: 0.06 })); break;
       case 'wrong': [400, 300, 400].forEach((f, i) => tone(f, 0.18, { when: i * 0.14, type: 'square', vol: 0.09 })); break;
+      case 'snail': [660, 520, 400, 300].forEach((f, i) => tone(f, 0.22, { when: i * 0.1, type: 'sine', vol: 0.12 })); break;
+      case 'snailHit': tone(240, 0.7, { type: 'triangle', to: 70, vol: 0.14 }); break;
       case 'rescue': [880, 660, 990].forEach((f, i) => tone(f, 0.14, { when: i * 0.09, type: 'sine', vol: 0.09 })); break;
       default: break;
     }
@@ -1628,6 +1680,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       updateCamera(dt);
       renderer.render(scene, camera);
     }
+    if (eligiendoAhora) refrescarReloj();
     if (state.phase !== 'lobby') updateHud(dt);
     pintarHudPaneles(dt);
     contarFps(dt, paneles ? panelesActivos.length : 1);

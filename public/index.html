@@ -73,6 +73,18 @@
   #lobby .url { margin-top: 22px; font-size: 40px; font-weight: 900; color: var(--yellow); letter-spacing: 1px; text-shadow: 0 4px 0 #4a0a5e; }
   #lobby .aviso-https { margin-top: 10px; max-width: 600px; font-size: 17px; line-height: 1.35; color: #ffd6f2; background: rgba(0,0,0,.3); border-radius: 12px; padding: 8px 14px; }
   #lobby .aviso-https.hidden { display: none; }
+  /* cartelón del caracol: la carrera está parada y alguien elige a quién frenar */
+  #elegir { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(8, 6, 24, .82); z-index: 30; gap: 26px; }
+  #elegir.hidden { display: none; }
+  #elegir .quien { font-size: 54px; font-weight: 900; color: #fff; text-shadow: 0 5px 0 #2d6b1a; text-align: center; }
+  #elegir .quien b { color: #7dff3f; }
+  #elegir .lista { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; max-width: 1500px; }
+  #elegir .cand { background: #141834; border: 5px solid #2a2f65; border-radius: 22px; padding: 14px 22px; min-width: 210px;
+    display: flex; align-items: center; gap: 14px; font-size: 32px; font-weight: 800; color: #fff; }
+  #elegir .cand .n { background: #7dff3f; color: #123; border-radius: 10px; padding: 0 12px; font-size: 28px; }
+  #elegir .cand .em { font-size: 44px; }
+  #elegir .reloj { font-size: 30px; color: #ffd6f2; font-weight: 800; }
   #lobby .repuesto { margin-top: 5px; font-size: 15px; color: #c9b7e0; }
   #lobby .aviso-https:not(.hidden) ~ .sub { display: none; }
   #lobby .sub { margin-top: 8px; font-size: 24px; color: #ffd6f2; }
@@ -154,6 +166,7 @@
         Teclado: <kbd>Intro</kbd> empezar · <kbd>←</kbd><kbd>→</kbd> circuito · <kbd>L</kbd> vueltas · <kbd>B</kbd>/<kbd>N</kbd> más/menos bots · <kbd>K</kbd> jugar con el teclado · <kbd>F</kbd> pantalla completa · <kbd>P</kbd> ver los fps · <kbd>V</kbd> vaciar la sala
       </div>
     </div>
+    <div id="elegir" class="hidden"></div>
     <div id="results" class="hidden"></div>
     <div id="notice" class="hidden"></div>
   </div>

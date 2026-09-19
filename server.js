@@ -418,6 +418,8 @@ wss.on('connection', (ws) => {
         break;
       }
       case 'use': toScreen({ t: 'use', id }); break;
+      // caracol: a quién le planta el freno quien lo está usando (`kart` es el id del kart)
+      case 'picked': toScreen({ t: 'picked', id, kart: typeof m.kart === 'string' ? m.kart.slice(0, 24) : '' }); break;
       case 'start': if (id === hostId) toScreen({ t: 'start' }); break;
       case 'again': if (id === hostId) toScreen({ t: 'again' }); break;
       case 'set': if (id === hostId && m.settings) applySettings(m.settings); break;

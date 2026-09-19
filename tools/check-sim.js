@@ -628,11 +628,11 @@ const escenarios = [
     run(sim) {
       // porcentajes declarados con 8 corredores, de la posición 1 a la 8
       const DECLARADO = {
-        1: { mushroom: 25.0, banana: 37.5, green: 37.5, red: 0, star: 0, lightning: 0 },
-        2: { mushroom: 25.7, banana: 28.7, green: 29.5, red: 15.1, star: 0.9, lightning: 0.1 },
-        4: { mushroom: 29.8, banana: 19.4, green: 21.3, red: 20.7, star: 6.7, lightning: 2.1 },
-        6: { mushroom: 29.8, banana: 11.3, green: 13.9, red: 22.6, star: 14.7, lightning: 7.9 },
-        8: { mushroom: 27.0, banana: 5.4, green: 8.1, red: 21.6, star: 21.6, lightning: 16.2 },
+        1: { mushroom: 50.0, banana: 50.0, red: 0, star: 0, lightning: 0, snail: 0 },
+        2: { mushroom: 43.1, banana: 36.5, red: 18.7, star: 1.1, lightning: 0.1, snail: 0.5 },
+        4: { mushroom: 39.2, banana: 24.0, red: 23.2, star: 7.5, lightning: 2.4, snail: 3.7 },
+        6: { mushroom: 32.4, banana: 14.1, red: 23.0, star: 14.9, lightning: 8.0, snail: 7.5 },
+        8: { mushroom: 25.6, banana: 7.7, red: 20.5, star: 20.5, lightning: 15.4, snail: 10.3 },
       };
       const TIRADAS = 20000, MARGEN = 2.5;   // puntos porcentuales
       const s = sim.createSim({ geom, trackDefs, random: mulberry32(99) });
@@ -649,10 +649,10 @@ const escenarios = [
           }
         }
       }
-      // y el primero nunca tiene que recibir rayo ni caparazón rojo
+      // y el primero nunca tiene que recibir rayo, caparazón rojo ni caracol
       for (let i = 0; i < 3000; i++) {
         const id = s.rollItem(1, 8);
-        if (id === 'lightning' || id === 'red') return `al primero le ha salido ${id}`;
+        if (id === 'lightning' || id === 'red' || id === 'snail') return `al primero le ha salido ${id}`;
       }
       return null;
     },
@@ -955,6 +955,106 @@ const escenarios = [
       if (st.driftBoosts.reduce((a, b) => a + b, 0) < 1) fallos.push('ningún turbo de derrape');
       if (!Object.keys(st.itemsByPos).length) fallos.push('no se apuntan los objetos por posición');
       return fallos.length ? fallos.join('; ') : null;
+    },
+  },
+  {
+    nombre: 'el caracol para la carrera hasta que se elige víctima',
+    run(sim) {
+      let avisado = null;
+      const s = carrera(sim, { bots: 3, hooks: { onChoosing: (k, c) => { avisado = { k, c }; } } });
+      const k = humano(s);
+      k.item = 'snail';
+      s.useItem(k);
+      if (!s.state.eligiendo) return 'no ha parado la carrera para elegir';
+      if (!avisado || avisado.k !== k) return 'no ha avisado de quién elige';
+      if (avisado.c.length !== 3 || avisado.c.includes(k)) return `las opciones no son los tres rivales (${avisado.c.length})`;
+      // con la carrera parada no corre ni el reloj ni nadie se mueve
+      const t0 = s.state.raceTime, sim0 = s.state.simTime;
+      const pos = s.state.karts.map((q) => [q.x, q.y]);
+      for (let i = 0; i < 60; i++) { for (const q of s.state.karts) s.setInput(q, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
+      if (Math.abs(s.state.raceTime - t0) > 1e-9) return 'el tiempo de carrera ha seguido corriendo';
+      if (Math.abs(s.state.simTime - sim0) > 1e-9) return 'el reloj de la simulación ha seguido corriendo';
+      if (s.state.karts.some((q, i) => Math.abs(q.x - pos[i][0]) > 1e-9 || Math.abs(q.y - pos[i][1]) > 1e-9)) return 'alguien se ha movido con el juego parado';
+      return null;
+    },
+  },
+  {
+    // Se mide el **camino recorrido**, no la velocidad de un instante: con otros karts alrededor,
+    // al frenado le dan empujones por detrás y la velocidad da saltos. Lo que importa es que en
+    // esos segundos avance mucho menos, y que luego vuelva a ser el de antes.
+    nombre: 'a quien le cae el caracol avanza mucho menos durante 3 s, y luego se recupera',
+    run(sim) {
+      let elegido = null;
+      const s = carrera(sim, { bots: 1, hooks: { onChosen: (q, v) => { elegido = v; } } });
+      const k = humano(s);
+      const victima = s.state.karts.find((q) => q !== k);
+      const recorrido = (kart, segundos) => {
+        let d = 0;
+        for (let i = 0; i < Math.round(segundos * 60); i++) {
+          const x = kart.x, y = kart.y;
+          s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+          s.update(DT);
+          d += Math.hypot(kart.x - x, kart.y - y);
+        }
+        return d;
+      };
+      recorrido(victima, 2);                          // que coja velocidad de crucero
+      const antes = recorrido(victima, 3);
+      k.item = 'snail';
+      s.useItem(k);
+      if (!s.elegirVictima(victima.id)) return 'no ha aceptado la elección';
+      if (s.state.eligiendo) return 'la carrera sigue parada después de elegir';
+      if (elegido !== victima) return 'el hook no dice a quién le ha caído';
+      // apartamos a quien lo lanzó, para que no lo empuje y falsee la medida
+      k.x = 40; k.y = 40; k.speed = 0;
+      const frenado = recorrido(victima, sim.SNAIL_TIME);
+      const despues = recorrido(victima, 3);
+      if (frenado > antes * 0.55) return `apenas ha frenado: ${frenado.toFixed(0)} px en vez de mucho menos de ${antes.toFixed(0)}`;
+      if (despues < antes * 0.7) return `no se recupera al acabar (${despues.toFixed(0)} px frente a ${antes.toFixed(0)})`;
+      return null;
+    },
+  },
+  {
+    nombre: 'si nadie elige, el caracol se lo lleva solo el de delante y la carrera sigue',
+    run(sim) {
+      const s = carrera(sim, { bots: 3 });
+      const k = humano(s);
+      // lo ponemos tercero para que haya alguien delante de quien fiarse
+      s.updateRanking();
+      k.item = 'snail';
+      s.useItem(k);
+      if (!s.state.eligiendo) return 'no ha parado a elegir';
+      const delante = s.state.karts.filter((q) => q !== k && q.rank < k.rank).sort((a, b) => b.rank - a.rank)[0];
+      for (let i = 0; i < 60 * (sim.SNAIL_CHOICE_TIME + 1); i++) s.update(DT);
+      if (s.state.eligiendo) return 'la carrera se ha quedado parada para siempre';
+      const frenado = s.state.karts.filter((q) => q.slowUntil > 0);
+      if (frenado.length !== 1) return `tendría que haber frenado a uno y ha frenado a ${frenado.length}`;
+      if (delante && frenado[0] !== delante) return `ha frenado a ${frenado[0].name} en vez de al de delante (${delante.name})`;
+      return null;
+    },
+  },
+  {
+    nombre: 'el caparazón verde ya no existe y el caracol es raro',
+    run(sim) {
+      if (sim.ITEMS.green) return 'el caparazón verde sigue en la lista';
+      if (!sim.ITEMS.snail) return 'falta el caracol';
+      // el que va primero no puede sacar caracol, y al resto le sale poco
+      const s = carrera(sim, { bots: 7 });
+      const k = humano(s);
+      let caracoles = 0, total = 0, delLider = 0;
+      for (let i = 0; i < 4000; i++) {
+        k.rank = (i % 8) + 1;
+        k.item = null; k.rolling = null;
+        const caja = s.state.track.boxes[i % s.state.track.boxes.length];
+        k.x = caja.x; k.y = caja.y; k.z = caja.h;
+        caja.respawnAt = 0;
+        s.update(DT);
+        if (k.rolling) { total++; if (k.rolling.result === 'snail') { caracoles++; if (k.rank === 1) delLider++; } k.rolling = null; k.item = null; }
+      }
+      if (total < 100) return `no se han repartido bastantes objetos para medir (${total})`;
+      if (delLider) return 'al que va primero le ha salido el caracol';
+      const parte = caracoles / total;
+      return parte > 0.02 && parte < 0.14 ? null : `sale el ${(parte * 100).toFixed(1)} % de las veces (se busca entre el 2 y el 14 %)`;
     },
   },
   {

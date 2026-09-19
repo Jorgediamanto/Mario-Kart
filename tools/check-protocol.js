@@ -211,6 +211,26 @@ async function recorrido(PORT) {
     check(JSON.stringify(tras) === JSON.stringify([1, 0, 0.5]),
       `el servidor recorta la dirección a -1..1 y descarta la basura (${tras.join(', ')})`);
 
+    // ---- caracol: la pantalla pide elegir víctima y el móvil contesta ----
+    {
+      const quien2 = moviles[2];
+      quien2.olvida();
+      tele.manda({ t: 'to', id: quien2.id, m: { t: 'pick', opciones: [{ kart: 'bot3', name: 'Dino', emoji: '🦖', color: '#f33' }], segundos: 6 } });
+      const pide = await quien2.espera('pick');
+      check(pide && Array.isArray(pide.opciones) && pide.opciones[0].kart === 'bot3',
+        'la pantalla pide al móvil que elija a quién frenar con el caracol');
+      tele.olvida();
+      quien2.manda({ t: 'picked', kart: 'bot3' });
+      const elegido = await tele.espera('picked');
+      check(elegido && elegido.id === quien2.id && elegido.kart === 'bot3',
+        'la elección vuelve a la pantalla con quién eligió y a quién');
+      // y una elección con basura no tumba nada
+      tele.olvida();
+      quien2.manda({ t: 'picked', kart: { raro: true } });
+      const basura = await tele.espera('picked');
+      check(basura && basura.kart === '', 'una elección con basura llega vacía y no rompe el relé');
+    }
+
     // ---- volver por otra dirección (el salto al volante) no crea un jugador fantasma ----
     {
       const antes = moviles[3];

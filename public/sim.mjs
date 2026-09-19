@@ -62,6 +62,15 @@ export const LIGHTNING_IMMUNITY = 30;   // segundos
 // avisar. Corto marea (basta un coletazo en una curva); largo llega tarde.
 export const WRONG_WAY_TIME = 1.5;      // segundos
 export const WRONG_WAY_SPEED = 60;      // por debajo de esta velocidad no se considera que avanza
+/*
+ * Caracol 🐌: el objeto raro. Al usarlo **se para la carrera entera**, quien lo usa elige a quién
+ * se lo planta y esa persona va a paso de caracol un rato. Parar el juego es fuerte, así que:
+ * el que elige tiene un tiempo límite y, si se lo piensa demasiado, se lo lleva el que va justo
+ * delante (nunca se queda la fiesta colgada esperando a alguien que ha soltado el móvil).
+ */
+export const SNAIL_SLOW = 0.25;         // a cuánto se queda su velocidad máxima (25 % = un 75 % más lento)
+export const SNAIL_TIME = 3;            // segundos que dura
+export const SNAIL_CHOICE_TIME = 6;     // segundos para elegir antes de que elija solo
 export const MAX_KARTS = 8;
 export const SAMPLE_SPACING = 8;
 
@@ -78,10 +87,10 @@ export const CHARS = [
 export const ITEMS = {
   mushroom: { icon: '🍄', name: 'Champiñón' },
   banana: { icon: '🍌', name: 'Plátano' },
-  green: { icon: '🐢', name: 'Caparazón verde' },
   red: { icon: '🎯', name: 'Caparazón rojo' },
   star: { icon: '⭐', name: 'Estrella' },
   lightning: { icon: '⚡', name: 'Rayo' },
+  snail: { icon: '🐌', name: 'Caracol' },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
 
@@ -255,6 +264,8 @@ export const DEFAULT_HOOKS = {
   onDrift() {},                 // (kart, nivel) 1, 2, 3 al subir de nivel; -1 cuando suelta el derrape
   onWrongWay() {},              // (kart, siVaAlReves) empieza o deja de ir en sentido contrario
   onRescue() {},                // (kart) lo han recogido y devuelto a la pista
+  onChoosing() {},              // (kart, candidatos) se para todo: este kart elige víctima del caracol
+  onChosen() {},                // (kart, victima) ya ha elegido (o se ha acabado el tiempo)
   onResults() {},               // (clasificación final)
 };
 
@@ -276,6 +287,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     countdownT: 0, cdStep: -1, raceTime: 0, goFlash: 0,
     firstFinish: 0, finishedCount: 0, endAt: 0, results: null,
     simTime: 0,
+    // mientras esto no es null, la carrera está **parada**: alguien está eligiendo a quién
+    // plantarle el caracol. { kartId, opciones: [id], queda: segundos }
+    eligiendo: null,
   };
   // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
   // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
@@ -303,7 +317,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       x: g.x, y: g.y, z: g.h, vz: 0, air: false, ground: g.h, angle: g.ang, moveAngle: g.ang, speed: 0,
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
-      boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
+      boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0,
       wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
@@ -373,6 +387,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   function removeKart(k) {
     const idx = state.karts.indexOf(k);
     if (idx < 0) return;
+    // si se va justo quien estaba eligiendo víctima, se resuelve solo: nadie se queda esperando
+    if (state.eligiendo && state.eligiendo.kartId === k.id) elegirVictima(null);
     hooks.onKartRemoved(k);
     state.karts.splice(idx, 1);
   }
@@ -474,6 +490,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     if (boosting) maxS *= 1.5;
     if (star) maxS *= 1.25;
     if (small) maxS *= 0.7;
+    if (k.slowUntil > now) maxS *= SNAIL_SLOW;   // caracol: a paso de tortuga
     if (k.offroad && !boosting && !star) maxS *= 0.45;
 
     if (!k.air) {
@@ -724,8 +741,12 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   function rollItem(rank, n) {
     const r = n > 1 ? (rank - 1) / (n - 1) : 0.5;
     const w = [
-      ['mushroom', 2 + 3 * r], ['banana', 3 - 2 * r], ['green', 3 - 1.5 * r],
+      // al quitar el caparazón verde, el que va primero se quedaba con dos objetos y casi siempre
+      // plátano: se le sube el champiñón para que al menos sea mitad y mitad
+      ['mushroom', 3 + 2 * r], ['banana', 3 - 1.5 * r],
       ['red', rank === 1 ? 0 : 1 + 3 * r], ['star', 4 * r * r], ['lightning', n >= 3 ? 3 * r * r * r : 0],
+      // el caracol es raro y solo aparece si hay a quién elegir; el que va primero no lo saca
+      ['snail', n >= 2 && rank > 1 ? 2 * r * r : 0],
     ];
     const total = w.reduce((acc, [, x]) => acc + x, 0);
     let x = random() * total;
@@ -790,19 +811,21 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
         hooks.onSfx('drop', k);
         break;
       }
-      case 'green': {
-        const p = { type: 'green', x: k.x + cos * 28, y: k.y + sin * 28, z: 0, angle: k.angle, speed: 700, owner: k.id, bornAt: now, life: 5, targetId: null, dead: false, view: null };
-        state.projectiles.push(p);
-        hooks.onProjectileAdded(p);
-        hooks.onSfx('shell', k);
-        break;
-      }
       case 'red': {
         const ahead = state.karts.find((o) => o.rank === k.rank - 1) || null;
         const p = { type: 'red', x: k.x + cos * 28, y: k.y + sin * 28, z: 0, angle: k.angle, speed: 660, owner: k.id, bornAt: now, life: 9, targetId: ahead ? ahead.id : null, dead: false, view: null };
         state.projectiles.push(p);
         hooks.onProjectileAdded(p);
         hooks.onSfx('shell', k);
+        break;
+      }
+      case 'snail': {
+        // se para todo y este kart elige. Las opciones son los demás que siguen en carrera.
+        const opciones = state.karts.filter((o) => o !== k && !o.finished).map((o) => o.id);
+        if (!opciones.length) { boost(k, 0.6); break; }   // si no queda nadie, al menos un empujoncito
+        state.eligiendo = { kartId: k.id, opciones, queda: SNAIL_CHOICE_TIME };
+        hooks.onChoosing(k, opciones.map((id) => state.karts.find((o) => o.id === id)));
+        hooks.onSfx('snail', k);
         break;
       }
       case 'star':
@@ -827,6 +850,38 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       default: break;
     }
     hooks.onStatus(k);
+  }
+
+  /*
+   * Plantarle el caracol a alguien y seguir la carrera. `victimaId` puede venir del móvil de quien
+   * eligió o, si se acabó el tiempo, lo decidimos aquí: el que va justo delante, que es lo que
+   * habría elegido casi todo el mundo.
+   */
+  function elegirVictima(victimaId) {
+    const e = state.eligiendo;
+    if (!e) return false;
+    const quien = state.karts.find((o) => o.id === e.kartId) || null;
+    let victima = e.opciones.includes(victimaId) ? state.karts.find((o) => o.id === victimaId) : null;
+    if (!victima) {
+      // por defecto, el de justo delante; si quien eligió ya no está, el que vaya primero
+      const rangoBase = quien ? quien.rank : state.karts.length + 1;
+      const candidatos = state.karts.filter((o) => e.opciones.includes(o.id));
+      victima = candidatos.filter((o) => o.rank < rangoBase).sort((a, b) => b.rank - a.rank)[0]
+        || candidatos.sort((a, b) => a.rank - b.rank)[0] || null;
+    }
+    state.eligiendo = null;
+    if (victima) {
+      victima.slowUntil = simTime + SNAIL_TIME;
+      victima.speed *= SNAIL_SLOW;
+      hooks.onFx(victima, 'snail');
+      hooks.onSfx('snailHit', victima);
+      hooks.onParticles(victima.x, victima.z + 18, victima.y, { n: 16, color: ['#7dff3f', '#39ff88', '#ffffff'], spread: 120, vy: 60, life: 0.9, size: 5 });
+      hooks.onToast(`🐌 ${quien ? quien.emoji + ' ' + quien.name : 'Alguien'} frena a ${victima.emoji} ${victima.name}`, 2.5);
+      if (quien) hooks.onStatus(quien);
+      hooks.onStatus(victima);
+    }
+    hooks.onChosen(quien, victima);
+    return true;
   }
 
   function stepProjectiles(dt) {
@@ -900,8 +955,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   }
 
   function update(dt) {
-    simTime += dt;
-    state.simTime = simTime;
+    // durante la pausa del caracol el reloj de la simulación no corre: si corriera, los turbos,
+    // las estrellas y los trompos de todo el mundo se irían consumiendo con el juego parado
+    if (!state.eligiendo) { simTime += dt; state.simTime = simTime; }
     if (state.phase === 'countdown') {
       state.countdownT += dt;
       const step = Math.floor(state.countdownT);
@@ -918,6 +974,14 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       return;
     }
     if (state.phase !== 'race') return;
+
+    // Caracol: la carrera está parada mientras alguien elige. No avanza ni el tiempo de vuelta ni
+    // ningún efecto; lo único que corre es la cuenta atrás para elegir.
+    if (state.eligiendo) {
+      state.eligiendo.queda -= dt;
+      if (state.eligiendo.queda <= 0) elegirVictima(null);
+      return;
+    }
 
     state.raceTime += dt;
     for (const k of state.karts) {
@@ -946,7 +1010,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
 
   return {
     tracks, state, stats,
-    startRace, update, setInput, useItem, aiInput, hitKart, boost, backToLobby, removeKart, rollItem,
+    startRace, update, setInput, useItem, aiInput, hitKart, boost, backToLobby, removeKart, elegirVictima, rollItem,
     setTrack, displayLap, updateRanking, allFinished,
     now: () => simTime,
   };

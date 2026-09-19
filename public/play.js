@@ -18,16 +18,16 @@
   const ITEMS = {
     mushroom: { icon: '🍄', name: 'Champiñón: turbo' },
     banana: { icon: '🍌', name: 'Plátano: lo sueltas detrás' },
-    green: { icon: '🐢', name: 'Caparazón verde: recto' },
     red: { icon: '🎯', name: 'Caparazón rojo: persigue al de delante' },
     star: { icon: '⭐', name: 'Estrella: invencible' },
     lightning: { icon: '⚡', name: 'Rayo: encoge a todos' },
+    snail: { icon: '🐌', name: 'Caracol: para todo y eliges' },
   };
   const ITEM_IDS = Object.keys(ITEMS);
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const views = { join: $('v-join'), lobby: $('v-lobby'), race: $('v-race'), results: $('v-results') };
+  const views = { join: $('v-join'), lobby: $('v-lobby'), race: $('v-race'), pick: $('v-pick'), results: $('v-results') };
   const store = {
     get(k, d) { try { const v = localStorage.getItem('kp.' + k); return v == null ? d : v; } catch (_) { return d; } },
     set(k, v) { try { localStorage.setItem('kp.' + k, v); } catch (_) { /* privado */ } },
@@ -36,6 +36,7 @@
   const me = { id: null, token: store.get('token', ''), name: store.get('name', ''), char: parseInt(store.get('char', '-1'), 10), host: false };
   if (!(me.char >= 0 && me.char < CHARS.length)) me.char = -1;
   let joined = false, wantJoin = false, editing = false, spectating = false;
+  let eligiendo = null;      // caracol: { opciones, hasta } mientras nos toca elegir víctima
   let phase = 'lobby', lobby = null, status = null, currentView = 'join';
   let takenChars = new Set();
   let ws = null, connected = false, retry = 500;
@@ -104,6 +105,7 @@
         if (currentView === 'results') renderResults();
         break;
       case 'phase':
+        if (m.phase !== 'race') eligiendo = null;
         phase = m.phase;
         if (phase === 'lobby') { spectating = false; status = null; }
         if (phase === 'countdown') { showRaceMsg('¡Preparados!'); centrarVolante(); }
@@ -121,7 +123,19 @@
         renderStatus();
         if (currentView === 'results') renderResults();
         break;
+      /*
+       * Caracol: nos ha tocado elegir a quién frenar y **la carrera está parada esperándonos**.
+       * Sale la lista de rivales a pantalla completa; al tocar uno, se manda y sigue la carrera.
+       */
+      case 'pick':
+        eligiendo = { opciones: Array.isArray(m.opciones) ? m.opciones : [], hasta: Date.now() + (m.segundos || 6) * 1000 };
+        vibrate([40, 50, 40, 50, 120]);
+        setView();
+        break;
       case 'fx':
+        if (m.kind === 'pausa') showRaceMsg('🐌 Alguien está eligiendo a quién frenar…');
+        if (m.kind === 'sigue') { if (eligiendo) { eligiendo = null; setView(); } showRaceMsg(''); }
+        if (m.kind === 'snail') { vibrate([200, 80, 200]); flashBody('#2d6b1a'); showRaceMsg('🐌 ¡Te han frenado!', 2200); }
         if (m.kind === 'hit') { vibrate([120, 40, 120]); flashBody('#a83232'); }
         if (m.kind === 'rescue') { vibrate([40, 60, 40]); flashBody('#1f6aa8'); showRaceMsg('¡De vuelta a la pista!', 1200); }
         if (m.kind === 'zap') { vibrate([60, 50, 60, 50, 60]); flashBody('#b8a400'); showRaceMsg('⚡ ¡Te han encogido!', 1400); }
@@ -138,6 +152,7 @@
   function setView() {
     let v;
     if (!joined || editing) v = 'join';
+    else if (eligiendo) v = 'pick';
     else if (phase === 'lobby') v = 'lobby';
     else if (phase === 'results') v = spectating ? 'lobby' : 'results';
     else v = spectating ? 'lobby' : 'race';
@@ -146,6 +161,7 @@
     if (v === 'join') { renderChars(); if (editing) $('btn-join').textContent = 'Guardar'; else $('btn-join').textContent = 'Entrar'; }
     if (v === 'lobby') renderLobby();
     if (v === 'results') renderResults();
+    if (v === 'pick') { releaseAll(); renderPick(); }
     if (v === 'race') { releaseAll(); renderStatus(); if (phase === 'countdown') showRaceMsg('¡Preparados!'); }
     if (v !== 'race') showRaceMsg('');
   }
@@ -472,6 +488,32 @@
       nameEl.textContent = 'sin objeto';
     }
   }
+  function renderPick() {
+    const cont = $('pick-lista');
+    cont.innerHTML = '';
+    for (const o of eligiendo.opciones) {
+      const b = document.createElement('button');
+      b.style.borderColor = o.color || '#2a2f65';
+      b.innerHTML = `<span class="em">${esc(o.emoji || '·')}</span><span>${esc(o.name || '?')}</span>`;
+      b.addEventListener('click', () => {
+        if (!eligiendo) return;
+        send({ t: 'picked', kart: o.kart });
+        vibrate(40);
+        eligiendo = null;
+        setView();
+      });
+      cont.appendChild(b);
+    }
+  }
+  // cuenta atrás de la elección: si se acaba, la pantalla elige sola y nos manda `sigue`
+  setInterval(() => {
+    if (!eligiendo || currentView !== 'pick') return;
+    const quedan = Math.max(0, Math.ceil((eligiendo.hasta - Date.now()) / 1000));
+    $('pick-reloj').textContent = quedan
+      ? `Todo está parado esperándote… ${quedan} s`
+      : 'Se acabó el tiempo: elige la pantalla';
+  }, 250);
+
   let raceMsgTimer = null;
   // con `ms`, el mensaje se borra solo pasado ese tiempo (avisos cortos como el rescate)
   function showRaceMsg(text, ms) {
