@@ -298,6 +298,64 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
         }
       }
     }
+    // ---- arcos de aviso y bordillos altos ----
+    // Desde la cámara de detrás ya no se ve el circuito entero: lo que viene hay que anunciarlo con
+    // antelación. Un arco de color cruza la carretera unas 200 unidades antes de cada rampa
+    // (amarillo) y de cada panel de turbo (el color del panel), y las curvas llevan bordillos altos
+    // en el exterior, que es la referencia para saber cuánto falta y por dónde entra la curva.
+    // Todo va en mallas instanciadas (dos o tres dibujados en total) porque la escena se pinta una
+    // vez por panel y cada dibujado de más se multiplica por el número de jugadores.
+    {
+      const ARCO_ANTES = 26;    // muestras de aviso (unas 200 unidades: algo más de medio segundo)
+      const avisos = [];
+      for (const r of t.ramps) avisos.push({ i: r.start, color: '#ffe600' });
+      for (const i of t.pads) avisos.push({ i, color: th.pad });
+      const porColor = new Map();
+      for (const a of avisos) { if (!porColor.has(a.color)) porColor.set(a.color, []); porColor.get(a.color).push(a); }
+      const geoPoste = new THREE.CylinderGeometry(4, 5, 76, 8);
+      const geoViga = new THREE.BoxGeometry((t.halfW + 26) * 2, 13, 11);
+      const dummy = new THREE.Object3D();
+      for (const [color, lista] of porColor) {
+        const postes = new THREE.InstancedMesh(geoPoste, toon(color), lista.length * 2);
+        const vigas = new THREE.InstancedMesh(geoViga, toon(color), lista.length);
+        lista.forEach((a, k) => {
+          const s = t.samples[((a.i - ARCO_ANTES) % t.N + t.N) % t.N];
+          [-1, 1].forEach((lado, j) => {
+            dummy.position.set(s.x + s.nx * (t.halfW + 24) * lado, s.h + 38, s.y + s.ny * (t.halfW + 24) * lado);
+            dummy.rotation.set(0, 0, 0);
+            dummy.updateMatrix();
+            postes.setMatrixAt(k * 2 + j, dummy.matrix);
+          });
+          dummy.position.set(s.x, s.h + 76, s.y);
+          dummy.rotation.set(0, -(s.ang + Math.PI / 2), 0);
+          dummy.updateMatrix();
+          vigas.setMatrixAt(k, dummy.matrix);
+        });
+        world.add(postes, vigas);
+      }
+      // bordillos altos por fuera de las curvas (el interior se deja libre para pisarlo derrapando)
+      const geoBordillo = new THREE.BoxGeometry(22, 7, 15);   // bajito: si lo pisas no parece que lo atravieses
+      const listas = [[], []];
+      for (let i = 0; i < t.N; i += 2) {
+        const giro = wrapPi(t.samples[(i + 6) % t.N].ang - t.samples[i].ang);
+        if (Math.abs(giro) < 0.05) continue;       // recta: sin bordillo
+        const lado = giro > 0 ? -1 : 1;            // el de fuera de la curva
+        const s = t.samples[i];
+        listas[(i / 2) % 2 ? 1 : 0].push({ s, lado });
+      }
+      for (let c = 0; c < 2; c++) {
+        if (!listas[c].length) continue;
+        const mesh = new THREE.InstancedMesh(geoBordillo, toon(th.curb[c]), listas[c].length);
+        listas[c].forEach((q, k) => {
+          dummy.position.set(q.s.x + q.s.nx * (t.halfW + 6) * q.lado, q.s.h + 3.5, q.s.y + q.s.ny * (t.halfW + 6) * q.lado);
+          dummy.rotation.set(0, -q.s.ang, 0);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(k, dummy.matrix);
+        });
+        world.add(mesh);
+      }
+    }
+
     // ---- cajas de objetos ----
     for (const box of t.boxes) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(22, 22, 22), new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap: toonGradient, transparent: true, opacity: 0.9 }));

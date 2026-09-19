@@ -7,15 +7,26 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 15:05
+- último latido (UTC): 2026-09-19 15:55
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno
-- hecho: pantalla dividida completa (layout, cámaras, HUD por panel, README y CHANGELOG)
-- siguiente paso: Fase 2, «Mejorar los circuitos para la vista en tercera persona» (circuito a
-  circuito, con una entrada de CHANGELOG por cada uno)
+- IDEAS.md: Fase 2, «Mejorar los circuitos para la vista en tercera persona»
+- hecho: primer subpaso, el que vale para los cuatro circuitos: arcos de aviso antes de cada rampa
+  y de cada panel de turbo, y bordillos altos por fuera de las curvas (todo en mallas instanciadas)
+- siguiente paso: el trazado circuito a circuito (chicanes, curva larga para el nivel 3, atajo con
+  riesgo). Ojo: la «Comprobación» pide vueltas de 25-60 s y hoy son de 9-12 s, o sea circuitos
+  entre 2,5 y 5 veces más largos: es una decisión gorda, ver la nota de abajo
 - intentos fallidos en este punto: 0
+
+## ⚠️ Aviso: el dueño está trabajando en paralelo
+- A mediodía (12:58-13:00 hora local) empujó a `main` el arreglo de la horquilla (`nearestNear`) y
+  dos peticiones nuevas en `IDEAS.md`. Todo fusionado y con `npm test` en verde.
+- El punto **«Volante de giroscopio»** lo está haciendo **él**: no tocarlo.
+- **Ojo para él**: esta noche `play.html` y `play.js` han cambiado (los botones de girar muestran el
+  nivel del derrape con color, ★ y vibración, y la sala explica el derrape automático). Si está
+  rehaciendo el mando para el volante, que parta de `main` actualizado; el respaldo con ◀ ▶ debería
+  conservar el pintado del nivel (`pintarDerrape`) y los `fx` `drift0..3`.
 
 ## Última sesión
 - fin (UTC): 2026-09-19 04:03
