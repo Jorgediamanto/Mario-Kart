@@ -367,7 +367,7 @@ function comprobarPaneles(layout) {
 
 // ---------------------------------------------------------------- escenarios sueltos
 // Monta una carrera ya empezada (sin cuenta atrás) para poder forzar situaciones concretas.
-function carrera(sim, { bots = 1, laps = 3, trackIndex = 0, seed = 7, hooks } = {}) {
+function carrera(sim, { bots = 1, laps = 3, trackIndex = pista('Chicle'), seed = 7, hooks } = {}) {
   const s = sim.createSim({ geom, trackDefs, random: mulberry32(seed), hooks });
   const entries = [{ playerId: 1, name: 'Humano', char: 0 }];
   for (let i = 1; i <= bots; i++) entries.push({ playerId: null, bot: true, name: 'Bot ' + i, char: i });
@@ -376,11 +376,14 @@ function carrera(sim, { bots = 1, laps = 3, trackIndex = 0, seed = 7, hooks } = 
   return s;
 }
 const humano = (s) => s.state.karts.find((k) => !k.isBot);
+// Los circuitos se piden por nombre: el orden de la lista cambia (Arcoíris pasó a ser el primero)
+// y un escenario que necesita una horquilla no puede depender de que siga siendo el número 2.
+const pista = (nombre) => trackDefs.findIndex((d) => d.name === nombre);
 
 // Busca en el circuito los dos tramos que pasan más cerca sin ser el mismo (la horquilla) y planta
 // al humano encima del tramo de enfrente, con el progreso del tramo por el que iba: es lo que le
 // pasa a un kart que sale despedido en la horquilla de Volcán Disco.
-function enElTramoDeEnfrente(sim, { bots, seed, hooks, trackIndex = 2 } = {}) {
+function enElTramoDeEnfrente(sim, { bots, seed, hooks, trackIndex = pista('Volcán Disco') } = {}) {
   const s = carrera(sim, { bots, seed, hooks, trackIndex });
   const k = humano(s);
   const t = s.state.track;
@@ -408,7 +411,7 @@ const escenarios = [
     nombre: 'la cuenta atrás dura 3 s y nadie sale antes',
     run(sim) {
       const s = sim.createSim({ geom, trackDefs, random: mulberry32(3) });
-      s.startRace({ entries: [{ playerId: 1, name: 'Humano', char: 0 }, { playerId: null, bot: true, name: 'Bot', char: 1 }], trackIndex: 0, laps: 1 });
+      s.startRace({ entries: [{ playerId: 1, name: 'Humano', char: 0 }, { playerId: null, bot: true, name: 'Bot', char: 1 }], trackIndex: pista('Chicle'), laps: 1 });
       const k = humano(s);
       const x0 = k.x, y0 = k.y;
       for (let i = 0; i < 170; i++) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
@@ -423,8 +426,8 @@ const escenarios = [
     // espaldas tiene que frenar y encararse, no acelerar hacia atrás perdiendo medio circuito
     nombre: 'un kart puesto del revés se encara y recupera su avance en menos de 2,5 s',
     run(sim) {
-      for (let pista = 0; pista < 4; pista++) {
-        const s = carrera(sim, { bots: 1, trackIndex: pista });
+      for (const nombre of ['Chicle', 'Playa Neón', 'Volcán Disco', 'Luna Loca']) {
+        const s = carrera(sim, { bots: 1, trackIndex: pista(nombre) });
         const k = humano(s);
         const t = s.state.track;
         // lo plantamos en mitad de la carretera, a buena velocidad y mirando justo al revés
@@ -727,7 +730,7 @@ const escenarios = [
     nombre: 'con solo dos corredores la carrera también acaba (y sin rayos)',
     run(sim) {
       const s = sim.createSim({ geom, trackDefs, random: mulberry32(77) });
-      s.startRace({ entries: [{ playerId: null, bot: true, name: 'Bot 1', char: 0 }, { playerId: null, bot: true, name: 'Bot 2', char: 1 }], trackIndex: 1, laps: 2 });
+      s.startRace({ entries: [{ playerId: null, bot: true, name: 'Bot 1', char: 0 }, { playerId: null, bot: true, name: 'Bot 2', char: 1 }], trackIndex: pista('Playa Neón'), laps: 2 });
       while (s.state.simTime < 150 && s.state.phase !== 'results' && !s.allFinished()) s.update(DT);
       if (!s.state.karts.every((k) => k.finished)) return 'con dos corredores alguno no termina';
       for (let i = 0; i < 2000; i++) if (s.rollItem(2, 2) === 'lightning') return 'con dos corredores sale el rayo (no debería)';
@@ -818,7 +821,7 @@ const escenarios = [
     nombre: 'quien se come el quitamiedos en diagonal vuelve a rodar en menos de 1,5 s',
     run(sim) {
       // Arcoíris es el que lleva quitamiedos en los dos lados de todo el recorrido
-      const s = carrera(sim, { bots: 0, trackIndex: trackDefs.findIndex((d) => d.name === 'Arcoíris') });
+      const s = carrera(sim, { bots: 0, trackIndex: pista('Arcoíris') });
       const k = humano(s);
       const t = s.state.track;
       const sm = t.samples[t.nearest(k.x, k.y).i];
@@ -962,7 +965,7 @@ const escenarios = [
       const s = sim.createSim({ geom, trackDefs, random: mulberry32(4242) });
       const entries = [{ playerId: 1, name: 'Persona', char: 0 }];
       for (let i = 1; i < 8; i++) entries.push({ playerId: null, bot: true, name: 'Bot ' + i, char: i });
-      s.startRace({ entries, trackIndex: 2, laps: 3 });
+      s.startRace({ entries, trackIndex: pista('Volcán Disco'), laps: 3 });
       const persona = s.state.karts.find((k) => !k.isBot);
       let sacadoEn = null;
       while (s.state.simTime < 210 && s.state.phase !== 'results') {

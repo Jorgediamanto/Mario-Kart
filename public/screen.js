@@ -191,8 +191,17 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     world.userData.animated = [];
     const anim = (o) => { world.userData.animated.push(o); };
 
+    /*
+     * Circuitos «de cielo» (`theme.cielo`): la carretera flota en el vacío, sin terreno ni suelo
+     * debajo, y se pinta un poco transparente para que se vean las estrellas a través. Solo se
+     * puede hacer donde hay quitamiedos en todo el recorrido (si no, uno se caería al vacío y no
+     * habría dónde recogerlo). La simulación no cambia: el terreno sigue existiendo por debajo,
+     * simplemente no se dibuja.
+     */
+    const cielo = !!th.cielo;
+
     // ---- terreno (low-poly con colores por vértice) ----
-    {
+    if (!cielo) {
       const pos = [], col = [], idx = [];
       const c1 = new THREE.Color(th.ground), c2 = new THREE.Color(th.groundAlt);
       const TE = t.ter;
@@ -216,14 +225,14 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     }
 
     // suelo infinito bajo el terreno, para que el mundo no flote en el vacío
-    {
+    if (!cielo) {
       const base = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), flat(shade(th.groundAlt, -0.12)));
       base.rotation.x = -Math.PI / 2; base.position.set(t.W / 2, -28, t.H / 2);
       world.add(base);
     }
 
     // ---- carretera, bordillos ----
-    const ribbon = (lat0, lat1, colorFn, dy) => {
+    const ribbon = (lat0, lat1, colorFn, dy, opacidad) => {
       const pos = [], col = [], idx = [];
       for (let i = 0; i < t.N; i++) {
         const s = t.samples[i];
@@ -238,7 +247,9 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
       geo.setIndex(idx);
       geo.computeVertexNormals();
-      return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+      const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      if (opacidad !== undefined && opacidad < 1) { mat.transparent = true; mat.opacity = opacidad; }
+      return new THREE.Mesh(geo, mat);
     };
     const roadC = new THREE.Color(th.road), roadC2 = new THREE.Color(shade(th.road, 0.06));
     // Arcoíris: la carretera va cambiando de color a lo largo del circuito, en franjas anchas
@@ -247,7 +258,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     const colorCarretera = th.arcoiris
       ? (i) => { _arco.setHSL(((Math.floor(i / 7) * 7) / t.N * 4) % 1, 0.95, Math.floor(i / 7) % 2 ? 0.58 : 0.5); return _arco; }
       : (i) => (Math.floor(i / 6) % 2 ? roadC : roadC2);
-    world.add(ribbon(-t.halfW, t.halfW, colorCarretera, 1.0));
+    world.add(ribbon(-t.halfW, t.halfW, colorCarretera, 1.0, cielo ? 0.72 : 1));
     const cA = new THREE.Color(th.curb[0]), cB = new THREE.Color(th.curb[1]);
     world.add(ribbon(t.halfW, t.halfW + 12, (i) => (Math.floor(i / 3) % 2 ? cA : cB), 1.0));
     world.add(ribbon(-t.halfW - 12, -t.halfW, (i) => (Math.floor(i / 3) % 2 ? cA : cB), 1.0));
@@ -689,7 +700,9 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
         const obj = maker();
         const margin = obj.userData && obj.userData.big ? 190 : 46;
         if (t.nearest(x, y).d < t.halfW + margin) continue;
-        obj.position.x = x; obj.position.z = y; obj.position.y += t.terrainAt(x, y);
+        obj.position.x = x; obj.position.z = y;
+        // sin terreno no hay dónde apoyarla: flota, unas por encima y otras por debajo de la pista
+        obj.position.y += cielo ? (rnd() < 0.45 ? 120 + rnd() * 520 : -260 - rnd() * 700) : t.terrainAt(x, y);
         obj.rotation.y += rnd() * Math.PI * 2;
         world.add(obj);
         placed++;
@@ -719,7 +732,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     if (th.stars) {
       const pos = [];
       for (let i = 0; i < 900; i++) {
-        const a = rnd() * Math.PI * 2, e = 0.15 + rnd() * 1.2, r = 3000;
+        const a = rnd() * Math.PI * 2, e = 0.15 + rnd() * 1.2, r = Math.max(3000, Math.hypot(t.W, t.H));
         pos.push(t.W / 2 + Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, t.H / 2 + Math.sin(a) * Math.cos(e) * r);
       }
       const geo = new THREE.BufferGeometry();
