@@ -254,7 +254,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
-      driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, dPrev: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
+      driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,

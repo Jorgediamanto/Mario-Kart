@@ -3,7 +3,8 @@
 Juego de karts **en 3D** al estilo Mario Kart para jugar con amigos en el salón:
 **la tele es la pantalla del juego y cada móvil es un mando**. Hasta 8 corredores
 (personas + bots), 4 circuitos con rampas, saltos, paneles turbo y bumpers que rebotan,
-objetos (champiñón, plátano, caparazones, estrella, rayo), derrapes con miniturbo, trucos
+objetos (champiñón, plátano, caparazones, estrella, rayo), derrape automático con tres niveles de
+turbo, trucos
 en el aire, vueltas, posiciones y podio final. Físicas exageradas (los karts se aplastan,
 se estiran, botan y vuelan) y colores chillones.
 
@@ -62,7 +63,11 @@ la derecha lleva OBJETO arriba y GAS abajo.
 | Objeto (morado) | Usar el objeto que llevas |
 | ◀ o ▶ **en el aire** | Hacer un **truco** en los saltos: al aterrizar recibes turbo |
 
-No hay botón de derrape: el kart derrapa solo en las curvas. Y si te pierdes, te quedas clavado
+**El derrape sale solo**: si aguantas el giro hacia el mismo lado a buena velocidad, el kart empieza
+a deslizar a los 0,3 s y va cargando turbo. El botón se te enciende con el color del nivel y vibra al
+subir: ★ azul (0,5 s), ★★ naranja (0,9 s) y ★★★ rosa (1,4 s). Al soltar el giro —o cambiar de lado—
+sales disparado: 0,6, 1,0 o 1,6 segundos de turbo según lo que hayas cargado. En las curvas normales
+se llega a uno o dos niveles; el tres es para las curvas largas. Y si te pierdes, te quedas clavado
 contra algo o te sales de la pista, a los 3 segundos te recogen y te dejan otra vez en la carretera
 mirando hacia donde toca (pierdes un segundo, nada más).
 
@@ -76,7 +81,7 @@ mirando hacia donde toca (pierdes un segundo, nada más).
 | `L` | Cambiar el número de vueltas |
 | `B` / `N` | Más / menos bots |
 | `F` | Pantalla completa |
-| Flechas, `⇧` (derrape/truco), `Espacio` (objeto) | Conducir con el jugador de teclado |
+| Flechas, `Espacio` (objeto) | Conducir con el jugador de teclado (el derrape también sale solo) |
 
 ## Cosas del circuito
 

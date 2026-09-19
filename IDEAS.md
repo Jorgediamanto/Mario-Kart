@@ -146,7 +146,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         un incordio. Cuatro escenarios nuevos en `check-sim.js` y una comprobación del HTML del mando
         en `check-all.js`. El truco en el aire lo dispara ahora un toque de giro; medido con
         `npm run race` antes y después, los tiempos de los bots no se mueven (± 0,13 s).
-- [ ] **Derrape automático con 3 niveles.** (Antes de tocar los tiempos, mira el dato de `--stats drift`
+- [x] **Derrape automático con 3 niveles.** (Antes de tocar los tiempos, mira el dato de `--stats drift`
       anotado en el punto 0.2: hoy los bots casi nunca llegan al miniturbo.) Sin botón de derrape: si el jugador mantiene el giro en la misma
       dirección más de ~0,35 s a velocidad suficiente (> 55 % de la máxima), el kart entra en derrape solo
       (deslizamiento y chispas). Mientras siga girando en esa dirección acumula nivel: **nivel 1** a ~0,8 s
@@ -161,6 +161,25 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         ≥ 1 y recibe un turbo al soltar (aserto sobre `boostUntil`); un kart que gira 0,2 s no entra en
         derrape; los bots siguen terminando todos los circuitos y sus tiempos de vuelta no empeoran más de un
         10 % respecto a la fase 4 anterior (guarda los tiempos de referencia en `tools/referencia.json`).
+      - **Hecho el 2026-09-19 (noche 2).** Los tiempos finales son **0,3 s** para empezar a deslizar y
+        **0,5 / 0,9 / 1,4 s** para los niveles, con turbos de 0,6 / 1,0 / 1,6 s: los de arriba
+        (0,8/1,6/2,6) se midieron y **no se alcanzaban nunca** en estos circuitos, donde una curva dura
+        entre 0,5 y 1,5 s a velocidad de carrera. El giro derrapando se queda como estaba (×1,4): al
+        bajarlo los bots perdían la trazada y sus vueltas empeoraban hasta un 16 %. Constantes
+        `DRIFT_*` al principio de `sim.mjs`, hook `onDrift(kart, nivel)`, `fx` nuevos al móvil
+        (`drift0..3`) y `tools/referencia.json` como vara de medir de la fase 4.
+
+## Bugs conocidos (nuevos)
+
+- [ ] **El contador de progreso se congela cuando un kart vuela por encima de un atajo.** Si un kart
+      aterriza más de `win` muestras por delante de donde iba (por ejemplo, saliendo disparado de una
+      rampa en Volcán Disco), `updateProgress` en `public/sim.mjs` deja de contarle avance hasta que
+      vuelve a dar la vuelta entera, y entonces le resta media vuelta de golpe: durante ~10 s su
+      posición en la clasificación es mentira. Se ve con el banco de pruebas: el kart recorre 4.000 px
+      siguiendo el trazado mientras su `dist` no se mueve. Reproducir: `node tools/check-sim.js`
+      (Volcán Disco, semilla 1002, Bot 1 hacia t=21 s). Arreglo propuesto: si el kart está en la
+      carretera y el salto de progreso viene de un vuelo (o lleva más de ~1 s congelado), aceptar el
+      salto en vez de ignorarlo, y comprobarlo con un escenario nuevo en `check-sim.js`.
 - [ ] **Vista en tercera persona por jugador (pantalla dividida).** En vez de la cámara general del circuito,
       cada persona ve **su kart desde atrás y un poco arriba**, cámara que sigue al kart con suavidad (mira
       algo por delante, se aleja un poco con la velocidad, se agita ligeramente en turbos y golpes, y sigue al

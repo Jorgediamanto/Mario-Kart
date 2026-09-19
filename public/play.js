@@ -114,6 +114,8 @@
       case 'fx':
         if (m.kind === 'hit') { vibrate([120, 40, 120]); flashBody('#a83232'); }
         if (m.kind === 'rescue') { vibrate([40, 60, 40]); flashBody('#1f6aa8'); showRaceMsg('¡De vuelta a la pista!', 1200); }
+        // derrape automático: drift0 = se ha soltado; drift1..3 = nivel cargado
+        if (typeof m.kind === 'string' && m.kind.startsWith('drift')) pintarDerrape(Number(m.kind.slice(5)) || 0);
         break;
       default: break;
     }
@@ -241,7 +243,23 @@
     lastSent = key;
     send(m);
   }
+  /* Derrape automático: la pantalla avisa con un `fx` cada vez que sube de nivel (y al soltarlo).
+   * Aquí solo se pinta: el botón que se está aguantando se enciende con el color del nivel y
+   * vibra un pelín, para notar la carga sin mirar la tele. */
+  let nivelDerrape = 0;
+  function pintarDerrape(nivel) {
+    if (nivel === nivelDerrape) return;
+    const subeDeNivel = nivel > nivelDerrape;
+    nivelDerrape = nivel;
+    const zona = $('turn-zone');
+    if (zona) { zona.classList.remove('d0', 'd1', 'd2', 'd3'); if (nivel > 0) zona.classList.add('d' + nivel); }
+    const texto = nivel > 0 ? '★'.repeat(nivel) : '';
+    for (const id of ['nivel-left', 'nivel-right']) { const el = $(id); if (el) el.textContent = texto; }
+    if (subeDeNivel && nivel > 0) vibrate(nivel === 3 ? [30, 40, 30] : [20 + nivel * 10]);
+  }
+
   function releaseAll() {
+    pintarDerrape(0);
     for (const k of Object.keys(held)) held[k] = false;
     document.querySelectorAll('.ctl.on').forEach((el) => el.classList.remove('on'));
     sendInput(true);

@@ -64,6 +64,13 @@
   .left .ctl.on { background: #ffa733; }
   /* los dos botones de girar a la vez = marcha atrás */
   .left.reverse .ctl.on { background: #ff3d6e; }
+  /* derrape automático: el botón que se aguanta se enciende con el color del nivel cargado */
+  .left.d0 .ctl.on { background: #dfe9ff; color: #1b2040; }
+  .left.d1 .ctl.on { background: #00e5ff; color: #04263a; }
+  .left.d2 .ctl.on { background: #ff9f1c; color: #3a1d00; }
+  .left.d3 .ctl.on { background: #ff2d95; color: #fff; }
+  .left.d1 .ctl.on, .left.d2 .ctl.on, .left.d3 .ctl.on { box-shadow: 0 0 0 4px rgba(255, 255, 255, .35) inset; }
+  .left .ctl small.nivel { font-size: 15px; opacity: 1; letter-spacing: 1px; }
   .ctl small { font-size: 12px; font-weight: 700; opacity: .85; margin-top: 2px; }
   @media (orientation: portrait) { .pad { max-height: 78vh; margin-top: auto; } .portrait-hint { display: block; } }
   .portrait-hint { display: none; flex: 1; align-items: center; justify-content: center; text-align: center; color: #aab0e8; padding: 20px; font-size: 16px; }
@@ -110,7 +117,9 @@
       ◀ ▶ para girar · <b style="color:#16c96a">GAS</b> para acelerar · <b style="color:#9b3bff">OBJETO</b> para usar lo que lleves.<br>
       <b style="color:#ff3d6e">Marcha atrás</b>: pulsa <b>los dos botones de girar a la vez</b>.<br>
       <b style="color:#ffd23f">Truco</b>: en las rampas, toca un botón de girar mientras vuelas (turbo al caer).<br>
-      El derrape sale solo en las curvas. Si te pierdes o te quedas clavado, te devolvemos a la pista.<br>
+      <b style="color:#00e5ff">Derrape automático</b>: aguanta el giro en una curva y el botón se
+      enciende (★ azul, ★★ naranja, ★★★ rosa). Al soltarlo, sales disparado.<br>
+      Si te pierdes o te quedas clavado, te devolvemos a la pista.<br>
       Consejo: pon el móvil en horizontal.
     </div>
   </div>
@@ -120,8 +129,8 @@
     <div class="portrait-hint">Gira el móvil en horizontal para jugar más cómodo 🔄</div>
     <div class="pad">
       <div class="left" id="turn-zone">
-        <button class="ctl" data-k="left">◀</button>
-        <button class="ctl" data-k="right">▶</button>
+        <button class="ctl" data-k="left">◀<small class="nivel" id="nivel-left"></small></button>
+        <button class="ctl" data-k="right">▶<small class="nivel" id="nivel-right"></small></button>
       </div>
       <div class="right">
         <button class="ctl item" id="btn-item"><span id="item-icon">·</span><small id="item-name">sin objeto</small></button>
