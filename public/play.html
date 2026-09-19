@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kart Party — Mando</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a0b3d">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #1a0b3d; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+  #app { position: fixed; inset: 0; height: 100dvh; display: flex; flex-direction: column; }
+  .view { display: none; flex: 1; flex-direction: column; overflow: auto; -webkit-overflow-scrolling: touch;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+  .view.active { display: flex; }
+  .hidden { display: none !important; }
+  h1 { font-size: 30px; margin: 6px 0 10px; text-align: center; text-shadow: 0 3px 0 #c0392b; }
+  h2 { font-size: 24px; margin: 6px 0 10px; text-align: center; }
+  label { display: block; font-size: 14px; color: #aab0e8; margin-bottom: 6px; }
+  input { font-size: 22px; padding: 12px 14px; border-radius: 12px; border: 2px solid #333a6b; background: #141834; color: #fff; width: 100%; outline: none; }
+  input:focus { border-color: #ffd23f; }
+  .chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+  .char { aspect-ratio: 1; border-radius: 16px; border: 3px solid transparent; background: #1a1f45; font-size: 38px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #fff; padding: 0; }
+  .char small { font-size: 11px; margin-top: 2px; font-weight: 600; }
+  .char.sel { background: #2a2f65; }
+  .char.taken { opacity: .3; }
+  .big { font-size: 22px; font-weight: 800; padding: 18px; border-radius: 16px; border: 0; background: #ffe600; color: #222; width: 100%; box-shadow: 0 6px 0 #c9a800; }
+  .big.go { background: #39ff88; font-size: 28px; box-shadow: 0 6px 0 #1fb35c; }
+  .big:active { filter: brightness(1.15); }
+  .big:disabled { opacity: .4; }
+  .btn { font-size: 16px; font-weight: 700; padding: 12px 14px; border-radius: 12px; border: 0; background: #2a2f65; color: #fff; }
+  .row { display: flex; gap: 10px; margin-top: 12px; }
+  .row .btn { flex: 1; }
+  .err { color: #ff6b6b; min-height: 1.4em; margin: 8px 0; font-weight: 600; text-align: center; }
+  .hint { color: #aab0e8; font-size: 14px; text-align: center; }
+  .warn { background: #a83232; padding: 10px; border-radius: 12px; font-size: 15px; text-align: center; margin-top: 12px; }
+  .me { font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 6px; }
+  .me span:first-child { font-size: 34px; vertical-align: middle; }
+  #lobby-status { text-align: center; font-size: 17px; color: #d5d8ff; margin: 8px 0 14px; }
+  .setting { display: flex; align-items: center; gap: 8px; background: #141834; border-radius: 14px; padding: 8px; margin-bottom: 10px; }
+  .setting .lbl { flex: 1; font-size: 16px; padding-left: 8px; color: #aab0e8; }
+  .setting .val { font-weight: 800; font-size: 18px; min-width: 90px; text-align: center; }
+  .setting .btn { width: 52px; font-size: 22px; padding: 10px 0; }
+  ul.players { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  ul.players li { background: #141834; border-radius: 10px; padding: 8px 10px; font-size: 15px; font-weight: 600; }
+  ul.players li.off { opacity: .45; }
+
+  /* ---- Carrera ---- */
+  #v-race { padding: 0; overflow: hidden; touch-action: none; }
+  .status { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 14px; background: #141834; font-weight: 800; font-size: 18px;
+    padding-top: max(6px, env(safe-area-inset-top)); padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .status .pos { font-size: 26px; color: #ffd23f; }
+  .status .nm { color: #aab0e8; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pad { flex: 1; display: flex; gap: 10px; padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); min-height: 0; }
+  .left { flex: 1; display: flex; gap: 10px; }
+  .right { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; }
+  .ctl { border: 0; border-radius: 20px; font-size: 20px; font-weight: 800; color: #fff; background: #2a2f65; touch-action: none; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 0; min-height: 0; }
+  .ctl.on { filter: brightness(1.6); transform: scale(.96); }
+  .left .ctl { flex: 1; font-size: 56px; }
+  .ctl.gas { background: #16c96a; } .ctl.brake { background: #ff3d6e; } .ctl.drift { background: #1fa8ff; } .ctl.item { background: #9b3bff; font-size: 46px; }
+  .left .ctl { background: #ff8a00; }
+  .ctl small { font-size: 12px; font-weight: 700; opacity: .85; margin-top: 2px; }
+  @media (orientation: portrait) { .pad { max-height: 58vh; margin-top: auto; } .portrait-hint { display: block; } }
+  .portrait-hint { display: none; flex: 1; align-items: center; justify-content: center; text-align: center; color: #aab0e8; padding: 20px; font-size: 16px; }
+  @media (orientation: portrait) { .portrait-hint { display: flex; } }
+  .overlay-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(8, 10, 20, .92); padding: 18px 26px; border-radius: 16px; font-size: 26px; font-weight: 800; text-align: center; pointer-events: none; display: none; z-index: 5; max-width: 80vw; }
+  .overlay-msg.show { display: block; }
+  .bigpos { font-size: 96px; font-weight: 900; text-align: center; margin: 10px 0; color: #ffd23f; }
+  #conn { position: fixed; left: 0; right: 0; top: 0; background: #a83232; text-align: center; padding: 6px; font-size: 14px; font-weight: 700; display: none; padding-top: max(6px, env(safe-area-inset-top)); z-index: 10; }
+  #conn.show { display: block; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="view active" id="v-join">
+    <h1>🏁 Kart Party</h1>
+    <label for="name">Tu nombre</label>
+    <input id="name" maxlength="12" autocomplete="off" autocapitalize="words" placeholder="Escribe tu nombre" enterkeyhint="done">
+    <label style="margin-top:14px">Tu personaje</label>
+    <div id="chars" class="chars"></div>
+    <div id="join-err" class="err"></div>
+    <button id="btn-join" class="big">Entrar</button>
+    <p class="hint" style="margin-top:14px">Tienes que estar en la misma WiFi que la tele.</p>
+  </div>
+
+  <div class="view" id="v-lobby">
+    <div class="me"><span id="me-emoji"></span> <span id="me-name"></span></div>
+    <div id="lobby-status"></div>
+    <div id="host-controls" class="hidden">
+      <div class="setting"><span class="lbl">Circuito</span><button class="btn" data-set="track" data-d="-1">◀</button><span class="val" id="set-track">—</span><button class="btn" data-set="track" data-d="1">▶</button></div>
+      <div class="setting"><span class="lbl">Vueltas</span><button class="btn" data-set="laps" data-d="-1">−</button><span class="val" id="set-laps">3</span><button class="btn" data-set="laps" data-d="1">+</button></div>
+      <div class="setting"><span class="lbl">Bots</span><button class="btn" data-set="bots" data-d="-1">−</button><span class="val" id="set-bots">2</span><button class="btn" data-set="bots" data-d="1">+</button></div>
+      <button id="btn-start" class="big go">¡EMPEZAR!</button>
+    </div>
+    <div id="guest-settings" class="hint" style="margin-top:6px"></div>
+    <ul class="players" id="lobby-players"></ul>
+    <div id="no-screen" class="warn hidden">La pantalla de la tele no está abierta. Abre <b>http://…:3000</b> en el ordenador conectado a la tele.</div>
+    <div class="row">
+      <button id="btn-change" class="btn">Cambiar personaje</button>
+      <button id="btn-fs" class="btn">Pantalla completa</button>
+      <button id="btn-leave" class="btn" style="background:#5a2a2a">Salir</button>
+    </div>
+    <p class="hint" style="margin-top:14px">Consejo: pon el móvil en horizontal durante la carrera. Salta en las rampas y pulsa DERRAPE en el aire para hacer un truco con turbo.</p>
+  </div>
+
+  <div class="view" id="v-race">
+    <div class="status"><span class="pos" id="st-pos">—</span><span id="st-lap">—</span><span class="nm" id="st-name"></span></div>
+    <div class="portrait-hint">Gira el móvil en horizontal para jugar más cómodo 🔄</div>
+    <div class="pad">
+      <div class="left">
+        <button class="ctl" data-k="left">◀</button>
+        <button class="ctl" data-k="right">▶</button>
+      </div>
+      <div class="right">
+        <button class="ctl item" id="btn-item"><span id="item-icon">·</span><small id="item-name">sin objeto</small></button>
+        <button class="ctl brake" data-k="b">FRENO<small>marcha atrás</small></button>
+        <button class="ctl drift" data-k="d">DERRAPE<small>en curvas · truco en el aire</small></button>
+        <button class="ctl gas" data-k="g">GAS</button>
+      </div>
+    </div>
+    <div id="race-msg" class="overlay-msg"></div>
+  </div>
+
+  <div class="view" id="v-results">
+    <h2 id="res-title">Carrera terminada</h2>
+    <div class="bigpos" id="res-pos">—</div>
+    <p class="hint" id="res-sub"></p>
+    <button id="btn-again" class="big go hidden">Otra carrera</button>
+    <p class="hint" id="res-wait" style="margin-top:14px">Esperando a que el anfitrión pulse «Otra carrera»…</p>
+  </div>
+
+  <div id="conn">Conectando con la pantalla…</div>
+</div>
+<script src="/play.js"></script>
+</body>
+</html>

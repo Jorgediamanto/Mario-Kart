@@ -1,0 +1,21 @@
+{
+  "name": "kart-party",
+  "version": "1.0.0",
+  "description": "Juego de karts multijugador: la tele es la pantalla y cada móvil es un mando",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tools/check-all.js",
+    "check": "node tools/check-tracks.js"
+  },
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "three": "^0.186.0",
+    "ws": "^8.18.0"
+  }
+}
