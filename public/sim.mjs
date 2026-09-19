@@ -254,7 +254,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   };
   // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
   // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
-  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {} };
+  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -479,7 +479,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       }
     } else if (seguia && !k.air) {
       // en el aire el derrape se queda en pausa (un salto no te quita la carga)
-      if (k.driftLevel > 0) boost(k, DRIFT_BOOST[k.driftLevel - 1]);
+      if (k.driftLevel > 0) { boost(k, DRIFT_BOOST[k.driftLevel - 1]); stats.driftBoosts[k.driftLevel - 1]++; }
       k.driftT = 0; k.driftLevel = 0;
       hooks.onDrift(k, -1);
       hooks.onFx(k, 'drift0');
