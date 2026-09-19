@@ -1118,10 +1118,13 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       el.querySelector('.ppos').textContent = kart.finished ? '🏁' : ordinal(kart.rank);
       el.querySelector('.plap').textContent = kart.finished ? fmtTime(kart.finishTime) : `Vuelta ${sim.displayLap(kart)}/${state.laps}`;
       el.querySelector('.pitem').textContent = kart.rolling ? '🎰' : kart.item ? ITEMS[kart.item].icon : '';
-      el.querySelector('.pmsg').textContent = avisoDePanel(kart);
+      const msg = el.querySelector('.pmsg');
+      msg.textContent = avisoDePanel(kart);
+      msg.classList.toggle('alreves', !!kart.wrongWay);
     }
   }
   function avisoDePanel(k) {
+    if (k.wrongWay) return '↩ ¡VAS AL REVÉS!';
     if (k.finished) return '¡META!';
     if (k.rescueUntil > state.simTime) return '¡Te devolvemos a la pista!';
     if (k.trick) return '¡TRUCO!';
@@ -1388,6 +1391,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       case 'drift1': tone(520, 0.12, { type: 'square', to: 700, vol: 0.05 }); break;
       case 'drift2': tone(700, 0.14, { type: 'square', to: 950, vol: 0.06 }); break;
       case 'drift3': [900, 1200, 1500].forEach((f, i) => tone(f, 0.1, { when: i * 0.05, type: 'square', vol: 0.06 })); break;
+      case 'wrong': [400, 300, 400].forEach((f, i) => tone(f, 0.18, { when: i * 0.14, type: 'square', vol: 0.09 })); break;
       case 'rescue': [880, 660, 990].forEach((f, i) => tone(f, 0.14, { when: i * 0.09, type: 'sine', vol: 0.09 })); break;
       default: break;
     }

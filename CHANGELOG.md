@@ -3,6 +3,20 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 (noche 2) — «¡Vas al revés!» (Fase 3)
+
+- **Qué cambió**: si un kart lleva **más de 1,5 segundos avanzando contra el sentido del circuito**,
+  en su panel sale un cartel rojo parpadeante «↩ ¡VAS AL REVÉS!», suena un aviso y **el móvil vibra
+  largo** y pone «Date la vuelta». En cuanto se endereza, el aviso se apaga solo.
+- **Cuándo no molesta**: no cuenta mientras das un trompo, mientras te recoge el rescate, ni casi
+  parado (por debajo de 60 de velocidad), que es cuando cualquiera se lía maniobrando. Dar marcha
+  atrás un momento con los dos botones tampoco avisa: hacen falta 1,5 s seguidos.
+- **Constantes**: `WRONG_WAY_TIME` y `WRONG_WAY_SPEED` al principio de `public/sim.mjs`; hook nuevo
+  `onWrongWay(kart, siVaAlReves)` y avisos `fx` `wrong` / `wrong0` al móvil.
+- **Cómo probarlo**: `npm test` (escenario «ir al revés más de 1,5 s dispara el aviso, y girarse lo
+  apaga»). En la fiesta: date la vuelta a propósito en una recta y mira que el cartel aparece pronto
+  pero no en cuanto rozas un muro. **Pendiente de probar en fiesta**: si 1,5 s es la espera justa.
+
 ## 2026-09-19 (noche 2) — Regresión de fase: todo junto, y la lista para la fiesta
 
 - **Qué cambió**: `npm test` tiene un escenario nuevo que corre una carrera entera **de verdad** (8

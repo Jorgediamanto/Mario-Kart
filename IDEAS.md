@@ -314,9 +314,15 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       carretera. Se recuerda en el móvil. Comprobación: en la simulación un kart con «modo fácil» y sin
       entradas termina la carrera solo (más lento que un bot); el mensaje `hello` lleva el flag y la pantalla lo
       muestra en la sala.
-- [ ] **Aviso «¡Vas al revés!».** Si un kart avanza en sentido contrario más de 1,5 s: cartel en su panel,
+      - ⏭ **Saltado a propósito la noche del 2026-09-19**: el interruptor va en la **sala del móvil**
+        y el dueño estaba rehaciendo `play.html`/`play.js` esa misma tarde para el volante de
+        giroscopio. Hacerlo a la vez era pisarse. Retomarlo cuando el volante esté dentro.
+- [x] **Aviso «¡Vas al revés!».** Si un kart avanza en sentido contrario más de 1,5 s: cartel en su panel,
       flecha grande hacia la dirección correcta y vibración larga en el móvil. Comprobación: simulación con un
       kart forzado al revés dispara el hook `onWrongWay` y deja de dispararlo al girar.
+      - **Hecho el 2026-09-19 (noche 2).** Con `WRONG_WAY_TIME` (1,5 s) y `WRONG_WAY_SPEED` (60) en
+        `sim.mjs`; cartel rojo parpadeante en el panel, sonido y vibración larga en el móvil (`fx`
+        `wrong`/`wrong0`). No cuenta en trompos, rescates ni casi parado.
 - [ ] **Salida perfecta.** Pulsar GAS justo en el «¡YA!» (ventana de 0,4 s) da un turbo de salida; pulsarlo
       demasiado pronto hace patinar 0,8 s. Cuenta atrás con vibración en cada número. Comprobación: simulación
       con entradas programadas: GAS en la ventana → turbo; GAS 1 s antes → patinazo.
