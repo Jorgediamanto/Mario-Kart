@@ -108,23 +108,23 @@ def main():
     # ---- bañera: ancha, bajita y redondeada ----
     partes.append(caja('banera', (34, 24, 14), (-2, 0, 9.5), carroceria, 2.0))
     # morro: sale de la bañera y baja hacia delante
-    partes.append(caja('morro', (18, 20, 9), (14, 0, 7), carroceria, 2.0))
-    partes.append(caja('punta', (7, 15, 7), (21, 0, 6.5), detalle, 1.6))
+    partes.append(caja('morro', (18, 20, 10), (14, 0, 8), carroceria, 2.0))
+    partes.append(caja('punta', (7, 15, 8), (20, 0, 8), detalle, 1.6))
     # pontones laterales: por fuera de la bañera, lo que hace que parezca un kart
     for lado in (-1, 1):
         partes.append(caja('ponton', (26, 5.5, 8), (-2, lado * 11.0, 8), carroceria, 1.8))
     # motor detrás, con el alerón encima
     partes.append(caja('motor', (11, 18, 13), (-15, 0, 13), oscuro, 1.8))
     partes.append(caja('soporteAleron', (4, 14, 8), (-17, 0, 19), oscuro, 1.0))
-    partes.append(caja('aleron', (9, 26, 3), (-18, 0, 23), detalle, 1.2))
+    partes.append(caja('aleron', (9, 27, 3.4), (-18, 0, 23), carroceria, 1.2))
     # asiento: base y respaldo, para que el piloto no flote
     partes.append(caja('asiento', (11, 14, 4), (-5, 0, 15), oscuro, 1.2))
     partes.append(caja('respaldo', (4, 14, 11), (-10, 0, 20), oscuro, 1.4))
     # torso del piloto (la cabeza es el emoji que pone la tele encima, a la altura 31)
     partes.append(esfera('torso', 5.0, (-5, 0, 21), carroceria, (0.9, 1.0, 0.95)))
     # parachoques delante y detrás
-    partes.append(cilindro('parachoquesD', 2.8, 18, (23, 0, 4.5), detalle, 'Y', 12))
-    partes.append(cilindro('parachoquesT', 2.6, 20, (-20, 0, 5.5), detalle, 'Y', 12))
+    partes.append(cilindro('parachoquesD', 2.6, 17, (21.5, 0, 6.0), detalle, 'Y', 12))
+    partes.append(cilindro('parachoquesT', 2.8, 21, (-18.5, 0, 7.5), carroceria, 'Y', 12))
     # escapes y volante
     for lado in (-1, 1):
         partes.append(cilindro('escape', 1.6, 7, (-21, lado * 6, 11), metal, 'X', 10, 0.25))

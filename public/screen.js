@@ -184,6 +184,53 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   // ===================== Construcción del mundo 3D =====================
   const animated = []; // objetos con animación ambiental { obj, kind, phase, ... }
 
+  /*
+   * Contorno de dibujo animado: una copia de la malla «hinchada» hacia fuera y pintada por dentro
+   * (`BackSide`), así solo se ve el borde que asoma. El hinchado va por la normal **promediada por
+   * posición**: si se usan las normales de cada cara, las cajas se abren por las esquinas y el
+   * borde sale roto. Cada geometría se hincha una sola vez y se guarda.
+   */
+  const CONTORNO_COLOR = '#160b28', CONTORNO_GROSOR = 0.9;
+  const matContorno = new THREE.MeshBasicMaterial({ color: CONTORNO_COLOR, side: THREE.BackSide });
+  const contornos = new WeakMap();
+  function geoContorno(geo) {
+    if (contornos.has(geo)) return contornos.get(geo);
+    const g = geo.clone();
+    const pos = g.attributes.position, nor = g.attributes.normal;
+    const suma = new Map();
+    const clave = (i) => `${Math.round(pos.getX(i) * 50)},${Math.round(pos.getY(i) * 50)},${Math.round(pos.getZ(i) * 50)}`;
+    for (let i = 0; i < pos.count; i++) {
+      const k = clave(i);
+      const v = suma.get(k) || [0, 0, 0];
+      v[0] += nor.getX(i); v[1] += nor.getY(i); v[2] += nor.getZ(i);
+      suma.set(k, v);
+    }
+    for (let i = 0; i < pos.count; i++) {
+      const v = suma.get(clave(i));
+      const l = Math.hypot(v[0], v[1], v[2]) || 1;
+      pos.setXYZ(i, pos.getX(i) + v[0] / l * CONTORNO_GROSOR, pos.getY(i) + v[1] / l * CONTORNO_GROSOR, pos.getZ(i) + v[2] / l * CONTORNO_GROSOR);
+    }
+    pos.needsUpdate = true;
+    contornos.set(geo, g);
+    return g;
+  }
+  // Un contorno para una malla instanciada (los bumpers): un solo dibujado más para todos
+  function contornoInstanciado(mesh) {
+    const c = new THREE.InstancedMesh(geoContorno(mesh.geometry), matContorno, mesh.count);
+    c.instanceMatrix.copy(mesh.instanceMatrix);
+    c.instanceMatrix.needsUpdate = true;
+    return c;
+  }
+  // Le cuelga a cada malla su contorno, para que lo siga a todas partes (las ruedas giran)
+  function ponerContorno(raiz, lista) {
+    raiz.traverse((o) => { if (o.isMesh && !o.userData.esContorno) lista.push(o); });
+    for (const o of lista.slice()) {
+      const c = new THREE.Mesh(geoContorno(o.geometry), matContorno);
+      c.userData.esContorno = true;
+      o.add(c);
+    }
+  }
+
   function buildWorld(t) {
     const th = t.def.theme;
     const rnd = mulberry32(999 + t.index * 17);
@@ -414,7 +461,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
           if (!list.length) continue;
           const mesh = new THREE.InstancedMesh(geo, toon(th.bumper[c]), list.length);
           list.forEach((q, i) => { dummy.position.set(q.x, q.h + 8, q.y); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix); });
-          world.add(mesh);
+          world.add(mesh, contornoInstanciado(mesh));   // el borde oscuro, en un solo dibujado más
         }
       }
     }
@@ -482,6 +529,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     for (const box of t.boxes) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(22, 22, 22), new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap: toonGradient, transparent: true, opacity: 0.9 }));
       m.position.set(box.x, box.h + 18, box.y);
+      m.add(new THREE.Mesh(geoContorno(m.geometry), matContorno));
       const q = makeSprite(textTexture('?', { w: 64, h: 64, font: `900 52px ${UI_FONT}`, color: '#fff', stroke: '#000', strokeW: 6 }), 6);
       q.material.depthTest = true; q.scale.set(16, 16, 1);
       m.add(q);
@@ -1011,64 +1059,35 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
    * del personaje y `Detalle` su acento. Si el archivo no está o falla, se monta el kart de cajas
    * de toda la vida: la fiesta nunca se queda sin karts por un modelo.
    */
-  let kartModelo = null;
-  const COLOR_MATERIAL = { Oscuro: '#1a1a24', Metal: '#9aa0b5', Goma: '#14141c' };
-  new GLTFLoader().load('/modelos/kart.glb', (gltf) => {
-    gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-    kartModelo = gltf.scene;
-  }, undefined, (e) => { console.warn('No se ha podido cargar el kart modelado; se usan las cajas', e); });
+  const COLOR_MATERIAL = { Oscuro: '#1a1a24', Metal: '#9aa0b5', Goma: '#14141c', Piel: '#ffe600', Claro: '#fdfbf0' };
+  const modelos = {};          // los .glb ya cargados, por nombre
+  const cargador = new GLTFLoader();
+  function cargarModelo(nombre) {
+    cargador.load(`/modelos/${nombre}.glb`, (gltf) => { modelos[nombre] = gltf.scene; },
+      undefined, (e) => console.warn(`No se ha podido cargar el modelo ${nombre}; se usa el de siempre`, e));
+  }
+  for (const n of ['kart', 'platano', 'caparazon']) cargarModelo(n);
 
   /*
-   * Contorno de dibujo animado: una copia de la malla «hinchada» hacia fuera y pintada por dentro
-   * (`BackSide`), así solo se ve el borde que asoma. El hinchado va por la normal **promediada por
-   * posición**: si se usan las normales de cada cara, las cajas se abren por las esquinas y el
-   * borde sale roto. Cada geometría se hincha una sola vez y se guarda.
+   * Una copia del modelo lista para meter en la escena: materiales `toon` (el del archivo se cambia
+   * por su papel: `Carroceria` lleva `color` y `Detalle` lleva `acento`) y contorno colgado.
    */
-  const CONTORNO_COLOR = '#160b28', CONTORNO_GROSOR = 0.9;
-  const matContorno = new THREE.MeshBasicMaterial({ color: CONTORNO_COLOR, side: THREE.BackSide });
-  const contornos = new WeakMap();
-  function geoContorno(geo) {
-    if (contornos.has(geo)) return contornos.get(geo);
-    const g = geo.clone();
-    const pos = g.attributes.position, nor = g.attributes.normal;
-    const suma = new Map();
-    const clave = (i) => `${Math.round(pos.getX(i) * 50)},${Math.round(pos.getY(i) * 50)},${Math.round(pos.getZ(i) * 50)}`;
-    for (let i = 0; i < pos.count; i++) {
-      const k = clave(i);
-      const v = suma.get(k) || [0, 0, 0];
-      v[0] += nor.getX(i); v[1] += nor.getY(i); v[2] += nor.getZ(i);
-      suma.set(k, v);
-    }
-    for (let i = 0; i < pos.count; i++) {
-      const v = suma.get(clave(i));
-      const l = Math.hypot(v[0], v[1], v[2]) || 1;
-      pos.setXYZ(i, pos.getX(i) + v[0] / l * CONTORNO_GROSOR, pos.getY(i) + v[1] / l * CONTORNO_GROSOR, pos.getZ(i) + v[2] / l * CONTORNO_GROSOR);
-    }
-    pos.needsUpdate = true;
-    contornos.set(geo, g);
-    return g;
-  }
-  // Le cuelga a cada malla su contorno, para que lo siga a todas partes (las ruedas giran)
-  function ponerContorno(raiz, lista) {
-    raiz.traverse((o) => { if (o.isMesh && !o.userData.esContorno) lista.push(o); });
-    for (const o of lista.slice()) {
-      const c = new THREE.Mesh(geoContorno(o.geometry), matContorno);
-      c.userData.esContorno = true;
-      o.add(c);
-    }
+  function copiaDelModelo(nombre, { color, acento, contorno = true } = {}) {
+    const raiz = modelos[nombre].clone(true);
+    raiz.traverse((o) => {
+      if (!o.isMesh) return;
+      const n = (o.material && o.material.name) || '';
+      o.material = toon(n === 'Carroceria' ? (color || '#cccccc') : n === 'Detalle' ? (acento || '#ff2d95') : (COLOR_MATERIAL[n] || '#888899'));
+    });
+    if (contorno) ponerContorno(raiz, []);
+    return raiz;
   }
 
   // Un kart clonado del modelo, ya pintado con los colores del personaje
   function kartDelModelo(ch) {
-    const raiz = kartModelo.clone(true);
+    const raiz = copiaDelModelo('kart', { color: ch.color, acento: ch.accent, contorno: false });
     const ruedas = [];
-    raiz.traverse((o) => {
-      if (o.isMesh) {
-        const nombre = (o.material && o.material.name) || '';
-        o.material = toon(nombre === 'Carroceria' ? ch.color : nombre === 'Detalle' ? ch.accent : (COLOR_MATERIAL[nombre] || '#888899'));
-      }
-      if (/^Rueda/.test(o.name)) ruedas.push({ obj: o, front: o.name.startsWith('RuedaD') });
-    });
+    raiz.traverse((o) => { if (/^Rueda/.test(o.name)) ruedas.push({ obj: o, front: o.name.startsWith('RuedaD') }); });
     return { raiz, ruedas };
   }
 
@@ -1077,7 +1096,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const g = new THREE.Group();
     const body = new THREE.Group();
     g.add(body);
-    if (kartModelo) return makeKartModelado(k, ch, g, body);
+    if (modelos.kart) return makeKartModelado(k, ch, g, body);
     const chassis = new THREE.Mesh(new THREE.BoxGeometry(36, 10, 22), toon(ch.color)); chassis.position.y = 9; body.add(chassis);
     const hood = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 14), toon(shade(ch.color, -0.14))); hood.position.set(-4, 17, 0); body.add(hood);
     const nose = new THREE.Mesh(new THREE.ConeGeometry(8, 14, 10), toon(ch.accent)); nose.rotation.z = -Math.PI / 2; nose.position.set(23, 9, 0); body.add(nose);
@@ -1242,6 +1261,11 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   // ===================== Mallas de objetos =====================
   function shellMesh(type) {
     const g = new THREE.Group();
+    if (modelos.caparazon) {
+      g.add(copiaDelModelo('caparazon', { acento: type === 'red' ? '#ff3d3d' : '#39ff88' }));
+      scene.add(g);
+      return g;
+    }
     const s = new THREE.Mesh(new THREE.SphereGeometry(10, 14, 10), toon(type === 'red' ? '#ff3d3d' : '#39ff88'));
     const rim = new THREE.Mesh(new THREE.TorusGeometry(9.5, 2.4, 8, 20), toon('#ffffff'));
     rim.rotation.x = Math.PI / 2;
@@ -1252,10 +1276,21 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     return g;
   }
   function bananaMesh() {
+    if (modelos.platano) {
+      const g = new THREE.Group();
+      g.add(copiaDelModelo('platano'));
+      g.rotation.y = Math.random() * 6;
+      scene.add(g);
+      return g;
+    }
+    // el de siempre (por si falta el modelo), envuelto en un grupo para que gire igual: sobre sí mismo
+    const g = new THREE.Group();
     const m = new THREE.Mesh(new THREE.TorusGeometry(8, 3.2, 8, 12, Math.PI * 0.9), toon('#ffe600'));
-    m.rotation.set(Math.PI / 2, 0, Math.random() * 6);
-    scene.add(m);
-    return m;
+    m.rotation.set(Math.PI / 2, 0, 0);
+    g.add(m);
+    g.rotation.y = Math.random() * 6;
+    scene.add(g);
+    return g;
   }
 
   // ===================== Cámara =====================
@@ -1505,7 +1540,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     }
     // proyectiles y plátanos
     for (const p of state.projectiles) { if (p.view) { p.view.position.set(p.x, p.z, p.y); p.view.rotation.y += dt * 14; } }
-    for (const b of state.bananas) { if (!b.view) continue; if (b.z == null) b.z = state.track.groundAt(b.x, b.y) + 4; b.view.position.set(b.x, b.z, b.y); b.view.rotation.z += dt * 2; }
+    for (const b of state.bananas) { if (!b.view) continue; if (b.z == null) b.z = state.track.groundAt(b.x, b.y) + 4; b.view.position.set(b.x, b.z, b.y); b.view.rotation.y += dt * 2; }
     // karts
     for (const k of state.karts) {
       const M = k.view; if (!M) continue;

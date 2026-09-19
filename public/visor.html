@@ -43,7 +43,7 @@ const sol = new THREE.DirectionalLight(0xffffff, 2.4); sol.position.set(-700, 13
 const grad = new THREE.DataTexture(new Uint8Array([70, 130, 200, 255]), 4, 1, THREE.RedFormat);
 grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
 const toon = (c) => new THREE.MeshToonMaterial({ color: c, gradientMap: grad });
-const COLORES = { Oscuro: '#1a1a24', Metal: '#9aa0b5', Goma: '#14141c' };
+const COLORES = { Oscuro: '#1a1a24', Metal: '#9aa0b5', Goma: '#14141c', Piel: '#ffe600', Claro: '#fdfbf0' };
 
 const suelo = new THREE.Mesh(new THREE.CircleGeometry(90, 40), new THREE.MeshToonMaterial({ color: '#2a1150', gradientMap: grad }));
 suelo.rotation.x = -Math.PI / 2; scene.add(suelo);
