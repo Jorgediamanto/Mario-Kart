@@ -40,6 +40,7 @@ checkSyntax('tools/check-protocol.js', false);
 checkSyntax('tools/sim-race.js', false);
 checkSyntax('public/screen.js', true);
 checkSyntax('public/sim.mjs', false);   // ya es un módulo: node --check lo entiende tal cual
+checkSyntax('public/layout.mjs', false);
 
 console.log('Circuitos');
 {
@@ -71,6 +72,7 @@ console.log('Servidor');
       ['/qr.svg', 'image/svg+xml', '<svg'],
       ['/screen.js', 'text/javascript', "from 'three'"],
       ['/sim.mjs', 'text/javascript', 'createSim'],
+      ['/layout.mjs', 'text/javascript', 'panelLayout'],
       ['/play.js', 'text/javascript', 'WebSocket'],
       ['/tracks.js', 'text/javascript', 'KART_TRACKS'],
       ['/geom.js', 'text/javascript', 'KART_GEOM'],

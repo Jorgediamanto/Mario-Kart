@@ -7,14 +7,15 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 13:20
+- último latido (UTC): 2026-09-19 13:40
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno
-- hecho: bug del contador de progreso arreglado y probado
-- siguiente paso: «Vista en tercera persona por jugador (pantalla dividida)» (Fase 1) — punto grande,
-  probablemente una sesión entera
+- IDEAS.md: «Vista en tercera persona por jugador (pantalla dividida)» (Fase 1)
+- hecho: `public/layout.mjs` (función pura del reparto de paneles) con su prueba en `check-sim.js`
+  (n = 1..8: dentro de la pantalla, sin solapes, cubriendo el 100 %) y servido por el servidor
+- siguiente paso: en `screen.js`, una cámara por persona detrás de su kart y el bucle de render con
+  `setScissorTest`/`setScissor`/`setViewport`; después el mini-HUD por panel
 - intentos fallidos en este punto: 0
 
 ## Última sesión
