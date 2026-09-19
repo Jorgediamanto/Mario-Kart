@@ -23,6 +23,7 @@ const DISCONNECT_GRACE_MS = 90 * 1000; // tiempo que guardamos el sitio de un m√
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
