@@ -3,6 +3,37 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 (noche 2) — Regresión de fase: todo junto, y la lista para la fiesta
+
+- **Qué cambió**: `npm test` tiene un escenario nuevo que corre una carrera entera **de verdad** (8
+  karts, 3 vueltas, una persona conducida por el piloto automático a la que se saca al césped a
+  propósito) y exige que se disparen **todos los sistemas a la vez**: saltos, paneles de turbo,
+  cajas, objetos usados, golpes, rescate, turbo de derrape y el registro de objetos por posición. Si
+  algo se desconecta al tocar otra cosa, esto se pone rojo aunque los escenarios sueltos pasen.
+  También se apunta `stats.driftBoosts` (cuántos turbos de derrape de cada nivel).
+
+### Lista de comprobación para la próxima fiesta
+
+Lo que ninguna prueba puede mirar. Con el juego abierto y dos o tres móviles:
+
+1. **Mando**: los cuatro botones se pulsan bien con los pulgares, en horizontal y en vertical.
+   Girando con los dos a la vez se va marcha atrás (los botones se ponen rojos).
+2. **Derrape**: aguantar el giro en una curva larga enciende el botón (azul ★ → naranja ★★ → rosa
+   ★★★) con una vibración en cada escalón, y al soltar el kart sale disparado. ¿Se llega al ★★★
+   alguna vez? ¿Apetece derrapar o estorba?
+3. **Pantalla dividida**: cada persona se reconoce en su panel a la primera. Con 4 paneles, pulsa
+   `P` en el ordenador: ¿60 fps? Con 8, ¿al menos 30? ¿Marea la cámara en las curvas cerradas?
+4. **Avisos**: ¿da tiempo a reaccionar a los arcos de las rampas y los paneles de turbo?
+5. **Rescate**: sal del circuito a propósito y quédate quieto: a los 3 s te recogen. ¿Se entiende lo
+   que ha pasado? ¿La espera es larga?
+6. **Objetos**: ¿alguien se queja de que le pegan sin parar? ¿El primero se siente robado? ¿El
+   último remonta? Si el rayo se nota poco, está limitado a uno por kart cada 30 s a propósito.
+7. **Sonido**: haz clic una vez en la pantalla al empezar; comprueba que se oyen turbos, golpes y
+   los escalones del derrape.
+8. **Final**: los resultados se leen desde el sofá y «Otra carrera» funciona a la primera.
+
+Lo que salga de aquí, a `IDEAS.md`: son los datos que el agente nocturno no puede medir solo.
+
 ## 2026-09-19 (noche 2) — Los objetos, medidos y con dos reglas de justicia (Fase 2)
 
 - **Lo primero, los números** (8 carreras de 8 bots, 3 vueltas, medidos antes de tocar nada). Objetos

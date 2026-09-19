@@ -737,6 +737,45 @@ const escenarios = [
     },
   },
   {
+    // Regresión de fase: en una carrera normal tienen que dispararse TODOS los sistemas a la vez
+    // (saltos, paneles, cajas, objetos, golpes, derrape con turbo y rescate), no solo cada uno por
+    // su lado en su escenario. Si algún número se queda a cero, es que algo se ha desconectado.
+    nombre: 'en una carrera normal se disparan todos los sistemas a la vez',
+    run(sim) {
+      const s = sim.createSim({ geom, trackDefs, random: mulberry32(4242) });
+      const entries = [{ playerId: 1, name: 'Persona', char: 0 }];
+      for (let i = 1; i < 8; i++) entries.push({ playerId: null, bot: true, name: 'Bot ' + i, char: i });
+      s.startRace({ entries, trackIndex: 2, laps: 3 });
+      const persona = s.state.karts.find((k) => !k.isBot);
+      let sacadoEn = null;
+      while (s.state.simTime < 210 && s.state.phase !== 'results') {
+        // mientras está tirada en el césped no toca nada, como quien se queda mirando el móvil
+        const quieta = sacadoEn !== null && s.state.simTime - sacadoEn < 3.5;
+        if (!persona.finished) s.setInput(persona, quieta ? { s: 0, g: 0, b: 0, d: 0 } : s.aiInput(persona));
+        // a los 12 s la sacamos al césped a propósito: tiene que venir el rescate
+        if (sacadoEn === null && s.state.simTime > 12) {
+          const t = s.state.track, m = t.samples[t.nearest(persona.x, persona.y).i];
+          persona.x = m.x + m.nx * (t.halfW + 260); persona.y = m.y + m.ny * (t.halfW + 260);
+          persona.speed = 0; sacadoEn = s.state.simTime;
+        }
+        s.update(DT);
+      }
+      const st = s.stats;
+      const fallos = [];
+      if (s.state.phase !== 'results') fallos.push('la carrera no llega a los resultados');
+      if (!persona.finished) fallos.push('la persona no termina');
+      if (st.jumps < 1) fallos.push('nadie salta');
+      if (st.pads < 1) fallos.push('nadie pisa un panel');
+      if (st.pickups < 5) fallos.push(`solo ${st.pickups} cajas cogidas`);
+      if (st.itemsUsed < 5) fallos.push(`solo ${st.itemsUsed} objetos usados`);
+      if (st.hits < 1) fallos.push('ningún golpe');
+      if (st.rescues < 1) fallos.push('el rescate no ha recogido a nadie');
+      if (st.driftBoosts.reduce((a, b) => a + b, 0) < 1) fallos.push('ningún turbo de derrape');
+      if (!Object.keys(st.itemsByPos).length) fallos.push('no se apuntan los objetos por posición');
+      return fallos.length ? fallos.join('; ') : null;
+    },
+  },
+  {
     nombre: 'los hooks avisan de lo que pasa en la carrera',
     run(sim) {
       const vistos = new Set();

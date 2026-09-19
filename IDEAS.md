@@ -299,9 +299,13 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         lo que la peor racha baja de 3 golpes a 2 en 10 s. `stats.itemsByPos` y `kart.hitsTaken`
         nuevos, cinco escenarios en `check-sim.js` y avisos `fx` `zap`/`star` al móvil. Lo que sigue
         sin tocar y quizá pida la fiesta: la velocidad y el homing de los caparazones.
-- [ ] **Regresión de fase.** Repasa que rescate, derrape, paneles, objetos y pantalla dividida siguen
+- [x] **Regresión de fase.** Repasa que rescate, derrape, paneles, objetos y pantalla dividida siguen
       funcionando juntos: simulación + `npm test` + una lista de comprobación manual en `CHANGELOG.md` para la
       próxima fiesta.
+      - **Hecho el 2026-09-19 (noche 2).** Escenario «en una carrera normal se disparan todos los
+        sistemas a la vez» (carrera entera con una persona a la que se saca al césped: exige saltos,
+        paneles, cajas, objetos, golpes, rescate y turbo de derrape en la misma carrera) y lista de
+        ocho comprobaciones para la fiesta en `CHANGELOG.md`.
 
 ## Fase 3 — Intuitivo y simple (que cualquiera juegue a la primera)
 

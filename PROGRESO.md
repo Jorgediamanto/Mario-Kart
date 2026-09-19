@@ -7,12 +7,11 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 16:40
+- último latido (UTC): 2026-09-19 17:05
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: Fase 2, «Afinar las habilidades (objetos)» — terminado; el de los circuitos queda a
-  medias a propósito, esperando decisión del dueño
+- IDEAS.md: Fase 2 terminada salvo los trazados (esperan decisión del dueño)
 - hecho: primer subpaso, el que vale para los cuatro circuitos: arcos de aviso antes de cada rampa
   y de cada panel de turbo, y bordillos altos por fuera de las curvas (todo en mallas instanciadas)
 - siguiente paso: el trazado circuito a circuito (chicanes, curva larga para el nivel 3, atajo con
