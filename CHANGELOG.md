@@ -4,6 +4,30 @@ Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del a
 llevan la fecha en que se hicieron.
 
 <<<<<<< HEAD
+## 2026-09-19 — Con pantalla dividida ya se ve la carretera
+
+- **Qué pasaba**: con varias personas, los nombres flotando sobre los karts tapaban media pantalla.
+  Y no era solo que fueran grandes: los carteles se medían **en píxeles**, con la cámara del primer
+  panel. La escena se dibuja una vez por panel pero el tamaño de un sprite es uno solo, así que un
+  kart que estaba lejos de esa primera cámara y pegado a otra salía con el nombre **gigante** en el
+  panel del vecino. Con ocho personas eran 64 nombres a la vez.
+- **Qué cambió**:
+  - Con pantalla dividida los carteles tienen **tamaño fijo en el mundo**, así que cada panel los
+    ve del tamaño que toca según lo lejos que estén, como cualquier otra cosa de la escena.
+  - **En tu panel no sale tu nombre ni tu objeto** flotando: ya los tienes en el mini-marcador de
+    la esquina y ahí solo te tapaban la carretera que viene.
+  - **Solo las personas llevan nombre encima.** Los bots no: saber cuál de los karts es tu amigo
+    importa, los ocho nombres de los bots no. Y al nombre se le quita el «(bot)».
+  - Los nombres de muy lejos no se dibujan, y el icono del objeto es bastante más pequeño.
+  - **Tu kart se ve más grande**: la cámara va más cerca (210 → 180) y algo más baja, y el campo de
+    visión se cierra un poco (70º → 66º).
+- **Dónde tocarlo**: todos los números están juntos al principio de `public/screen.js`
+  (`ETIQ_MUNDO`, `ICONO_MUNDO`, `CABEZA_MUNDO`, `ETIQ_LEJOS`, `CHASE_DIST`, `CHASE_HFOV`).
+- **Cómo probarlo**: una carrera con dos o más móviles en Arcoíris. Tiene que verse la carretera
+  entera, el castillo y el aro de lejos, y como mucho un nombre pequeño sobre la otra persona.
+  **Pendiente de probar en fiesta**: si con 6-8 personas los nombres siguen siendo legibles a la
+  distancia de un sofá.
+
 ## 2026-09-19 — Circuito Arcoíris, y el volante deja de ser un susto
 
 Dos cosas que el dueño pidió después de probar el volante: que girar no fuera tan brusco y un

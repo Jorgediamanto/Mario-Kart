@@ -279,6 +279,18 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       - **No se pudo hacer el looping** que pedía el dueño: la física es plana con altura (`z`), el
         kart nunca se pone boca abajo y permitirlo sería rehacer el motor. Queda el aro por el que
         se vuela. Si alguna vez se quiere de verdad, es un punto de Fase 8, no un retoque.
+- [x] **Los nombres tapaban la pantalla dividida.** Pedido por el dueño el 2026-09-19: «los nombres
+      de la gente cubren toda la pantalla cuando somos más personas, que sea mucho más pequeño y
+      que nos hagan grandes; que la visibilidad del jugador sea mucho más clara».
+      - **Hecho el 2026-09-19. La trampa, para que no se repita:** `screenScale()` mide los sprites
+        en píxeles usando `camActiva`, que con paneles es **la cámara del primer panel**. Como la
+        escena se dibuja una vez por panel pero el sprite tiene un solo tamaño, un kart lejos de esa
+        cámara y pegado a otra salía enorme en el panel del vecino. Con pantalla dividida los
+        carteles van con **tamaño fijo en unidades del mundo** (`ETIQ_MUNDO`, `ICONO_MUNDO`,
+        `CABEZA_MUNDO`); `screenScale` se queda solo para la cámara general, donde hay una sola.
+      - Además: en tu panel no se dibujan tu nombre ni tu objeto, solo las personas llevan nombre
+        (los bots no), los de muy lejos se esconden (`ETIQ_LEJOS`) y la cámara va más cerca.
+        `carteles()` en `screen.js` decide esto panel a panel, justo antes de cada dibujado.
 - [x] **El volante giraba demasiado.** El dueño: «giras un poquito y se te gira totalmente el
       coche». Tope de 35º → **55º** y respuesta **progresiva** en vez de recta (`CURVA` en
       `public/volante.js`): a mitad de recorrido gira un 27 % en vez de un 50 %. La prueba del

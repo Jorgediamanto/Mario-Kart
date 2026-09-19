@@ -23,15 +23,36 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   // Chispas y brillo del derrape por nivel: 0 = deslizando sin carga, 1 azul, 2 naranja, 3 rosa
   const DRIFT_COLORS = ['#dfe9ff', '#00e5ff', '#ff9f1c', '#ff2d95'];
   // Cámara de tercera persona (una por persona, en su panel). Distancias en unidades del mapa.
-  const CHASE_DIST = 210;        // lo que se queda por detrás del kart
+  const CHASE_DIST = 180;        // lo que se queda por detrás del kart (más cerca = tu kart se ve más grande)
   const CHASE_SPEED_DIST = 90;   // cuánto más se aleja a velocidad máxima (da sensación de rapidez)
-  const CHASE_HEIGHT = 105;      // altura sobre el kart
+  const CHASE_HEIGHT = 95;       // altura sobre el kart
   const CHASE_AHEAD = 230;       // a qué distancia por delante del kart mira
   const CHASE_LAG = 7;           // suavizado del seguimiento (más alto = más pegada, menos suave)
   // Campo de visión: se fija el HORIZONTAL y de ahí sale el vertical según la forma del panel. Si
   // se fijara el vertical, un panel ancho (dos jugadores) saldría con un ojo de pez tremendo y uno
   // estrecho (ocho jugadores) se quedaría sin ver los lados.
-  const CHASE_HFOV = 70;         // grados, campo de visión horizontal de la cámara de persecución
+  /*
+   * Carteles que flotan sobre los karts, en píxeles de pantalla de verdad. Con la pantalla
+   * dividida la escena se dibuja una vez por panel, así que **cada cartel sale tantas veces como
+   * paneles hay**: con ocho personas y ocho karts eran 64 nombres a la vez y no se veía la
+   * carretera. De ahí que sean pequeños y que se escondan los que no aportan (ver `renderPaneles`).
+   */
+  const ETIQ_ALTO = 12;          // alto del nombre flotante, con la cámara general (píxeles)
+  const ETIQ_ANCHO = 4;          // proporción del cartel (la textura es 320x80)
+  const ETIQ_LEJOS = 1500;       // más lejos que esto, el nombre no se dibuja: es solo ruido
+  const ICONO_OBJETO = 19;       // alto del icono del objeto, con la cámara general (píxeles)
+  const CABEZA = 20;             // alto del emoji del piloto, con la cámara general (píxeles)
+  /*
+   * Con pantalla dividida los carteles **no** pueden medirse en píxeles. La escena se dibuja una
+   * vez por panel pero el tamaño de un sprite es uno solo, así que se calculaba con la cámara del
+   * primer panel: un kart lejos de esa cámara y pegado a otra salía con el nombre enorme tapando
+   * el panel entero. Con tamaño fijo en unidades del mundo, cada panel los ve del tamaño que toca
+   * según lo lejos que estén, que además es lo natural en una vista desde detrás.
+   */
+  const ETIQ_MUNDO = 13;         // alto del nombre en unidades del mundo (pantalla dividida)
+  const ICONO_MUNDO = 15;        // ídem para el icono del objeto
+  const CABEZA_MUNDO = 26;       // ídem para el emoji del piloto
+  const CHASE_HFOV = 66;         // grados, campo de visión horizontal de la cámara de persecución
   const CHASE_FOV_MIN = 35, CHASE_FOV_MAX = 75;   // límites del vertical, para no marearse
   const CHASE_FOV_BOOST = 7;     // grados que se abre la cámara en turbo (sensación de velocidad)
 
@@ -1120,6 +1141,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   // atrás y los resultados siguen usando la cámara general, que es la que enseña todo el circuito.
   const chases = new Map();   // kart -> { cam, x, y, z, ang }
   let panelesActivos = [];    // [{ kart, rect }] del frame actual, para el HUD de cada panel
+  let enPaneles = false;      // ¿estamos con pantalla dividida? cambia cómo se miden los carteles
 
   function personasEnCarrera() {
     return state.karts.filter((k) => k.isHuman);
@@ -1175,6 +1197,37 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   function wrapPi(a) { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
 
   // Dibuja la escena una vez por panel, recortando el trozo de lienzo de cada uno
+  /*
+   * Qué carteles se ven en un panel concreto. La escena es una sola y se dibuja una vez por
+   * panel, así que esto se llama justo antes de cada dibujado para encender y apagar sprites.
+   *  - **Tu nombre y tu objeto no se dibujan en tu propio panel**: los tienes en el mini-marcador
+   *    de la esquina y flotando te tapaban justo la carretera que viene.
+   *  - Los nombres de los karts lejanos tampoco: a esa distancia no los vas a leer y solo
+   *    ensucian. El kart se sigue viendo, con su color y su emoji.
+   */
+  const _vCartel = new THREE.Vector3();
+  function carteles(propio, cam) {
+    for (const k of state.karts) {
+      const M = k.view;
+      if (!M) continue;
+      const soyYo = k === propio;
+      const lejos = !soyYo && _vCartel.set(k.x, k.z, k.y).distanceTo(cam.position) > ETIQ_LEJOS;
+      // solo las personas llevan nombre encima: saber cuál de los karts es tu amigo importa,
+      // y los ocho nombres de los bots a la vez no dejaban ver la carretera
+      M.label.visible = k.isHuman && !soyYo && !lejos;
+      M.item.visible = !!M.itemVisible && !soyYo;
+    }
+  }
+  // fuera de la pantalla dividida (sala, resultados, cámara general) se ven todos
+  function cartelesTodos() {
+    for (const k of state.karts) {
+      const M = k.view;
+      if (!M) continue;
+      M.label.visible = true;
+      M.item.visible = !!M.itemVisible;
+    }
+  }
+
   function renderPaneles(dt) {
     const gente = personasEnCarrera();
     const rects = panelLayout(gente.length);
@@ -1188,6 +1241,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       c.cam.aspect = px.w / px.h;
       c.cam.fov = fovVertical(c.cam.aspect) + c.fovExtra;
       c.cam.updateProjectionMatrix();
+      carteles(k, c.cam);
       renderer.setViewport(px.x, px.y, px.w, px.h);
       renderer.setScissor(px.x, px.y, px.w, px.h);
       renderer.render(scene, c.cam);
@@ -1330,17 +1384,26 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       if (boosting && Math.random() < 0.9) particles.emit(k.x - Math.cos(k.angle) * 24, k.z + 7, k.y - Math.sin(k.angle) * 24, { n: 2, color: ['#ff9f1c', '#ffe74c', '#ff2d95'], vx: -Math.cos(k.angle) * 200, vz: -Math.sin(k.angle) * 200, spread: 60, life: 0.35, size: 4, g: 0 });
       if (star && Math.random() < 0.7) particles.emit(k.x, k.z + 12, k.y, { n: 1, color: 'rainbow', spread: 80, vy: 70, life: 0.6, size: 4, g: 0 });
       // etiquetas
-      const labelText = `${k.rank}º ${k.name}`;
-      if (labelText !== M.labelText) { M.labelText = labelText; M.label.material.map = textTexture(labelText, { w: 320, h: 80, font: `900 40px ${UI_FONT}`, color: k.isHuman ? '#fff' : '#d9d9ff', stroke: '#1a0b3d', strokeW: 10 }); M.label.material.needsUpdate = true; }
-      screenScale(M.label, 22, 4);
-      screenScale(M.head, 30, 1);
-      M.head.scale.x = Math.max(M.head.scale.x, 22 * sc); M.head.scale.y = Math.max(M.head.scale.y, 22 * sc);
+      // solo el nombre: la posición ya la canta el mini-marcador de cada panel, y repetida sobre
+      // ocho karts en ocho paneles tapaba la carretera
+      // sin el «(bot)»: el cartel es para saber por quién vas, y ese sufijo solo ocupa sitio
+      const labelText = k.name.replace(' (bot)', '');
+      if (labelText !== M.labelText) { M.labelText = labelText; M.label.material.map = textTexture(labelText, { w: 320, h: 80, font: `900 40px ${UI_FONT}`, color: k.isHuman ? '#fff' : '#cfd3ff', stroke: '#1a0b3d', strokeW: 9 }); M.label.material.needsUpdate = true; }
+      if (enPaneles) {
+        M.label.scale.set(ETIQ_MUNDO * ETIQ_ANCHO, ETIQ_MUNDO, 1);
+        M.head.scale.set(CABEZA_MUNDO * sc, CABEZA_MUNDO * sc, 1);
+      } else {
+        screenScale(M.label, ETIQ_ALTO, ETIQ_ANCHO);
+        screenScale(M.head, CABEZA, 1);
+        M.head.scale.x = Math.max(M.head.scale.x, 22 * sc); M.head.scale.y = Math.max(M.head.scale.y, 22 * sc);
+      }
       let icon = null;
       if (k.rolling) icon = ITEMS[ITEM_IDS[Math.floor(animT * 12) % ITEM_IDS.length]].icon;
       else if (k.item) icon = ITEMS[k.item].icon;
+      M.itemVisible = !!icon;   // lo que tocaría enseñar; cada panel decide si lo tapa (ver `carteles`)
       M.item.visible = !!icon;
       if (icon && icon !== M.itemText) { M.itemText = icon; M.item.material.map = textTexture(icon, { w: 128, h: 128, font: `84px ${EMOJI_FONT}`, bg: 'rgba(255,255,255,0.92)' }); M.item.material.needsUpdate = true; }
-      if (icon) screenScale(M.item, 34, 1);
+      if (icon) { if (enPaneles) M.item.scale.set(ICONO_MUNDO, ICONO_MUNDO, 1); else screenScale(M.item, ICONO_OBJETO, 1); }
     }
     particles.update(dt);
   }
@@ -1543,6 +1606,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       renderer.setPixelRatio(paneles && personasEnCarrera().length > 4 ? 1 : Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(viewW, viewH, false);
     }
+    enPaneles = paneles;
     camActiva = paneles ? (chases.get(personasEnCarrera()[0]) || {}).cam || camera : camera;
     altoActivo = paneles ? viewH / panelLayout(personasEnCarrera().length).length : viewH;
     updateVisuals(dt);
@@ -1551,6 +1615,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       updateCamera(dt);            // la general sigue al día para cuando se vuelva a ella
     } else {
       panelesActivos = [];
+      cartelesTodos();
       updateCamera(dt);
       renderer.render(scene, camera);
     }
