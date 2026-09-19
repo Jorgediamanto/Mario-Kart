@@ -3,6 +3,34 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 (noche 2) — Pantalla dividida: cada uno ve su kart desde atrás (Fase 1)
+
+- **Qué cambió**: durante la carrera, la tele deja de enseñar el circuito entero desde arriba y se
+  reparte en **paneles, uno por persona** (los bots no tienen). En cada panel, la cámara va detrás y
+  un poco por encima de tu kart, mira hacia donde vas, se aleja cuando corres, se abre siete grados
+  y tiembla en los turbos, y te acompaña en los saltos. La sala, la cuenta atrás y los resultados
+  siguen con la cámara general, que enseña la pista entera.
+- **Cómo se reparte**: 1 → completa · 2 → dos anchos, uno encima del otro · 3 → dos arriba y uno
+  ancho abajo · 4 → 2×2 · 5 → tres y dos · 6 → 3×2 · 7 → cuatro y tres · 8 → 4×2. Con número impar,
+  la fila de abajo lleva uno menos y sus paneles salen más anchos: así no queda un cuadro negro.
+- **Marcador**: el marcador grande de arriba desaparece durante la carrera (tapaba los paneles de la
+  fila de arriba) y queda el tiempo en una chapa centrada. Cada panel lleva el suyo: emoji, nombre,
+  posición, vuelta, objeto y avisos («¡TRUCO!», «¡ÚLTIMA VUELTA!», las estrellas del derrape, el
+  rescate). El «¡YA!» de la salida sigue saliendo grande en medio de la tele, para todos.
+- **Cuánto cuesta**: cada panel es **un dibujado completo de la escena**, así que el coste sube casi
+  en proporción al número de paneles; a cambio, cada cámara ve solo un trozo del circuito y three.js
+  se ahorra lo que queda fuera. Con **más de cuatro paneles** se baja la resolución interna a un
+  píxel por píxel (en una pantalla Retina, hasta cuatro veces menos píxeles que dibujar). Esto **no
+  se puede medir sin navegador**, así que hay una tecla nueva: **`P` enseña los fps** y cuántos
+  paneles hay.
+- **Cómo probarlo**: `npm start`, entrar con dos o tres móviles y mirar que cada uno ve su kart desde
+  atrás en su panel, que el nombre y el emoji se leen, y que la cámara no marea en las curvas.
+  **Pendiente de probar en fiesta**: pulsar `P` y comprobar que con 4 paneles se mantienen los 60 fps
+  y con 8 no baja de 30 en el portátil de casa; si baja, lo primero que hay que tocar son las
+  partículas (`particles.emit`) y las sombras de los karts. También está por ver si la cámara (210
+  unidades por detrás, 105 por encima, 70º a lo ancho) queda a buena altura: son las constantes
+  `CHASE_*` al principio de `public/screen.js`.
+
 ## 2026-09-19 (noche 2) — La clasificación deja de mentir tras un vuelo (bug)
 
 - **Qué pasaba**: si un kart aterrizaba muy por delante de donde iba (saliendo disparado de una rampa
