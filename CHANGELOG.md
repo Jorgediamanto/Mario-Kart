@@ -3,6 +3,35 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (tarde) — Los siete de la fiesta, con cara propia y desfile en la sala
+
+- **Siete personajes, siete sitios**: El Loco (rapado y con un cigarro del que sale humo verde),
+  Chuma (turbante y barba), Toro (un toro, con cuernos, morro y anilla), Diamanto (una cabeza de
+  diamante con facetas), Leini (melena rubia y bandera de Texas en el kart), Carlota (rubia con
+  coletas, y su kart es más pequeño que los demás) y Scarlet (melena castaña y bandera de Cataluña).
+  Cada uno con su color de carrocería y su acento. Como hay siete personajes, la sala tiene **siete
+  sitios** y nadie repite kart; el número lo manda `MAX_KARTS` en `public/sim.mjs` y el servidor y
+  las pruebas lo leen de ahí, en vez de llevar el 8 escrito a mano en cinco sitios.
+- **Las cabezas son modelos de verdad** (`tools/blender/personajes.py` → `public/modelos/cabezas.glb`),
+  con el mismo contorno de dibujo animado que el kart, y bien cabezonas a propósito. Si faltara el
+  archivo, vuelve el emoji de siempre y no pasa nada.
+- **Desfile en la sala**: los karts de quien ya ha entrado dan vueltas en la franja de abajo de la
+  tele, cada uno con su cara, su color y su bandera. En cuanto eliges personaje en el móvil, te ves
+  girando en la pantalla. Cuantos menos sois, más grandes se ven. El texto de ayuda se ha movido a
+  la columna del QR para dejarles sitio.
+- De paso, dos arreglos que salieron probando y que valen para cualquier partida:
+  - **con un turbo puesto ahora se puede frenar** (antes el turbo sostenía la velocidad al 85 % del
+    máximo aunque pisaras el freno: un kart que se liaba se quedaba dando vueltas a toda pastilla
+    sin poder encararse, bots incluidos);
+  - **el reloj de «vas al revés» ya no se pone a cero con cada coletazo**, así que a quien da
+    bandazos a contramano se le acaba recogiendo de verdad.
+
+- **Cómo probarlo**: `npm start`, entra con dos o tres móviles y mira la franja de abajo de la tele:
+  cada uno con su personaje dando vueltas. En carrera, fíjate en el humo verde de El Loco, en las
+  banderas de Leini y Scarlet, y en que el kart de Carlota es más pequeño.
+- **Pendiente de probar en fiesta**: si siete sitios se quedan cortos cuando sois ocho (habría que
+  inventar un personaje más), y si las caras se distinguen desde el sofá con la tele a dos metros.
+
 ## 2026-09-20 — Arcoíris con cuestas, saltos de verdad y un pelín más rápido
 
 Todo lo que pidió el dueño después de probarlo:

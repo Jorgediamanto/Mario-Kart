@@ -101,7 +101,10 @@
   #lobby .settings .box { background: rgba(255,255,255,.14); border-radius: 16px; padding: 14px 22px; font-size: 26px; font-weight: 600; }
   #lobby .settings .box b { color: var(--cyan); }
   #lobby #preview { border-radius: 16px; box-shadow: 0 0 0 5px var(--yellow), 0 10px 30px rgba(0,0,0,.5); background: #000; }
-  #lobby .hints { position: absolute; left: 0; right: 0; bottom: 30px; text-align: center; font-size: 22px; color: #ffd6f2; line-height: 1.6; }
+  /* El texto de ayuda se aparta a un lado: la franja de abajo es para los karts, que van dando
+     vueltas como en la pantalla de elegir personaje de toda la vida. */
+  #lobby .hints { margin-top: 14px; font-size: 19px; color: #ffd6f2; line-height: 1.45; }
+  #lobby .teclas { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 17px; color: #c9b7e0; line-height: 1.4; }
   #lobby .hints b { color: #fff; }
   #lobby .hints kbd { background: rgba(255,255,255,.16); border-radius: 6px; padding: 2px 8px; font-family: var(--font); font-size: 20px; color: #fff; border: 1px solid rgba(255,255,255,.3); }
 
@@ -148,6 +151,10 @@
           «la conexión no es privada»: hay que <b>continuar igualmente</b>, es este mismo ordenador.
           <div class="repuesto">Si no te deja o no te apetece, no pasa nada: se juega igual con los botones ◀ ▶.</div></div>
         <div class="sub">Misma WiFi que este ordenador</div>
+        <div class="hints">
+          El anfitrión 👑 elige el circuito y pulsa <b>EMPEZAR</b> en su móvil. Haz clic una vez en esta pantalla para activar el sonido 🔊<br>
+          Mando: <b>el móvil en horizontal es el volante</b> 🎡 · dos botones, <b>GAS</b> y <b>OBJETO</b> · un <b>volantazo en el aire</b> hace un truco ✨
+        </div>
       </div>
       <div class="right">
         <div class="players" id="players"></div>
@@ -160,9 +167,7 @@
           <div class="box" style="font-size:22px;max-width:520px;line-height:1.5">El circuito elegido se ve girando detrás de esta pantalla. Rampas ↗ para saltar, paneles ➤ de turbo y bumpers que rebotan.</div>
         </div>
       </div>
-      <div class="hints">
-        El anfitrión 👑 elige el circuito y pulsa <b>EMPEZAR</b> en su móvil. Haz clic una vez en esta pantalla para activar el sonido 🔊<br>
-        Mando: <b>el móvil en horizontal es el volante</b> 🎡 · solo dos botones, <b>GAS</b> y <b>OBJETO</b> · un <b>volantazo en el aire</b> hace un truco ✨<br>
+      <div class="teclas">
         Teclado: <kbd>Intro</kbd> empezar · <kbd>←</kbd><kbd>→</kbd> circuito · <kbd>L</kbd> vueltas · <kbd>B</kbd>/<kbd>N</kbd> más/menos bots · <kbd>K</kbd> jugar con el teclado · <kbd>F</kbd> pantalla completa · <kbd>P</kbd> ver los fps · <kbd>V</kbd> vaciar la sala
       </div>
     </div>

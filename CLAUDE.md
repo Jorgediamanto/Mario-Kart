@@ -28,9 +28,10 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   `tools/sim-race.js` — `npm run race`: carreras por consola con tabla, registro y histogramas, para
   equilibrar con datos (`npm run race -- --help`). `tools/check-all.js` — comprobación completa
   (`npm test`).
-- `public/modelos/*.glb` — los modelos 3D (kart, plátano, caparazón). **No se editan a mano**: los
+- `public/modelos/*.glb` — los modelos 3D (kart, plátano, caparazón y las **cabezas de los siete
+  personajes**, en `cabezas.glb`: un objeto por personaje, con su nombre sin artículos ni espacios). **No se editan a mano**: los
   genera `tools/blender/*.py` con Blender sin abrir ventana (`blender --background --python
-  tools/blender/kart.py`). Regla de los modelos: los materiales se llaman por su papel, no por su
+  tools/blender/kart.py`, `objetos.py`, `personajes.py`). Regla de los modelos: los materiales se llaman por su papel, no por su
   color — `Carroceria` lleva el color del personaje y `Detalle` su acento; el resto (`Oscuro`,
   `Metal`, `Goma`, `Piel`, `Claro`) los pinta `COLOR_MATERIAL` en `screen.js`. Si un modelo falta,
   la tele monta el kart de cajas de siempre, así que la fiesta nunca se queda sin karts.

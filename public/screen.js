@@ -1068,7 +1068,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     cargador.load(`/modelos/${nombre}.glb`, (gltf) => { modelos[nombre] = gltf.scene; },
       undefined, (e) => console.warn(`No se ha podido cargar el modelo ${nombre}; se usa el de siempre`, e));
   }
-  for (const n of ['kart', 'platano', 'caparazon']) cargarModelo(n);
+  for (const n of ['kart', 'platano', 'caparazon', 'cabezas']) cargarModelo(n);
 
   /*
    * Una copia del modelo lista para meter en la escena: materiales `toon` (el del archivo se cambia
@@ -1079,7 +1079,10 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     raiz.traverse((o) => {
       if (!o.isMesh) return;
       const n = (o.material && o.material.name) || '';
-      o.material = toon(n === 'Carroceria' ? (color || '#cccccc') : n === 'Detalle' ? (acento || '#ff2d95') : (COLOR_MATERIAL[n] || '#888899'));
+      // `Carroceria` y `Detalle` los tiñe el jugador; de los demás se respeta el color que traiga
+      // el modelo (así se pueden añadir piezas nuevas en Blender sin tocar esta lista)
+      const suyo = o.material && o.material.color ? '#' + o.material.color.getHexString() : '#888899';
+      o.material = toon(n === 'Carroceria' ? (color || '#cccccc') : n === 'Detalle' ? (acento || '#ff2d95') : (COLOR_MATERIAL[n] || suyo));
     });
     if (contorno) ponerContorno(raiz, []);
     return raiz;
@@ -1091,6 +1094,160 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const ruedas = [];
     raiz.traverse((o) => { if (/^Rueda/.test(o.name)) ruedas.push({ obj: o, front: o.name.startsWith('RuedaD') }); });
     return { raiz, ruedas };
+  }
+
+  /*
+   * Banderitas del kart. Se pintan aquí con un lienzo (nada de imágenes que descargar: la fiesta
+   * va sin internet) y se cuelgan detrás del alerón, mirando hacia atrás, que es lo que ve cada
+   * jugador de su propio kart.
+   */
+  const banderas = {};
+  function banderaTextura(cual) {
+    if (banderas[cual]) return banderas[cual];
+    const c = document.createElement('canvas');
+    c.width = 192; c.height = 128;
+    const g = c.getContext('2d');
+    if (cual === 'cataluna') {
+      g.fillStyle = '#ffd400'; g.fillRect(0, 0, c.width, c.height);
+      g.fillStyle = '#da121a';
+      for (let i = 0; i < 4; i++) g.fillRect(0, c.height * (0.11 + i * 0.222), c.width, c.height * 0.111);
+    } else {   // texas
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
+      g.fillStyle = '#bf0a30'; g.fillRect(0, c.height / 2, c.width, c.height / 2);
+      g.fillStyle = '#002868'; g.fillRect(0, 0, c.width / 3, c.height);
+      g.fillStyle = '#ffffff';                     // la estrella solitaria
+      g.beginPath();
+      const cx = c.width / 6, cy = c.height / 2, r = 26;
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.42 : r;
+        g[i ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+      }
+      g.closePath(); g.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    banderas[cual] = tex;
+    return tex;
+  }
+
+  /*
+   * Lo que hace que un kart sea de alguien: su cabeza, su banderita y, si es El Loco, de dónde le
+   * sale el humo. Se usa tanto para los karts de la carrera como para los del escaparate de la sala.
+   */
+  function montarPersonaje(ch, body) {
+    // el nombre del objeto dentro de cabezas.glb es el del personaje sin artículo ni espacios
+    const nombreCabeza = ch.name.replace(/^El /, '').replace(/\s+/g, '');
+    let head;
+    if (modelos.cabezas && modelos.cabezas.getObjectByName(nombreCabeza)) {
+      head = copiaDelModelo('cabezas', { contorno: false });
+      for (const hijo of head.children.slice()) if (hijo.name !== nombreCabeza) head.remove(hijo);
+      ponerContorno(head, []);
+      // cabezón a propósito, que es lo que hace graciosos a estos juegos
+      head.position.set(-3, 31, 0);
+      head.scale.setScalar(0.78);
+      head.userData.modelo3D = true;    // no se escala como los carteles: es una malla de verdad
+      body.add(head);
+    } else {
+      head = makeSprite(textTexture(ch.emoji, { w: 128, h: 128, font: `96px ${EMOJI_FONT}` }), 8);
+      head.material.depthTest = true; head.position.set(-2, 31, 0); body.add(head);
+    }
+    // El Loco fuma y le sale humo verde: aquí solo se marca de dónde sale; el humo lo echa el bucle
+    let humo = null;
+    if (ch.name === 'El Loco') {
+      humo = new THREE.Object3D();
+      humo.position.set(6.5, 28, -1.4);   // la punta del cigarro
+      body.add(humo);
+    }
+    // banderita detrás del alerón, mirando hacia atrás (que es lo que ve cada jugador del suyo)
+    if (ch.bandera) {
+      const tela = new THREE.Mesh(new THREE.PlaneGeometry(21, 14),
+        new THREE.MeshBasicMaterial({ map: banderaTextura(ch.bandera), side: THREE.DoubleSide }));
+      tela.position.set(-23, 30, 0);
+      tela.rotation.y = -Math.PI / 2;
+      body.add(tela);
+      const mastil = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 16, 6), toon('#9aa0b5'));
+      mastil.position.set(-23, 24, 0); body.add(mastil);
+    }
+    return { head, humo };
+  }
+
+  /*
+   * Escaparate de la sala: los karts de quien ya ha entrado, en fila delante de la cámara y
+   * **dando vueltas**, como la pantalla de elegir personaje de toda la vida. Cada uno lleva su
+   * cara, su color y su bandera, así que en cuanto eliges te ves en la tele.
+   *
+   * Van colgados de la cámara (no del mundo): así se ven igual de grandes den vueltas o no, y no
+   * hay que buscarles sitio en el circuito. El mundo sigue girando detrás.
+   */
+  const escaparate = new THREE.Group();
+  scene.add(escaparate);
+  const enEscaparate = new Map();          // playerId (o 'kb') -> { char, obj, giro }
+  function kartDeExhibicion(ch) {
+    const g = new THREE.Group();
+    const body = new THREE.Group();
+    g.add(body);
+    if (modelos.kart) {
+      const { raiz } = kartDelModelo(ch);
+      ponerContorno(raiz, []);
+      body.add(raiz);
+    } else {
+      const chasis = new THREE.Mesh(new THREE.BoxGeometry(36, 10, 22), toon(ch.color));
+      chasis.position.y = 9; body.add(chasis);
+    }
+    montarPersonaje(ch, body);
+    if (ch.escala) body.scale.setScalar(ch.escala);
+    return g;
+  }
+  function actualizarEscaparate() {
+    const quienes = [];
+    for (const p of state.players.values()) if (p.connected) quienes.push({ id: 'p' + p.id, char: p.char });
+    if (state.kb) {
+      // el del teclado no elige personaje: en el escaparate se le pone el primero que quede libre
+      const cogidos = new Set(quienes.map((q) => q.char));
+      let c = 0; while (c < CHARS.length - 1 && cogidos.has(c)) c++;
+      quienes.push({ id: 'kb', char: c });
+    }
+    // fuera los que ya no están (o los que han cambiado de personaje)
+    for (const [id, dato] of [...enEscaparate]) {
+      const sigue = quienes.find((q) => q.id === id && q.char === dato.char);
+      if (!sigue) { escaparate.remove(dato.obj); enEscaparate.delete(id); }
+    }
+    for (const q of quienes) {
+      if (enEscaparate.has(q.id)) continue;
+      const obj = kartDeExhibicion(CHARS[q.char] || CHARS[0]);
+      escaparate.add(obj);
+      enEscaparate.set(q.id, { char: q.char, obj, giro: Math.random() * Math.PI * 2 });
+    }
+  }
+  function moverEscaparate(dt) {
+    const visible = state.phase === 'lobby';
+    escaparate.visible = visible;
+    if (!visible || !enEscaparate.size) return;
+    const cam = camActiva || camera;
+    // en fila delante de la cámara y un poco por debajo, para no tapar la sala
+    const lista = [...enEscaparate.values()];
+    // cuantos más karts, más lejos la fila: así caben siempre y con poca gente se ven más grandes
+    const dist = 300 + lista.length * 20;
+    const paso = dist * 0.135, ancho = (lista.length - 1) * paso;
+    const delante = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    const derecha = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    const arriba = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+    // desfilan por la franja de abajo, entre el texto de ayuda y las teclas: es el sitio que la
+    // sala deja libre a propósito, y desde ahí se ven enteros sin tapar el QR ni la lista
+    // y algo a la derecha, que la columna del QR y la ayuda ocupan el lado izquierdo
+    const centro = cam.position.clone()
+      .addScaledVector(delante, dist)
+      .addScaledVector(arriba, -dist * 0.274)
+      .addScaledVector(derecha, dist * 0.251);
+    lista.forEach((d, i) => {
+      d.giro += dt * 0.9;
+      d.obj.position.copy(centro).addScaledVector(derecha, -ancho / 2 + i * paso);
+      d.obj.quaternion.copy(cam.quaternion);
+      d.obj.rotateY(d.giro);
+      d.obj.rotateX(-0.12);
+      const salto = Math.sin(animT * 2.2 + i) * 2.5;
+      d.obj.position.addScaledVector(arriba, salto);
+    });
   }
 
   function makeKartModel(k) {
@@ -1135,7 +1292,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     driftGlow.rotation.x = -Math.PI / 2;
     driftGlow.visible = false;
     kartsGroup.add(g, shadow, driftGlow);
-    k.view = { g, body, wheels, flames, head, glow, label, item, shadow, driftGlow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
+    k.view = { g, body, wheels, flames, head, humo: null, humoT: 0, escala: ch.escala || 1, glow, label, item, shadow, driftGlow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
   }
   /*
    * Mismo kart, pero con el modelo de Blender en vez de cajas. Mantiene **exactamente** las mismas
@@ -1154,21 +1311,27 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       const f2 = new THREE.Mesh(new THREE.ConeGeometry(2.2, 12, 8), flat('#ffe74c')); f2.rotation.z = Math.PI / 2; f2.position.set(-27, 7.5, z); f2.visible = false;
       body.add(f, f2); flames.push(f, f2);
     }
-    const head = makeSprite(textTexture(ch.emoji, { w: 128, h: 128, font: `96px ${EMOJI_FONT}` }), 8);
-    head.material.depthTest = true; head.position.set(-2, 31, 0); body.add(head);
+    /*
+     * La cabeza. Si está el modelo de cabezas, va la del personaje (con su pelo, su turbante o sus
+     * cuernos); si no, el emoji de siempre en un cartelito. El nombre del objeto dentro del .glb es
+     * el del personaje sin espacios ni artículos: «El Loco» → `Loco`.
+     */
+    const { head, humo } = montarPersonaje(ch, body);
     const glow = new THREE.Mesh(new THREE.SphereGeometry(30, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35 }));
     glow.position.y = 12; glow.visible = false; g.add(glow);
     const label = makeSprite(textTexture(k.name, { w: 320, h: 80, font: `900 40px ${UI_FONT}`, color: '#fff', stroke: '#1a0b3d', strokeW: 10 }), 20);
     label.position.set(0, 54, 0); g.add(label);
     const item = makeSprite(textTexture('?', { w: 128, h: 128, font: `84px ${EMOJI_FONT}`, bg: 'rgba(255,255,255,0.9)' }), 21);
     item.position.set(0, 82, 0); item.visible = false; g.add(item);
-    const shadow = new THREE.Mesh(new THREE.CircleGeometry(23, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
+    // Carlota es más pequeña que los demás: su kart, también
+
+    const shadow = new THREE.Mesh(new THREE.CircleGeometry(23 * (ch.escala || 1), 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2;
     const driftGlow = new THREE.Mesh(new THREE.CircleGeometry(30, 20), new THREE.MeshBasicMaterial({ color: '#00e5ff', transparent: true, opacity: 0, depthWrite: false }));
     driftGlow.rotation.x = -Math.PI / 2;
     driftGlow.visible = false;
     kartsGroup.add(g, shadow, driftGlow);
-    k.view = { g, body, wheels, flames, head, glow, label, item, shadow, driftGlow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
+    k.view = { g, body, wheels, flames, head, humo, humoT: 0, escala: ch.escala || 1, glow, label, item, shadow, driftGlow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
   }
 
   function removeKartModel(k) {
@@ -1421,9 +1584,11 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       // el tamaño, con la cámara y el alto de ESTE panel: así sale igual de pequeño en todos
       if (M.label.visible) screenScale(M.label, ETIQ_ALTO, ETIQ_ANCHO, cam, altoPx);
       if (M.item.visible) screenScale(M.item, ICONO_OBJETO, 1, cam, altoPx);
-      screenScale(M.head, CABEZA, 1, cam, altoPx);
-      const sc = M.g.scale.x;
-      M.head.scale.x = Math.max(M.head.scale.x, 22 * sc); M.head.scale.y = Math.max(M.head.scale.y, 22 * sc);
+      if (!M.head.userData.modelo3D) {
+        screenScale(M.head, CABEZA, 1, cam, altoPx);
+        const sc = M.g.scale.x;
+        M.head.scale.x = Math.max(M.head.scale.x, 22 * sc); M.head.scale.y = Math.max(M.head.scale.y, 22 * sc);
+      }
     }
   }
   // fuera de la pantalla dividida (sala, resultados, cámara general) se ven todos
@@ -1516,6 +1681,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
 
   // ===================== Visual por frame =====================
   const _hsl = new THREE.Color();
+  const _vHumo = new THREE.Vector3();
   function updateVisuals(dt) {
     animT += dt;
     const now = state.simTime;
@@ -1567,7 +1733,18 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       M.roll.step(rollT, dt); M.pitch.step(pitchT, dt); M.sq.step(0, dt); M.st.step(0, dt);
       const sq = clamp(M.sq.v, -0.6, 0.6), st = clamp(M.st.v, -0.5, 0.8);
       M.body.rotation.set(M.roll.v, 0, M.pitch.v + (k.trick ? k.trickAngle : 0));
-      M.body.scale.set(1 - 0.5 * sq + st, 1 + sq - 0.4 * st, 1 - 0.5 * sq);
+      // el achuchón de los golpes y los saltos, por el tamaño del personaje (Carlota es pequeñaja)
+      const e = M.escala;
+      M.body.scale.set((1 - 0.5 * sq + st) * e, (1 + sq - 0.4 * st) * e, (1 - 0.5 * sq) * e);
+      // El Loco va fumando: humo verde saliendo del cigarro mientras corre
+      if (M.humo) {
+        M.humoT += dt;
+        if (M.humoT > 0.13) {
+          M.humoT = 0;
+          M.humo.getWorldPosition(_vHumo);
+          particles.emit(_vHumo.x, _vHumo.y, _vHumo.z, { n: 1, color: ['#39ff88', '#8dffc0'], spread: 26, vy: 46, life: 1.1, size: 3.5, g: -20 });
+        }
+      }
       for (const w of M.wheels) { w.roll.rotation.z -= k.speed * dt / 6; if (w.front) w.steer.rotation.y = -s * 0.45; }
       for (let i = 0; i < M.flames.length; i++) { const f = M.flames[i]; f.visible = boosting; if (boosting) f.scale.set(0.8 + Math.random() * 0.6, 1, 1); }
       M.glow.visible = star;
@@ -1608,8 +1785,10 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       // cámara se va a dibujar cada uno
       if (!enPaneles) {
         screenScale(M.label, ETIQ_ALTO, ETIQ_ANCHO);
-        screenScale(M.head, CABEZA, 1);
-        M.head.scale.x = Math.max(M.head.scale.x, 22 * sc); M.head.scale.y = Math.max(M.head.scale.y, 22 * sc);
+        if (!M.head.userData.modelo3D) {
+          screenScale(M.head, CABEZA, 1);
+          M.head.scale.x = Math.max(M.head.scale.x, 22 * sc); M.head.scale.y = Math.max(M.head.scale.y, 22 * sc);
+        }
       }
       let icon = null;
       if (k.rolling) icon = ITEMS[ITEM_IDS[Math.floor(animT * 12) % ITEM_IDS.length]].icon;
@@ -1672,6 +1851,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   }
 
   function renderLobby() {
+    actualizarEscaparate();     // los karts que dan vueltas delante de la cámara
     $('url').textContent = state.joinUrl || `http://${location.host}/play`;
     $('aviso-https').classList.toggle('hidden', !state.joinUrlVolante);
     $('url-volante').textContent = state.joinUrlVolante;
@@ -1832,6 +2012,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     camActiva = paneles ? (chases.get(personasEnCarrera()[0]) || {}).cam || camera : camera;
     altoActivo = paneles ? viewH / panelLayout(personasEnCarrera().length).length : viewH;
     updateVisuals(dt);
+    moverEscaparate(dt);
     if (paneles) {
       renderPaneles(dt);
       updateCamera(dt);            // la general sigue al día para cuando se vuelva a ella

@@ -52,10 +52,16 @@ cambió y lo que queda:
    la vuelta. De rebote: tope al rebote de aterrizaje, el bot ya no se queda marcha atrás, y a
    quien corre al revés o vaga fuera de la pista se le recoge. El trazado se regenera con
    `node tools/traza-arcoiris.js`.
-5. **Lo siguiente que pidió, por orden**: seguir haciendo el juego más fácil sin quitar gracia, y
+5. **Tercera tanda del 2026-09-20**: **siete personajes** con nombre y cara propia (El Loco, Chuma,
+   Toro, Diamanto, Leini, Carlota, Scarlet), cabezas modeladas en `tools/blender/personajes.py`,
+   humo verde para El Loco, banderas de Texas y Cataluña, Carlota más pequeña, y **desfile de karts
+   girando en la sala**. Siete personajes = siete sitios: `MAX_KARTS` manda y el servidor y las
+   pruebas lo leen de ahí. Si algún día hace falta un octavo sitio, hay que inventar un personaje
+   más (el dueño eligió siete a propósito).
+6. **Lo siguiente que pidió, por orden**: seguir haciendo el juego más fácil sin quitar gracia, y
    seguir mejorando los gráficos con el mismo estilo (simple y gracioso). Los otros cuatro
    circuitos siguen con vueltas de 9-12 s y **sin cuestas**: se pueden rehacer igual que Arcoíris,
    con el script y con su propio `relieve`.
-6. **Ojo**: en `CHANGELOG.md` había marcadores de conflicto de git (`<<<<<<<`) commitados en `main`
+7. **Ojo**: en `CHANGELOG.md` había marcadores de conflicto de git (`<<<<<<<`) commitados en `main`
    desde un merge anterior; se quitaron conservando los dos bloques de entradas.
 
