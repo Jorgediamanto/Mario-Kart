@@ -128,10 +128,11 @@ no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa.
 npm test        # sintaxis + validador de circuitos + arranca el servidor y pide cada página
 ```
 
-Un agente de Claude en la nube trabaja en el repositorio cada noche siguiendo `CLAUDE.md`:
-elige el primer punto pendiente de `IDEAS.md` (edítalo para mandar), lo implementa, pasa
-`npm test` y lo sube a `main`; si algo falla, abre un Pull Request en vez de tocar `main`.
-Lo que hizo cada noche queda apuntado en `CHANGELOG.md`.
+Un agente de Claude en la nube trabaja en el repositorio **dos veces cada noche** (02:30 y 05:30)
+siguiendo el protocolo de `CLAUDE.md`: avanza en orden por la hoja de ruta de `IDEAS.md` (edítala
+para mandar), guarda cada paso en una rama `noche/fecha` para no perder nada, y solo fusiona en `main`
+cuando `npm test` y la «Comprobación» del punto están en verde. `PROGRESO.md` es su memoria entre
+sesiones (dónde se quedó, qué falta) y `CHANGELOG.md` el diario de lo que cambió y cómo probarlo.
 
 ## Cómo está hecho
 

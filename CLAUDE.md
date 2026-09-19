@@ -30,8 +30,9 @@ npm ci
 npm test        # sintaxis de todos los archivos + validador de circuitos + arranque real del servidor
 ```
 
-`npm test` tiene que pasar antes de subir nada a `main`. No hay tests de navegador: cuando toques
-`screen.js`, revisa con cuidado que el código sea válido como módulo ES y que no uses APIs de
+`npm test` tiene que pasar antes de subir nada a `main`. No hay tests de navegador (la Fase 0 de
+`IDEAS.md` añade una simulación sin navegador que corre carreras de bots dentro de `npm test`): cuando
+toques `screen.js`, revisa con cuidado que el código sea válido como módulo ES y que no uses APIs de
 three.js que no existan en la versión instalada (`node_modules/three/package.json`).
 
 ## Reglas
@@ -49,14 +50,32 @@ three.js que no existan en la versión instalada (`node_modules/three/package.js
 
 ## Trabajo nocturno automático
 
-Un agente en la nube trabaja en este repo cada noche. Su guion:
+Un agente en la nube (Claude Code, dos sesiones por noche) trabaja en este repo mientras el dueño duerme.
+Nadie revisa hasta la mañana, así que la prioridad es **avanzar todo lo posible sin perder nada y sin romper
+el juego**. La memoria entre sesiones es `PROGRESO.md`; la hoja de ruta, `IDEAS.md`; el diario, `CHANGELOG.md`.
 
-1. Lee `IDEAS.md` (lista priorizada por fases, editada por el dueño) y `CHANGELOG.md`.
-2. Avanza por `IDEAS.md` **en orden**: primero los bugs anotados, luego el primer punto pendiente.
-   Cada punto tiene que quedar terminado y probado antes de pasar al siguiente; mejor dos perfectos
-   que tres a medias. Si un punto no cabe en una noche, deja una parte coherente y anota qué falta.
-3. Por cada punto: implementa, ejecuta `npm test` y corrige hasta que pase.
-4. Si pasa: marca el punto en `IDEAS.md`, añade una entrada fechada en `CHANGELOG.md` (qué cambió,
-   cómo probarlo en la fiesta) y sube a `main` (un commit por punto). Si queda sesión, siguiente punto.
-5. Si no pasa o hay dudas de que el juego siga funcionando: **no toques `main`** con ese punto; sube
-   una rama `noche/AAAA-MM-DD` y abre un Pull Request explicando qué falta.
+1. **Candado.** `git fetch --all --prune`. Lee `PROGRESO.md` de la rama `noche/*` más reciente (o de `main`
+   si no hay ninguna). Si «Sesión en curso» tiene un inicio de hace **menos de 2,5 horas**, otra sesión está
+   trabajando: termina sin tocar nada. Si no, apunta tu inicio (UTC) y tu rama y haz push.
+2. **Retomar.** Si hay un «Punto en curso», sigue por su «siguiente paso» en esa misma rama (rebase sobre
+   `main` si `main` avanzó). Si no, coge el primer punto pendiente de `IDEAS.md` (bugs → Fase 0 → Fase 1 → …)
+   y crea `noche/AAAA-MM-DD` desde `main`.
+3. **Guardar.** Tras cada subpaso coherente, y como máximo cada 20-30 minutos: actualiza `PROGRESO.md`
+   (hecho / siguiente paso) + `git commit` + `git push origin noche/<fecha>`. Solo lo que está en GitHub
+   sobrevive a un corte de sesión.
+4. **Cerrar un punto.** Solo con `npm ci && npm test` en verde y la «Comprobación» del punto cumplida:
+   marca `[x]` en `IDEAS.md`, entrada fechada en `CHANGELOG.md` (qué cambió, cómo probarlo en la fiesta,
+   «pendiente de probar en fiesta» si aplica), `PROGRESO.md` sin punto en curso, `git checkout main &&
+   git pull --ff-only && git merge --no-ff noche/<fecha>`, `npm test` otra vez en `main`, `git push origin
+   main`. Nunca `push --force`, nunca reescribas `main`.
+5. **Seguir.** Mientras quede capacidad, vuelve al paso 2 con el siguiente punto (misma rama de la noche).
+   Trabaja hasta que el contexto esté casi agotado; no pares tras un solo punto. Mejor dos puntos perfectos
+   que tres a medias.
+6. **Si `npm test` no pasa** al cerrar y no lo consigues arreglar: no fusiones. Deja la rama subida, anota el
+   bloqueo en `PROGRESO.md` y suma 1 a «intentos fallidos». Con **2 sesiones fallidas** en el mismo punto,
+   abre un Pull Request con lo que hay, márcalo en `IDEAS.md` como «⏸ pendiente de revisión humana» y pasa
+   al siguiente punto.
+7. **Relevo.** Cuando quede poco contexto o acabes: push final, vacía «Sesión en curso», rellena «Última
+   sesión» y «Notas para la siguiente sesión». Termina con un resumen breve en español: qué hiciste, dónde te
+   quedaste y cómo probarlo.
+8. Nunca subas `node_modules` ni secretos; no toques archivos ajenos al punto; sin dependencias pesadas.

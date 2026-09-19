@@ -1,90 +1,286 @@
-# Ideas y bugs para Kart Party
+# Hoja de ruta de Kart Party
 
-El agente nocturno trabaja esta lista **en orden**: cada noche coge el primer punto pendiente,
-lo termina completo y probado, hace commit, y si le queda sesión sigue con el siguiente. Los bugs
-van siempre primero. Edita este archivo para mandar: reordena, añade, tacha. Marca con `[x]` lo hecho.
+El agente nocturno trabaja esta lista **en orden**: bugs primero, luego Fase 0, Fase 1, … Cada punto se
+termina completo (con su «Comprobación» cumplida y `npm test` en verde) antes de pasar al siguiente. Marca
+con `[x]` lo hecho. Edita este archivo para mandar: reordena, añade, tacha. Si un punto es demasiado grande
+para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la noche siguiente.
+
+## Principios (no se negocian)
+
+- **Simple**: el móvil tiene 4 botones y nada que configurar durante la carrera. Si una idea necesita un botón
+  más, no vale.
+- **Intuitivo**: todo lo que pasa se ve en la tele y se siente en el móvil (vibración, color, texto grande).
+  Nadie debería preguntar «¿qué ha pasado?».
+- **Divertido y justo**: físicas exageradas pero controlables; el último remonta, el primero suda; nunca
+  rachas de golpes que dejen a alguien sin jugar.
+- **Verificable a ciegas**: el agente no ve el juego. Cada punto trae una «Comprobación» que `npm test` u otra
+  prueba automática debe cumplir. Lo que solo se puede juzgar jugando se marca en `CHANGELOG.md` como
+  «pendiente de probar en fiesta» con instrucciones de qué mirar.
+- **Español**, **60 fps en un portátil normal**, **sin internet en la fiesta** (nada de CDNs ni recursos externos),
+  sin dependencias nuevas salvo que sean imprescindibles y ligeras.
 
 ## Bugs conocidos
 
 - [ ] (ninguno anotado; si ves uno, escríbelo aquí con cómo reproducirlo)
 
-## Fase 1 — cambios pedidos por el dueño (hacer en este orden)
+## Fase 0 — Cimientos: que el agente pueda comprobar su trabajo
 
-- [ ] **Mando de móvil con solo 4 botones grandes.** Los botones de girar de ahora son demasiado
-      pequeños. Nuevo `play.html`/`play.js`: la mitad izquierda de la pantalla son dos botones
-      enormes ◀ ▶ (cada uno la mitad del ancho de esa zona y toda la altura); la mitad derecha son
-      dos botones: arriba **OBJETO** (usar la habilidad; muestra el icono del objeto o «—») y
-      abajo **GAS**, más grande que el de objeto. Nada más: sin FRENO ni DERRAPE. Tiene que
-      funcionar en vertical y en horizontal, con multitáctil (girar mientras se acelera), sin zoom
-      ni scroll accidental. Detalles necesarios para que no falte nada:
+- [ ] **Simulación sin navegador (el «crash-test»).** Separar el cerebro del juego del render para que `npm test`
+      corra carreras completas de bots en todos los circuitos.
+      - Qué: crear `public/sim.js` (módulo ES) con `createSim({ tracksDef, geom, hooks, random })` que
+        devuelve `{ state, stats, TRACKS, startRace(entries, trackIndex, laps, opts), update(dt), useItem,
+        aiInput, setInput(kartId, input), … }`. Mover **tal cual** (mismos valores, misma lógica) desde
+        `screen.js`: constantes, `CHARS`, `ITEMS`, `TER`, `buildTrack`, `makeKart` (sin modelo), `startRace`,
+        `showResults`/`backToLobby` (parte de estado), `aiInput`, `stepKart`, `land`, `updateProgress`,
+        `finishKart`, `setVel`, `collideKarts`, `rollItem`, `checkBoxes`, `finishRoulettes`, `useItem`,
+        `stepProjectiles`, `checkBananas`, `updateRanking`, `update`, `stats`. Cada costura con efectos pasa a
+        ser un hook opcional: `onSfx(nombre)`, `onParticles(x,y,z,opts)`, `onToast(texto,dur)`,
+        `onStatus(kart)`, `onFx(playerId, kind)`, `onShake(n)`, `onKartCreate(kart)`/`onKartRemove(kart)`,
+        `onProjectileCreate/Remove`, `onBananaCreate/Remove`, `onBig(texto)`, `onFlash()`, `onPhase(fase)`,
+        `onSquash(kart, tipo, fuerza)` (sustituye a `k.model.sq/st.vel`). `random` sustituye a todos los
+        `Math.random` (por defecto `Math.random`; en pruebas `mulberry32(semilla)` para reproducir fallos).
+        `screen.js` importa `./sim.js`, pasa `KART_TRACKS`/`KART_GEOM` a `createSim`, implementa los hooks con
+        three.js/DOM/WebSocket y conserva red, sala, cámara, HUD, audio y render. `window.KART_DEBUG` sigue
+        exponiendo `state`, `stats`, `TRACKS`, `aiInput`, `startRace`, `backToLobby`, `useItem`, `hitKart`.
+      - Qué (pruebas): fase 4 «Carreras de bots» en `tools/check-all.js`: `await import(pathToFileURL(...))`
+        de `public/sim.js` (los UMD `tracks.js`/`geom.js` se cargan con `require`). Por circuito: 8 bots,
+        3 vueltas, `opts.endWhenAllFinish`, bucle de `update(1/60)` con tope de 4 minutos de tiempo simulado,
+        semilla fija.
+      - Por qué: sin esto, cada cambio de físicas, objetos o circuitos se sube a ciegas.
+      - Comprobación: en cada circuito todos los bots terminan las 3 vueltas antes del tope; `lapCount` acaba
+        en 3; ninguna coordenada/velocidad es `NaN`; `stats.pads > 0` y `stats.jumps > 0`; se usan objetos
+        (> 0 llamadas a `useItem` con efecto); ningún kart pasa más de 5 s sin avanzar en `dist`; la fase
+        imprime el tiempo medio de vuelta por circuito; toda la fase tarda < 20 s. `npm test` completo en
+        verde. El juego en navegador no cambia de comportamiento (código movido, no reescrito). Actualizar la
+        frase «No hay tests de navegador» de `CLAUDE.md` y `README.md`, y el aserto de `check-all.js` que
+        busca `from 'three'` en `/screen.js` si deja de cumplirse.
+- [ ] **Prueba de carga de red.** Fase 5 en `tools/check-all.js`: arranca el servidor, conecta un cliente
+      WebSocket «pantalla» y 8 clientes «móvil» (con `ws` en Node), que entran con `hello`, reciben `welcome`
+      y `lobby`, mandan botones `i` 10 veces por segundo durante 3 s y reciben lo que la pantalla les manda
+      (`to`). Comprobación: los 8 entran, el 9.º recibe «sala llena», el anfitrión es el primero, un móvil que
+      se desconecta y vuelve con su token conserva su id, los mensajes `i` llegan a la pantalla con el id
+      correcto, y no hay excepciones en el servidor. Tarda < 10 s.
+
+## Fase 1 — Cambios pedidos por el dueño (hacer en este orden)
+
+- [ ] **Mando de móvil con solo 4 botones grandes.** Los botones de girar de ahora son demasiado pequeños.
+      Nuevo `play.html`/`play.js`: la mitad izquierda de la pantalla son dos botones enormes ◀ ▶ (cada uno la
+      mitad del ancho de esa zona y toda la altura); la mitad derecha son dos botones: arriba **OBJETO** (usar
+      la habilidad; muestra el icono del objeto o «—») y abajo **GAS**, más grande que el de objeto. Nada más:
+      sin FRENO ni DERRAPE. Tiene que funcionar en vertical y en horizontal, con multitáctil (girar mientras se
+      acelera), sin zoom ni scroll accidental.
       - Marcha atrás / freno: pulsar **los dos botones de girar a la vez**. Anúncialo en la sala.
-      - Rescate automático: si un kart está más de 3 s parado, atascado o lejos de la carretera,
-        una animación lo recoloca en el punto más cercano de la pista mirando en el sentido correcto
-        (como Lakitu en Mario Kart), con una pequeña penalización de tiempo.
-      - Truco en el aire: al despegar en una rampa, tocar cualquier botón de girar en el aire hace el
-        truco (turbo al aterrizar). Documéntalo en la pantalla de la sala.
-      - El protocolo de botones (`i`: s,g,b,d) puede seguir igual: el móvil manda `b` cuando se pulsan
-        los dos giros y `d` siempre 0 (el derrape es automático, ver siguiente punto).
+      - Rescate automático: si un kart está más de 3 s parado, atascado o lejos de la carretera, una animación
+        lo recoloca en el punto más cercano de la pista mirando en el sentido correcto (como Lakitu en Mario
+        Kart), con una pequeña penalización de tiempo. Va en `sim.js` (es física) con hook para el efecto.
+      - Truco en el aire: al despegar en una rampa, tocar cualquier botón de girar en el aire hace el truco
+        (turbo al aterrizar). Documéntalo en la pantalla de la sala.
+      - El protocolo de botones (`i`: s,g,b,d) sigue igual: el móvil manda `b` cuando se pulsan los dos giros y
+        `d` siempre 0 (el derrape es automático, siguiente punto).
       - Actualiza README.md y los textos de ayuda de la sala.
-- [ ] **Derrape automático con 3 niveles.** Sin botón de derrape: si el jugador mantiene el giro en
-      la misma dirección más de ~0,35 s a velocidad suficiente (> 55 % de la máxima), el kart entra
-      en derrape solo (deslizamiento y chispas). Mientras siga girando en esa dirección acumula
-      nivel: **nivel 1** a ~0,8 s (chispas azules), **nivel 2** a ~1,6 s (naranjas), **nivel 3** a
-      ~2,6 s (rosas/moradas). Al soltar el giro o cambiar de dirección sale disparado con un turbo
-      proporcional al nivel (por ejemplo 0,6 s / 1,0 s / 1,6 s de turbo, con estirón del kart y
-      sonido creciente). El nivel debe verse en el móvil (texto/color del botón de giro y una
-      vibración corta al subir de nivel: manda un `fx` nuevo) y en la pantalla (color de chispas y un
-      brillo bajo el kart). Los bots usan el mismo sistema. Ajusta los tiempos para que en curvas
-      normales se llegue al nivel 1-2 y solo en horquillas/curvas largas al 3. Quita cualquier resto
-      del derrape manual en pantalla, móvil y README.
-- [ ] **Vista en tercera persona por jugador (pantalla dividida).** En vez de la cámara general del
-      circuito, cada persona ve **su kart desde atrás y un poco arriba**, cámara que sigue al kart
-      con suavidad (mira algo por delante, se aleja un poco con la velocidad, se agita ligeramente en
-      turbos y golpes, y sigue al kart en los saltos). Como todos comparten la tele, la pantalla se
-      divide en paneles: 1 jugador → pantalla completa; 2 → dos paneles (lado a lado o arriba/abajo,
-      el que mejor aproveche el 16:9); 3-4 → 2×2; 5-6 → 3×2; 7-8 → 4×2. Solo las personas tienen
-      panel (los bots no). Cada panel lleva su mini-HUD: nombre y emoji, posición, vuelta, objeto que
-      lleva, y avisos («¡Última vuelta!», «¡Truco!»). La cuenta atrás y el «¡YA!» se ven en todos
-      los paneles. La sala, la cuenta atrás inicial (puede empezar con una vista general y hacer zoom
-      a cada kart) y los resultados pueden seguir usando la cámara general. Implementación: render
-      con `renderer.setScissor`/`setViewport` por panel, una cámara por jugador, HUD HTML posicionado
-      sobre cada panel. Rendimiento: 60 fps con 4 paneles y al menos 30 con 8 en un portátil normal
-      (reduce partículas/decoración por panel si hace falta, y mantén las etiquetas de nombre legibles
-      a esa distancia de cámara). Los karts deben seguir siendo reconocibles desde atrás: refuerza
-      el color y el emoji del piloto. Actualiza README.md.
+      - Comprobación: `GET /play` sirve exactamente 4 elementos `.ctl` (dos con `data-k="left"/"right"`, uno
+        `#btn-item`, uno `data-k="g"`) y ninguno con `data-k="d"`/`data-k="b"`; `play.js` no envía `d=1` nunca;
+        la simulación pasa con el rescate activo (un bot colocado a propósito fuera de pista vuelve a la
+        carretera en < 4 s y termina la carrera); prueba de red intacta.
+- [ ] **Derrape automático con 3 niveles.** Sin botón de derrape: si el jugador mantiene el giro en la misma
+      dirección más de ~0,35 s a velocidad suficiente (> 55 % de la máxima), el kart entra en derrape solo
+      (deslizamiento y chispas). Mientras siga girando en esa dirección acumula nivel: **nivel 1** a ~0,8 s
+      (chispas azules), **nivel 2** a ~1,6 s (naranjas), **nivel 3** a ~2,6 s (rosas/moradas). Al soltar el giro
+      o cambiar de dirección sale disparado con un turbo proporcional al nivel (por ejemplo 0,6 s / 1,0 s /
+      1,6 s de turbo, con estirón del kart y sonido creciente). El nivel debe verse en el móvil (texto/color del
+      botón de giro y una vibración corta al subir de nivel: manda un `fx` nuevo) y en la pantalla (color de
+      chispas y un brillo bajo el kart). Los bots usan el mismo sistema. Ajusta los tiempos para que en curvas
+      normales se llegue al nivel 1-2 y solo en horquillas/curvas largas al 3. Quita cualquier resto del derrape
+      manual en pantalla, móvil y README. Los tiempos y turbos son constantes con nombre al inicio de `sim.js`.
+      - Comprobación: en la simulación, un kart controlado con giro mantenido en una curva larga alcanza nivel
+        ≥ 1 y recibe un turbo al soltar (aserto sobre `boostUntil`); un kart que gira 0,2 s no entra en
+        derrape; los bots siguen terminando todos los circuitos y sus tiempos de vuelta no empeoran más de un
+        10 % respecto a la fase 4 anterior (guarda los tiempos de referencia en `tools/referencia.json`).
+- [ ] **Vista en tercera persona por jugador (pantalla dividida).** En vez de la cámara general del circuito,
+      cada persona ve **su kart desde atrás y un poco arriba**, cámara que sigue al kart con suavidad (mira
+      algo por delante, se aleja un poco con la velocidad, se agita ligeramente en turbos y golpes, y sigue al
+      kart en los saltos). Como todos comparten la tele, la pantalla se divide en paneles: 1 jugador →
+      pantalla completa; 2 → dos paneles (lado a lado o arriba/abajo, el que mejor aproveche el 16:9); 3-4 →
+      2×2; 5-6 → 3×2; 7-8 → 4×2. Solo las personas tienen panel (los bots no). Cada panel lleva su mini-HUD:
+      nombre y emoji, posición, vuelta, objeto que lleva, y avisos («¡Última vuelta!», «¡Truco!»). La cuenta
+      atrás y el «¡YA!» se ven en todos los paneles. La sala, la cuenta atrás inicial (puede empezar con una
+      vista general y hacer zoom a cada kart) y los resultados pueden seguir usando la cámara general.
+      Implementación: `renderer.setScissorTest(true)` + `setScissor`/`setViewport` por panel, una cámara por
+      jugador, HUD HTML posicionado sobre cada panel. Rendimiento: 60 fps con 4 paneles y al menos 30 con 8
+      en un portátil normal (reduce partículas/decoración por panel si hace falta, y mantén las etiquetas de
+      nombre legibles a esa distancia de cámara). Los karts deben seguir siendo reconocibles desde atrás:
+      refuerza el color y el emoji del piloto. Actualiza README.md.
+      - Comprobación: `screen.js` contiene `setScissor` y `setViewport` y una función de disposición de
+        paneles con una prueba unitaria en `tools/check-all.js` (para n = 1..8 devuelve rectángulos que no se
+        solapan, cubren la pantalla y respetan la tabla de arriba); la simulación no cambia (fase 4 idéntica);
+        anota en CHANGELOG el coste estimado de render por panel y márcalo «pendiente de probar en fiesta».
 
-## Fase 2 — iterar sobre la versión final (cuando la fase 1 esté completa)
+## Fase 2 — Iterar sobre la versión final
 
-- [ ] **Mejorar los circuitos para la vista en tercera persona.** Ahora se juega viendo desde
-      detrás: las rampas, paneles turbo, cajas y bumpers deben verse venir con antelación (carteles,
-      arcos, luces); las curvas deben tener referencias visuales (bordillos altos, decoración en el
-      exterior) y ninguna curva ciega peligrosa. Añade variedad: chicanes, curvas largas para derrapar
-      al nivel 3, algún atajo con riesgo (más corto pero estrecho o con salto exigente). Revisa la
-      anchura de la carretera (quizá algo más ancha) y valida todo con `npm run check`. Hazlo circuito
-      a circuito, con una entrada en CHANGELOG por cada uno.
-- [ ] **Afinar las habilidades (objetos).** Con la nueva vista y el derrape automático, equilibra:
-      duración y potencia de turbo/estrella/rayo, velocidad y homing de los caparazones, distancia de
-      lanzamiento, probabilidades por posición (el último debe remontar pero el primero no debe sentirse
-      injusto) y feedback en pantalla y móvil (vibración, flash, sonido) de cada objeto. Que funcione
-      igual de bien con 2 y con 8 corredores. Anota en CHANGELOG los valores antes/después y el porqué.
-- [ ] Tras cada iteración, jugar mentalmente una carrera completa con 4 personas y revisar que
-      nada de lo anterior (rescate, derrape, paneles, objetos) se haya roto.
+- [ ] **Mejorar los circuitos para la vista en tercera persona.** Ahora se juega viendo desde detrás: las
+      rampas, paneles turbo, cajas y bumpers deben verse venir con antelación (carteles, arcos, luces); las
+      curvas deben tener referencias visuales (bordillos altos, decoración en el exterior) y ninguna curva ciega
+      peligrosa. Añade variedad: chicanes, curvas largas para derrapar al nivel 3, algún atajo con riesgo (más
+      corto pero estrecho o con salto exigente). Revisa la anchura de la carretera (quizá algo más ancha) y
+      valida todo con `npm run check`. Hazlo circuito a circuito, con una entrada en CHANGELOG por cada uno.
+      - Comprobación: `npm run check` en verde; en la simulación todos los bots terminan cada circuito y el
+        tiempo medio de vuelta queda entre 25 y 60 s; los atajos se validan con un bot que los toma
+        (variante de `aiInput` con carril alternativo) y llega antes que uno que no.
+- [ ] **Afinar las habilidades (objetos).** Con la nueva vista y el derrape automático, equilibra: duración y
+      potencia de turbo/estrella/rayo, velocidad y homing de los caparazones, distancia de lanzamiento,
+      probabilidades por posición (el último debe remontar pero el primero no debe sentirse injusto) y feedback
+      en pantalla y móvil (vibración, flash, sonido) de cada objeto. Que funcione igual de bien con 2 y con 8
+      corredores. Anota en CHANGELOG los valores antes/después y el porqué.
+      - Comprobación: la simulación registra por carrera cuántos objetos de cada tipo salen por posición y
+        cuántos golpes recibe cada kart; asertos: el líder nunca recibe rayo dos veces en 30 s, nadie
+        acumula más de 3 golpes en 10 s (inmunidad), el reparto por posición sigue las probabilidades
+        declaradas (±10 %), y en 8 carreras simuladas de 8 bots el último de la parrilla termina alguna vez
+        en el podio.
+- [ ] **Regresión de fase.** Repasa que rescate, derrape, paneles, objetos y pantalla dividida siguen
+      funcionando juntos: simulación + `npm test` + una lista de comprobación manual en `CHANGELOG.md` para la
+      próxima fiesta.
 
-## Fase 3 — más ideas (por orden de prioridad)
+## Fase 3 — Intuitivo y simple (que cualquiera juegue a la primera)
 
-- [ ] Música de fondo sintetizada (WebAudio) con un tema alegre en la sala y otro más rápido en
-      carrera, con botón/tecla para silenciar. Nada de archivos externos.
-- [ ] Sonido de motor por kart (pitch según velocidad) que suene bien con 8 karts sin saturar.
-- [ ] Un quinto circuito con cruce a distinto nivel (puente) o un túnel; validar con `npm run check`.
-- [ ] Selección de kart en el móvil: 3 tipos (ligero: acelera más pero le empujan; medio; pesado:
-      más velocidad punta y empuja más) que cambien de verdad las físicas.
-- [ ] Control por inclinación del móvil (giroscopio) como opción, además de los botones.
-- [ ] Objeto nuevo: «bomba» que se lanza y explota al cabo de 2 s empujando a los karts cercanos.
-- [ ] Repetición de los últimos 5 segundos de la llegada del ganador (cámara cinematográfica) en
-      la pantalla de resultados.
-- [ ] Modo torneo: 3 carreras seguidas con puntuación acumulada y podio final.
-- [ ] Mejorar los bots: que usen los paneles turbo a propósito, que esquiven plátanos y que sea
-      configurable su dificultad (fácil/normal/difícil) desde el móvil del anfitrión.
-- [ ] Efecto de «rubber banding» suave para que los rezagados no se descuelguen (solo bots).
-- [ ] Estadísticas de fin de carrera: mejor vuelta, más saltos, más golpes recibidos, etc.
-- [ ] Accesibilidad: colores de los karts también distinguibles por forma/icono para daltónicos.
+- [ ] **Modo fácil por jugador.** Un interruptor en la sala del móvil («Modo fácil»): el kart acelera solo
+      (GAS pasa a ser turbo suave opcional) y una asistencia de dirección leve lo atrae hacia el centro de la
+      carretera. Se recuerda en el móvil. Comprobación: en la simulación un kart con «modo fácil» y sin
+      entradas termina la carrera solo (más lento que un bot); el mensaje `hello` lleva el flag y la pantalla lo
+      muestra en la sala.
+- [ ] **Aviso «¡Vas al revés!».** Si un kart avanza en sentido contrario más de 1,5 s: cartel en su panel,
+      flecha grande hacia la dirección correcta y vibración larga en el móvil. Comprobación: simulación con un
+      kart forzado al revés dispara el hook `onWrongWay` y deja de dispararlo al girar.
+- [ ] **Salida perfecta.** Pulsar GAS justo en el «¡YA!» (ventana de 0,4 s) da un turbo de salida; pulsarlo
+      demasiado pronto hace patinar 0,8 s. Cuenta atrás con vibración en cada número. Comprobación: simulación
+      con entradas programadas: GAS en la ventana → turbo; GAS 1 s antes → patinazo.
+- [ ] **Calentamiento en la sala.** Mientras el anfitrión no pulsa EMPEZAR, los karts ya están en la pista
+      (zona de pruebas junto a la meta) y se pueden conducir para aprender los botones. Comprobación: la
+      simulación admite fase «calentamiento» sin vueltas ni objetos; al empezar la carrera todos vuelven a la
+      parrilla.
+- [ ] **Ayuda la primera vez.** En el móvil, una sola pantalla con dibujos de los 4 botones y qué hacen (giro
+      mantenido = derrape; dos giros = marcha atrás; giro en el aire = truco). Se muestra una vez y hay un botón
+      «?» para volver a verla. Comprobación: `GET /play` contiene la ayuda y `play.js` guarda el flag en
+      `localStorage`.
+- [ ] **Móvil legible de un vistazo.** Posición y vuelta enormes en la barra de estado, fondo del móvil que
+      cambia de color con el nivel de derrape y con el turbo, borde rojo mientras estás girando/golpeado.
+      Comprobación: `play.js` reacciona a los campos de `st` y `fx` con clases CSS (prueba estática).
+
+## Fase 4 — Sensación de juego
+
+- [ ] **Cámara con carácter.** FOV que se abre con el turbo, sacudida corta en golpes y aterrizajes fuertes,
+      pequeño «hit-stop» (20-40 ms) en choques, la cámara mira más lejos a más velocidad. Comprobación:
+      parámetros como constantes; simulación intacta; «pendiente de probar en fiesta».
+- [ ] **Estelas y marcas.** Estelas de velocidad en turbo, marcas de neumático en derrape (decal que se
+      desvanece), humo al aterrizar. Presupuesto: sin bajar de 60 fps con 4 paneles. Comprobación: partículas
+      con tope máximo por panel (constante) y sin fugas (contador de instancias vivas acotado en una prueba de
+      la simulación con hook de partículas).
+- [ ] **Sonido de motor por kart.** Oscilador por kart con tono según velocidad y turbo, mezclado sin saturar
+      con 8 karts (compresor). Comprobación: código sin errores, tecla `M` silencia todo, volumen global
+      constante; «pendiente de probar en fiesta».
+- [ ] **Música sintetizada.** Tema alegre en la sala, tema rápido en carrera, versión acelerada en la última
+      vuelta y fanfarria de podio; todo generado con WebAudio (sin archivos). Tecla `M` para silenciar.
+      Comprobación: código sin errores; «pendiente de probar en fiesta».
+- [ ] **Callouts.** Carteles breves en el panel del jugador: «¡PRIMERO!», «¡Adelantamiento!», «¡Nivel 3!»,
+      «¡Última vuelta!», «¡Golpe!». Comprobación: hooks de la simulación (`onOvertake`, `onLeader`) con prueba.
+- [ ] **Vibraciones con significado.** Patrones distintos en el móvil para golpe, turbo, subir de nivel de
+      derrape, caja cogida, salida, meta. Comprobación: tabla de patrones en `play.js` y `fx` con `kind` para
+      cada evento.
+
+## Fase 5 — Habilidades
+
+- [ ] **Reequilibrio con datos.** Usa la simulación para medir: golpes por kart, remontadas, tiempo medio con
+      turbo, y ajusta valores. Deja en CHANGELOG una tabla antes/después. Comprobación: asertos de la Fase 2
+      siguen pasando con los nuevos valores.
+- [ ] **Aviso de caparazón rojo entrante.** Icono parpadeante y vibración en el móvil del objetivo desde que se
+      lanza; puede esquivarse saltando en una rampa o cubrirse soltando un plátano justo detrás. Comprobación:
+      hook `onIncoming` en simulación; un kart con plátano detrás bloquea el rojo.
+- [ ] **Nuevos objetos**, uno por commit: **bomba** (se lanza hacia delante, explota a los 2 s y empuja a los
+      karts cercanos con salto), **triple plátano** (tres seguidos), **escudo/burbuja** (bloquea un golpe, 8 s),
+      **imán** (atrae cajas y monedas 6 s), **caparazón azul** (raro, va al líder, con aviso a todos).
+      Comprobación: cada objeto tiene su prueba en la simulación (efecto sobre karts de prueba) y aparece en
+      el reparto por posición donde toca.
+- [ ] **Tope de proyectiles.** Máximo de proyectiles simultáneos en pista para que no sea un caos con 8
+      jugadores. Comprobación: aserto en simulación.
+
+## Fase 6 — Mecánicas
+
+- [ ] **Rebufo.** Ir justo detrás de otro kart 1 s da un empujón de velocidad al salir. Comprobación:
+      simulación con dos karts en línea → el de detrás supera la velocidad máxima brevemente.
+- [ ] **Monedas.** Monedas por la pista (+2 % de velocidad máxima cada una, hasta 10; se pierden 3 al recibir un
+      golpe). Comprobación: simulación cuenta monedas y velocidad máxima resultante.
+- [ ] **Catch-up suave para personas.** Los rezagados (no el líder) reciben objetos algo mejores y un 3-5 %
+      más de velocidad máxima según la distancia al líder. Comprobación: simulación mide la dispersión final
+      con y sin catch-up.
+- [ ] **Trucos con estilo.** Turbo del truco proporcional al tiempo en el aire (mínimo 0,4 s), con nombres en
+      pantalla. Comprobación: prueba en simulación con distintos tiempos de vuelo.
+- [ ] **Atajos con riesgo** en al menos dos circuitos (Fase 2 los define; aquí se pulen con obstáculos).
+
+## Fase 7 — Gráficos
+
+- [ ] **Sombras reales de los karts** si el rendimiento lo permite (mapa de sombras 2048 solo sobre karts;
+      medir con `renderer.info` y dejar un interruptor). Comprobación: código sin errores; «pendiente de probar
+      en fiesta» con instrucciones de comparar fps.
+- [ ] **Agua y lava animadas** (vértices ondulando, brillo emisivo pulsante) y nubes con sombra suave en el
+      suelo. Comprobación: sin errores; presupuesto de triángulos anotado.
+- [ ] **Culling e instancing de la decoración** para la pantalla dividida (misma escena renderizada hasta 8
+      veces). Comprobación: contador de draw calls por frame anotado antes/después en CHANGELOG.
+- [ ] **Calidad adaptativa.** Si los fps caen por debajo de 50 durante 3 s, reduce partículas y decoración; si
+      suben de 58, restaura. Comprobación: lógica como función pura con prueba.
+- [ ] **Karts personalizables.** Color secundario y gorro/accesorio elegidos en el móvil, visibles en el kart.
+      Comprobación: `hello` lleva la elección, la pantalla la muestra en la sala.
+- [ ] **Piloto con vida.** El emoji/cabeza se inclina en curvas, se encoge con el rayo, mira atrás cuando viene
+      un rojo. Comprobación: sin errores; «pendiente de probar en fiesta».
+
+## Fase 8 — Circuitos
+
+- [ ] **5.º circuito «Puente Loco»**: cruce a distinto nivel (puente sobre otra parte de la pista) o túnel.
+      Requiere que la altura de la carretera y la búsqueda de muestra más cercana tengan en cuenta la altura
+      (evitar que la física salte al tramo de abajo). Comprobación: `npm run check` ampliado para cruces; bots
+      terminan.
+- [ ] **6.º circuito «Nieve»** con tramos de hielo (menos agarre, derrape más largo). Comprobación: propiedad de
+      superficie por tramo en `tracks.js`; simulación.
+- [ ] **7.º circuito «Ciudad Neón»** nocturno con luces. Comprobación: `npm run check`; bots terminan.
+- [ ] **Obstáculos móviles**: bola de lava que rueda, olas que barren la playa, barreras giratorias.
+      Comprobación: en simulación, los bots los esquivan o los sufren sin quedarse atascados.
+- [ ] **Variantes inversas** de cada circuito (sentido contrario) como circuitos extra. Comprobación:
+      `check-tracks` sobre las variantes; bots terminan.
+- [ ] **Presentación del circuito**: vuelo de cámara de 4 s con el nombre antes de la cuenta atrás.
+      Comprobación: fase «presentación» en la simulación (sin física) y en pantalla.
+
+## Fase 9 — Modos
+
+- [ ] **Torneo**: 3 carreras seguidas (circuitos al azar o elegidos), puntos por posición, tabla entre
+      carreras y podio final. Comprobación: la simulación encadena 3 carreras y calcula la tabla.
+- [ ] **Batalla de globos**: arena, cada kart con 3 globos, se los explotan con objetos. Comprobación:
+      simulación de batalla termina con un ganador.
+- [ ] **Contrarreloj con fantasma**: un jugador contra su mejor vuelta grabada (guardada en la tele).
+      Comprobación: grabación/reproducción de entradas en la simulación reproduce la misma vuelta.
+- [ ] **Equipos** (2 vs 2, 4 vs 4) con suma de puntos. Comprobación: tabla por equipos en simulación.
+
+## Fase 10 — Fiesta y social
+
+- [ ] **Premios y estadísticas** de fin de carrera: mejor vuelta, más saltos, más golpes dados/recibidos, rey
+      del derrape. Comprobación: la simulación produce las estadísticas.
+- [ ] **Podio animado** con los tres primeros karts y confeti; los demás aplauden. «Pendiente de probar en
+      fiesta».
+- [ ] **Historial de victorias** entre sesiones (guardado en la tele) y racha del campeón. Comprobación:
+      función pura con prueba.
+- [ ] **Revancha por votación**: cualquiera puede pulsar «Revancha» en el móvil; con mayoría, empieza.
+      Comprobación: prueba de red con varios clientes votando.
+- [ ] **QR pequeño durante la carrera** para que los que llegan tarde entren en la siguiente. Comprobación:
+      `GET /` contiene el QR fuera de la sala.
+- [ ] **Emoji libre** y nombre recordado en el móvil. Comprobación: `hello` acepta cualquier emoji válido y el
+      servidor lo valida.
+
+## Fase 11 — Robustez, rendimiento y accesibilidad
+
+- [ ] **Entradas con marca de tiempo y suavizado** para redes lentas (el móvil manda `t`; la pantalla
+      interpola). Comprobación: prueba de red con retardo artificial.
+- [ ] **Consumo del móvil**: menos redibujados, `wakeLock` cuando esté disponible, envío de estado solo si
+      cambia. Comprobación: mensajes `st` por segundo acotados en la prueba de red.
+- [ ] **Daltonismo**: cada kart lleva además un icono/forma distintivo y el HUD no depende solo del color.
+      Comprobación: prueba estática de que cada personaje tiene icono único.
+- [ ] **Texto grande y vibración configurable** en el móvil. Comprobación: ajustes guardados en
+      `localStorage`.
+- [ ] **Regresión final de fase**: `npm test` completo, simulación de 8 carreras seguidas sin fugas de memoria
+      (contador de objetos vivos estable).
