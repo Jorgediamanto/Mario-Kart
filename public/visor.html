@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kart Party — visor de modelos</title>
+<!--
+  Herramienta de desarrollo (no se usa en la fiesta): enseña un modelo .glb de public/modelos/ con
+  la misma luz y los mismos materiales «toon» que la tele, para poder afinarlo sin jugar una
+  carrera. Abrir http://localhost:3000/visor.html?m=kart.glb — se gira solo; con ?girar=0 se queda
+  quieto y con ?color=%23ff0000 se prueba otro color de carrocería.
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #1a0533; overflow: hidden; }
+  #datos { position: fixed; left: 12px; top: 12px; color: #c9a6ff; font: 14px system-ui; }
+</style>
+</head>
+<body>
+<div id="datos">cargando…</div>
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
+
+const par = new URLSearchParams(location.search);
+const archivo = par.get('m') || 'kart.glb';
+const colorBase = par.get('color') || '#39ff88';
+const acento = par.get('acento') || '#ff2d95';
+const girar = par.get('girar') !== '0';
+const anguloFijo = parseFloat(par.get('ang') || '0') * Math.PI / 180;   // 0 = de frente, 90 = de lado
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#1a0533');
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 1, 5000);
+camera.position.set(70, 45, 90);
+camera.lookAt(0, 12, 0);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8060ff, 1.4));
+const sol = new THREE.DirectionalLight(0xffffff, 2.4); sol.position.set(-700, 1300, 900); scene.add(sol);
+
+const grad = new THREE.DataTexture(new Uint8Array([70, 130, 200, 255]), 4, 1, THREE.RedFormat);
+grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
+const toon = (c) => new THREE.MeshToonMaterial({ color: c, gradientMap: grad });
+const COLORES = { Oscuro: '#1a1a24', Metal: '#9aa0b5', Goma: '#14141c' };
+
+const suelo = new THREE.Mesh(new THREE.CircleGeometry(90, 40), new THREE.MeshToonMaterial({ color: '#2a1150', gradientMap: grad }));
+suelo.rotation.x = -Math.PI / 2; scene.add(suelo);
+
+const grupo = new THREE.Group(); scene.add(grupo);
+new GLTFLoader().load('/modelos/' + archivo, (gltf) => {
+  let tris = 0, mallas = 0;
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    mallas++;
+    tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3;
+    const n = (o.material && o.material.name) || '';
+    o.material = toon(n === 'Carroceria' ? colorBase : n === 'Detalle' ? acento : (COLORES[n] || '#888899'));
+  });
+  grupo.add(gltf.scene);
+  document.getElementById('datos').textContent = `${archivo} — ${mallas} mallas, ${tris | 0} triángulos`;
+}, undefined, (e) => { document.getElementById('datos').textContent = 'no se ha podido cargar: ' + e; });
+
+renderer.setAnimationLoop(() => {
+  if (girar) grupo.rotation.y += 0.006; else grupo.rotation.y = anguloFijo;
+  renderer.render(scene, camera);
+});
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+});
+</script>
+</body>
+</html>

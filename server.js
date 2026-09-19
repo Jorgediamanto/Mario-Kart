@@ -24,6 +24,8 @@ const HTTPS_ON = process.env.KART_HTTPS !== '0';
 const CERT_DIR = path.join(__dirname, '.cert');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const THREE_DIR = path.join(__dirname, 'node_modules', 'three', 'build'); // motor 3D, servido en /vendor/
+// Complementos de three.js (el cargador de modelos .glb), servidos en /vendor/jsm/…
+const THREE_JSM_DIR = path.join(__dirname, 'node_modules', 'three', 'examples', 'jsm');
 const MAX_PLAYERS = 8;
 const NUM_CHARS = 8;
 const DISCONNECT_GRACE_MS = 90 * 1000; // tiempo que guardamos el sitio de un móvil desconectado
@@ -37,6 +39,7 @@ const MIME = {
   '.png': 'image/png',
   '.json': 'application/json; charset=utf-8',
   '.ico': 'image/x-icon',
+  '.glb': 'model/gltf-binary',
 };
 
 // ---------- IPs locales ----------
@@ -188,6 +191,19 @@ async function atiende(req, res) {
       });
       res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-cache' });
       res.end(svg);
+      return;
+    }
+    if (url.pathname.startsWith('/vendor/jsm/')) {
+      // complementos de three.js (GLTFLoader y lo que arrastra) desde node_modules: los modelos
+      // de los karts son .glb y hacen falta para cargarlos, también sin internet
+      const rel = url.pathname.slice('/vendor/jsm/'.length);
+      const dest = path.normalize(path.join(THREE_JSM_DIR, rel));
+      if (!/^[\w./-]+\.js$/.test(rel) || rel.includes('..') || !dest.startsWith(THREE_JSM_DIR)) { res.writeHead(404); res.end('404'); return; }
+      fs.readFile(dest, (err, data) => {
+        if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Falta three.js: ejecuta npm install'); return; }
+        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' });
+        res.end(data);
+      });
       return;
     }
     if (url.pathname.startsWith('/vendor/')) {

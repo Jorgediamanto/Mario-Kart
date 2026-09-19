@@ -11,6 +11,7 @@ import {
   clamp, lerp, smoothstep, mulberry32, ordinal,
 } from './sim.mjs';
 import { panelLayout, panelEnPixeles } from './layout.mjs';
+import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
 
 (() => {
   'use strict';
@@ -1002,11 +1003,81 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
 
   // ===================== Karts =====================
   // Modelo 3D de cada kart: la simulación lo guarda en k.view y nunca lo mira.
+  /*
+   * El kart modelado (public/modelos/kart.glb, hecho con tools/blender/kart.py).
+   *
+   * Se carga una vez y se clona por kart. Los materiales del archivo se cambian por los `toon` de
+   * siempre según **cómo se llama el material**, no según su color: `Carroceria` lleva el color
+   * del personaje y `Detalle` su acento. Si el archivo no está o falla, se monta el kart de cajas
+   * de toda la vida: la fiesta nunca se queda sin karts por un modelo.
+   */
+  let kartModelo = null;
+  const COLOR_MATERIAL = { Oscuro: '#1a1a24', Metal: '#9aa0b5', Goma: '#14141c' };
+  new GLTFLoader().load('/modelos/kart.glb', (gltf) => {
+    gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+    kartModelo = gltf.scene;
+  }, undefined, (e) => { console.warn('No se ha podido cargar el kart modelado; se usan las cajas', e); });
+
+  /*
+   * Contorno de dibujo animado: una copia de la malla «hinchada» hacia fuera y pintada por dentro
+   * (`BackSide`), así solo se ve el borde que asoma. El hinchado va por la normal **promediada por
+   * posición**: si se usan las normales de cada cara, las cajas se abren por las esquinas y el
+   * borde sale roto. Cada geometría se hincha una sola vez y se guarda.
+   */
+  const CONTORNO_COLOR = '#160b28', CONTORNO_GROSOR = 0.9;
+  const matContorno = new THREE.MeshBasicMaterial({ color: CONTORNO_COLOR, side: THREE.BackSide });
+  const contornos = new WeakMap();
+  function geoContorno(geo) {
+    if (contornos.has(geo)) return contornos.get(geo);
+    const g = geo.clone();
+    const pos = g.attributes.position, nor = g.attributes.normal;
+    const suma = new Map();
+    const clave = (i) => `${Math.round(pos.getX(i) * 50)},${Math.round(pos.getY(i) * 50)},${Math.round(pos.getZ(i) * 50)}`;
+    for (let i = 0; i < pos.count; i++) {
+      const k = clave(i);
+      const v = suma.get(k) || [0, 0, 0];
+      v[0] += nor.getX(i); v[1] += nor.getY(i); v[2] += nor.getZ(i);
+      suma.set(k, v);
+    }
+    for (let i = 0; i < pos.count; i++) {
+      const v = suma.get(clave(i));
+      const l = Math.hypot(v[0], v[1], v[2]) || 1;
+      pos.setXYZ(i, pos.getX(i) + v[0] / l * CONTORNO_GROSOR, pos.getY(i) + v[1] / l * CONTORNO_GROSOR, pos.getZ(i) + v[2] / l * CONTORNO_GROSOR);
+    }
+    pos.needsUpdate = true;
+    contornos.set(geo, g);
+    return g;
+  }
+  // Le cuelga a cada malla su contorno, para que lo siga a todas partes (las ruedas giran)
+  function ponerContorno(raiz, lista) {
+    raiz.traverse((o) => { if (o.isMesh && !o.userData.esContorno) lista.push(o); });
+    for (const o of lista.slice()) {
+      const c = new THREE.Mesh(geoContorno(o.geometry), matContorno);
+      c.userData.esContorno = true;
+      o.add(c);
+    }
+  }
+
+  // Un kart clonado del modelo, ya pintado con los colores del personaje
+  function kartDelModelo(ch) {
+    const raiz = kartModelo.clone(true);
+    const ruedas = [];
+    raiz.traverse((o) => {
+      if (o.isMesh) {
+        const nombre = (o.material && o.material.name) || '';
+        o.material = toon(nombre === 'Carroceria' ? ch.color : nombre === 'Detalle' ? ch.accent : (COLOR_MATERIAL[nombre] || '#888899'));
+      }
+      if (/^Rueda/.test(o.name)) ruedas.push({ obj: o, front: o.name.startsWith('RuedaD') });
+    });
+    return { raiz, ruedas };
+  }
+
   function makeKartModel(k) {
     const ch = CHARS[k.char];
     const g = new THREE.Group();
     const body = new THREE.Group();
     g.add(body);
+    if (kartModelo) return makeKartModelado(k, ch, g, body);
     const chassis = new THREE.Mesh(new THREE.BoxGeometry(36, 10, 22), toon(ch.color)); chassis.position.y = 9; body.add(chassis);
     const hood = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 14), toon(shade(ch.color, -0.14))); hood.position.set(-4, 17, 0); body.add(hood);
     const nose = new THREE.Mesh(new THREE.ConeGeometry(8, 14, 10), toon(ch.accent)); nose.rotation.z = -Math.PI / 2; nose.position.set(23, 9, 0); body.add(nose);
@@ -1045,6 +1116,40 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     kartsGroup.add(g, shadow, driftGlow);
     k.view = { g, body, wheels, flames, head, glow, label, item, shadow, driftGlow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
   }
+  /*
+   * Mismo kart, pero con el modelo de Blender en vez de cajas. Mantiene **exactamente** las mismas
+   * piezas en `k.view` (body, wheels, flames, head, glow, label, item, shadow, driftGlow) porque el
+   * bucle de dibujado las toca todas: aquí solo cambia de qué están hechas.
+   */
+  function makeKartModelado(k, ch, g, body) {
+    const { raiz, ruedas } = kartDelModelo(ch);
+    const conContorno = [];
+    ponerContorno(raiz, conContorno);
+    body.add(raiz);
+    const wheels = ruedas.map((r) => ({ steer: r.obj, roll: r.obj, front: r.front, modelo: true }));
+    const flames = [];
+    for (const z of [-6, 6]) {
+      const f = new THREE.Mesh(new THREE.ConeGeometry(4, 18, 8), flat('#ff9f1c')); f.rotation.z = Math.PI / 2; f.position.set(-30, 7.5, z); f.visible = false;
+      const f2 = new THREE.Mesh(new THREE.ConeGeometry(2.2, 12, 8), flat('#ffe74c')); f2.rotation.z = Math.PI / 2; f2.position.set(-27, 7.5, z); f2.visible = false;
+      body.add(f, f2); flames.push(f, f2);
+    }
+    const head = makeSprite(textTexture(ch.emoji, { w: 128, h: 128, font: `96px ${EMOJI_FONT}` }), 8);
+    head.material.depthTest = true; head.position.set(-2, 31, 0); body.add(head);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(30, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35 }));
+    glow.position.y = 12; glow.visible = false; g.add(glow);
+    const label = makeSprite(textTexture(k.name, { w: 320, h: 80, font: `900 40px ${UI_FONT}`, color: '#fff', stroke: '#1a0b3d', strokeW: 10 }), 20);
+    label.position.set(0, 54, 0); g.add(label);
+    const item = makeSprite(textTexture('?', { w: 128, h: 128, font: `84px ${EMOJI_FONT}`, bg: 'rgba(255,255,255,0.9)' }), 21);
+    item.position.set(0, 82, 0); item.visible = false; g.add(item);
+    const shadow = new THREE.Mesh(new THREE.CircleGeometry(23, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
+    shadow.rotation.x = -Math.PI / 2;
+    const driftGlow = new THREE.Mesh(new THREE.CircleGeometry(30, 20), new THREE.MeshBasicMaterial({ color: '#00e5ff', transparent: true, opacity: 0, depthWrite: false }));
+    driftGlow.rotation.x = -Math.PI / 2;
+    driftGlow.visible = false;
+    kartsGroup.add(g, shadow, driftGlow);
+    k.view = { g, body, wheels, flames, head, glow, label, item, shadow, driftGlow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
+  }
+
   function removeKartModel(k) {
     if (!k.view) return;
     kartsGroup.remove(k.view.g, k.view.shadow, k.view.driftGlow);
