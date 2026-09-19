@@ -3,6 +3,32 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 (noche 2) — Los objetos, medidos y con dos reglas de justicia (Fase 2)
+
+- **Lo primero, los números** (8 carreras de 8 bots, 3 vueltas, medidos antes de tocar nada). Objetos
+  usados: 57 caparazones verdes, 50 champiñones, 39 plátanos, 24 rojos, 12 estrellas y 7 rayos. De
+  cada uno, cuántos hacen daño: **rojo 71 %**, **plátano 67 %**, **verde 25 %** y el rayo pilla a
+  cuatro karts de media. El reparto por posición hace lo que promete: al primero nunca le sale rojo
+  ni rayo; al octavo le salen estrella (22 %) y rayo (16 %). En 8 carreras, el último de la parrilla
+  acabó **2 veces en el podio**. Conclusión: el equilibrio de fondo está bien y **no se ha tocado
+  ninguna potencia ni duración**; solo se han puesto dos reglas de justicia que faltaban.
+- **Regla 1 — no te pueden encoger dos veces seguidas**: a quien le cae un rayo queda inmune al rayo
+  **30 segundos** (`LIGHTNING_IMMUNITY`). Antes, dos rayos seguidos podían dejar al líder encogido
+  media carrera sin nada que hacer.
+- **Regla 2 — no más de tres golpes en diez segundos**: tras un golpe ahora hay **2,5 s** de
+  inmunidad en vez de 1,5 (`HIT_IMMUNITY`), que es lo que hace falta para que ni con mala suerte te
+  peguen cuatro veces seguidas. Medido: la peor racha de las 8 carreras baja de 3 golpes a 2.
+- **Se nota en el móvil**: si te encoge un rayo, el móvil vibra distinto y pone «⚡ ¡Te han
+  encogido!»; al coger estrella, «⭐ ¡Invencible!». (Mensajes `fx` nuevos: `zap` y `star`.)
+- **Se puede vigilar**: la simulación apunta ahora `stats.itemsByPos` (qué objeto sale en cada
+  posición) y `kart.hitsTaken`, y `npm test` comprueba cuatro reglas: el reparto por posición
+  coincide con la tabla declarada (±2,5 puntos en 20.000 tiradas), el rayo no repite en 30 s, nadie
+  se come más de 3 golpes en 10 s y el último de la parrilla sube al podio alguna vez en 8 carreras.
+  Con dos corredores la carrera también acaba y no sale el rayo.
+- **Cómo probarlo**: `npm test` y `npm run race -- --track all --runs 2 --stats items`. En la fiesta:
+  **pendiente de probar** si la inmunidad de 2,5 s se nota demasiado generosa cuando alguien va
+  pegado detrás tirando caparazones.
+
 ## 2026-09-19 (noche 2) — Lo que viene se ve venir: arcos y bordillos (Fase 2, primer paso)
 
 - **Qué cambió**: con la cámara detrás del kart ya no se ve el circuito entero, así que ahora un
