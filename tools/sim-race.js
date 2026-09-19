@@ -175,7 +175,7 @@ function histograma(titulo, pares) {
   const max = Math.max(1, ...pares.map(([, v]) => v));
   console.log('\n' + titulo);
   for (const [nombre, v] of pares) {
-    console.log('  ' + String(nombre).padEnd(20) + String(v).padStart(6) + '  ' + '█'.repeat(Math.round((v / max) * 40)));
+    console.log('  ' + String(nombre).padEnd(34) + String(v).padStart(6) + '  ' + '█'.repeat(Math.round((v / max) * 40)));
   }
 }
 
@@ -190,15 +190,20 @@ function pintaStats(tipo, runs, sim) {
     for (const r of runs) for (const k of r.karts) porPos[k.pos] = (porPos[k.pos] || 0) + k.objetosUsados;
     histograma('Objetos usados según la posición final', Object.entries(porPos).map(([p, n]) => [p + 'º', n]));
   } else if (tipo === 'drift') {
-    const cubos = [0, 0, 0, 0, 0];
+    // los cortes son los niveles del derrape automático, para ver de un vistazo cuánto turbo se carga
+    const L1 = sim.DRIFT_L1, L2 = sim.DRIFT_L2, L3 = sim.DRIFT_L3;
+    const n = (v) => v.toFixed(2).replace('.', ',');
+    const cubos = [0, 0, 0, 0];
     let total = 0;
     for (const k of todos) for (const d of k.derrapes) {
       total++;
-      cubos[d < 0.35 ? 0 : d < 0.7 ? 1 : d < 1.2 ? 2 : d < 1.6 ? 3 : 4]++;
+      cubos[d < L1 ? 0 : d < L2 ? 1 : d < L3 ? 2 : 3]++;
     }
     histograma(`Derrapes por duración (${total} en total)`, [
-      ['< 0,35 s', cubos[0]], ['0,35-0,7 s', cubos[1]], ['0,7-1,2 s (turbo)', cubos[2]],
-      ['1,2-1,6 s (turbo)', cubos[3]], ['> 1,6 s (turbo+)', cubos[4]],
+      [`sin nivel (< ${n(L1)} s)`, cubos[0]],
+      [`nivel 1 (${n(L1)}-${n(L2)} s, turbo ${n(sim.DRIFT_BOOST[0])} s)`, cubos[1]],
+      [`nivel 2 (${n(L2)}-${n(L3)} s, turbo ${n(sim.DRIFT_BOOST[1])} s)`, cubos[2]],
+      [`nivel 3 (> ${n(L3)} s, turbo ${n(sim.DRIFT_BOOST[2])} s)`, cubos[3]],
     ]);
   } else if (tipo === 'speed') {
     const cubos = new Array(8).fill(0);

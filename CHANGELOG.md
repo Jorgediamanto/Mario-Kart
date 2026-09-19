@@ -3,6 +3,35 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 (noche 2) — Derrape automático con tres niveles (Fase 1)
+
+- **Qué cambió**: se acabó el botón de derrape. Si aguantas el giro hacia el mismo lado a buena
+  velocidad (más del 55 % de la máxima), el kart empieza a deslizar solo a los **0,3 s** y va
+  cargando turbo: **★ nivel 1 a los 0,5 s** (chispas azules), **★★ nivel 2 a los 0,9 s** (naranjas)
+  y **★★★ nivel 3 a los 1,4 s** (rosas). Al soltar el giro —o cambiar de lado— sales disparado
+  **0,6 / 1,0 / 1,6 segundos** según el nivel. Un salto no te quita la carga: el derrape se queda en
+  pausa en el aire.
+- **Dónde se ve**: en la tele, las chispas cambian de color y el kart lleva un **brillo en el suelo**
+  que crece con el nivel, con un sonido que sube en cada escalón. En el móvil, el botón de girar que
+  estás aguantando **se enciende con el color del nivel**, muestra ★ / ★★ / ★★★ y **vibra** al subir.
+- **Por qué estos tiempos y no los de la hoja de ruta** (0,8 / 1,6 / 2,6 s): se midió cuánto duran de
+  verdad las curvas de los cuatro circuitos a velocidad de carrera. Con los tiempos de la hoja de
+  ruta, el nivel 2 casi no salía y el 3 **no salía nunca**. Con los de ahora, de 893 derrapes de bots
+  en 8 carreras: 404 sin nivel, 427 de nivel 1, 52 de nivel 2 y 10 de nivel 3. Es decir: en curvas
+  normales se llega a 1-2 y el 3 se reserva para las curvas largas, que es lo que se pedía.
+- **Cuánto gira el kart derrapando**: se mantiene el giro de antes (1,4 veces el normal). Se probó
+  bajarlo para poder aguantar derrapes más largos, pero los bots perdían la trazada y sus vueltas
+  empeoraban hasta un 16 %; con el valor de ahora quedan entre **-7 % y +6 %** de la referencia.
+- **Herramientas**: `tools/referencia.json` guarda la vuelta media de los bots por circuito y `npm
+  test` falla si un cambio de física los empeora más de un 10 % (para remedir a propósito:
+  `KART_REFERENCIA=escribir node tools/check-sim.js`). El histograma de `npm run race -- --stats
+  drift` ahora enseña los niveles y sus turbos.
+- **Cómo probarlo**: `npm start`, entrar con un móvil y **aguantar el giro en una curva larga**: el
+  botón tiene que ponerse azul, luego naranja y luego rosa, vibrando en cada escalón, y al soltar hay
+  que salir disparado. En la tele se ven las chispas del color del nivel y el brillo bajo el kart.
+  **Pendiente de probar en fiesta**: si 0,5 / 0,9 / 1,4 s se sienten bien con el mando en la mano y
+  si el nivel 3 sale demasiado poco (subir o bajar `DRIFT_L1..L3` al principio de `public/sim.mjs`).
+
 ## 2026-09-19 (noche 2) — Los bots ya no corren en dirección contraria (bug)
 
 - **Qué pasaba**: después de un golpe o un caparazón, un bot podía quedarse mirando hacia atrás y
@@ -16,6 +45,11 @@ llevan la fecha en que se hicieron.
   tres circuitos los tiempos no se mueven ni una décima. Un kart plantado del revés a 300 de
   velocidad recupera su avance en 2,0 s (antes, entre 2,7 y 3,8 s, y perdiendo hasta 70 muestras
   de pista).
+- **Corrección (misma noche)**: al mirarlo con más calma, aquel aviso ⚠ **no era** un bot conduciendo
+  al revés, sino el contador de progreso congelándose cuando un kart vuela por encima de un atajo
+  (ver «Bugs conocidos» de IDEAS.md). El arreglo del piloto automático sigue siendo bueno y medido
+  (el kart del revés se recupera el doble de rápido y la vuelta media de Volcán Disco baja), pero el
+  detector de la prueba ahora mide el avance siguiendo el trazado, que es lo que quería medir.
 - **Cómo probarlo**: `npm test`. El aviso ⚠ «se fue en dirección contraria» de la fase 4 ya no sale,
   y ahora es un **fallo** de la prueba, no un aviso: si el bug vuelve, `npm test` se pone rojo. Hay
   además un escenario nuevo en `tools/check-sim.js` que planta un kart del revés en los 4 circuitos.

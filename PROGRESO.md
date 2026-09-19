@@ -7,13 +7,13 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 10:58
+- último latido (UTC): 2026-09-19 12:50
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno (el bug de los bots está cerrado y fusionado en `main`)
-- hecho: bug «bot en dirección contraria» arreglado, probado y fusionado
-- siguiente paso: «Derrape automático con 3 niveles» (Fase 1)
+- IDEAS.md: ninguno (el derrape automático está cerrado y fusionado en `main`)
+- hecho: derrape automático de 3 niveles completo (simulación, pantalla, móvil, README y pruebas)
+- siguiente paso: bug nuevo «el contador de progreso se congela al volar por encima de un atajo»
 - intentos fallidos en este punto: 0
 
 ## Última sesión

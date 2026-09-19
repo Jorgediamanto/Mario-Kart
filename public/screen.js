@@ -18,6 +18,8 @@ import {
   // Las de la simulación (tamaño del mapa, física, personajes, objetos) llegan de sim.mjs.
   const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
   const UI_FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+  // Chispas y brillo del derrape por nivel: 0 = deslizando sin carga, 1 azul, 2 naranja, 3 rosa
+  const DRIFT_COLORS = ['#dfe9ff', '#00e5ff', '#ff9f1c', '#ff2d95'];
 
   // ===================== Utilidades =====================
   // clamp, lerp, smoothstep, mulberry32 y ordinal vienen de sim.mjs.
@@ -634,6 +636,7 @@ import {
       onKartAdded: (k) => makeKartModel(k),
       onKartRemoved: (k) => removeKartModel(k),
       onSfx: (name) => sfx(name),
+      onDrift: (k, nivel) => { if (nivel > 0) sfx('drift' + nivel); },
       onParticles: (x, h, z, o) => particles.emit(x, h, z, o),
       onToast: (text, dur) => toast(text, dur),
       onStatus: (k) => sendStatus(k),
@@ -800,12 +803,16 @@ import {
     item.position.set(0, 82, 0); item.visible = false; g.add(item);
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(21, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2;
-    kartsGroup.add(g, shadow);
-    k.view = { g, body, wheels, flames, head, glow, label, item, shadow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
+    // brillo en el suelo mientras se derrapa: dice de un vistazo qué nivel lleva cargado
+    const driftGlow = new THREE.Mesh(new THREE.CircleGeometry(30, 20), new THREE.MeshBasicMaterial({ color: '#00e5ff', transparent: true, opacity: 0, depthWrite: false }));
+    driftGlow.rotation.x = -Math.PI / 2;
+    driftGlow.visible = false;
+    kartsGroup.add(g, shadow, driftGlow);
+    k.view = { g, body, wheels, flames, head, glow, label, item, shadow, driftGlow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
   }
   function removeKartModel(k) {
     if (!k.view) return;
-    kartsGroup.remove(k.view.g, k.view.shadow);
+    kartsGroup.remove(k.view.g, k.view.shadow, k.view.driftGlow);
     k.view = null;
   }
 
@@ -980,9 +987,18 @@ import {
       const hs = clamp(1 - (k.z - k.ground) / 300, 0.35, 1) * sc;
       M.shadow.scale.set(hs, hs, hs);
       M.shadow.material.opacity = 0.38 * hs;
+      // brillo del derrape en el suelo (blanco al deslizar, y el color del nivel al cargarlo)
+      M.driftGlow.visible = drifting && !k.air;
+      if (M.driftGlow.visible) {
+        M.driftGlow.position.set(k.x, k.ground + 1.6, k.y);
+        M.driftGlow.material.color.set(DRIFT_COLORS[k.driftLevel]);
+        M.driftGlow.material.opacity = (k.driftLevel ? 0.3 + 0.12 * k.driftLevel : 0.16) + Math.sin(animT * 18) * 0.05;
+        const ds = 1 + 0.12 * k.driftLevel;
+        M.driftGlow.scale.set(ds, ds, ds);
+      }
       // partículas de derrape / turbo / estrella
       if (drifting && !k.air && Math.random() < 0.8) {
-        const c = k.driftT >= 1.6 ? '#ff2d95' : k.driftT >= 0.7 ? '#ff9f1c' : '#00e5ff';
+        const c = DRIFT_COLORS[k.driftLevel];
         const cosA = Math.cos(k.angle), sinA = Math.sin(k.angle);
         for (const side of [-1, 1]) particles.emit(k.x - cosA * 13 - sinA * 13 * side, k.z + 3, k.y - sinA * 13 + cosA * 13 * side, { n: 1, color: c, vx: -cosA * 120, vz: -sinA * 120, spread: 90, vy: 60, life: 0.35, size: 3, g: 400 });
       }
@@ -1059,7 +1075,7 @@ import {
       const ch = CHARS[p.char] || CHARS[0];
       rows.push(`<div class="slot full" style="border-color:${ch.color}"><span class="emoji">${ch.emoji}</span><span>${esc(p.name)}</span>${p.host ? '<span class="tag">👑 anfitrión</span>' : ''}<span class="dot ${p.connected ? '' : 'off'}"></span></div>`);
     }
-    if (state.kb) rows.push('<div class="slot full"><span class="emoji">⌨️</span><span>Teclado</span><span class="tag">flechas · ⇧ derrape · espacio objeto</span></div>');
+    if (state.kb) rows.push('<div class="slot full"><span class="emoji">⌨️</span><span>Teclado</span><span class="tag">flechas · espacio objeto · el derrape sale solo</span></div>');
     while (rows.length < MAX_KARTS) rows.push('<div class="slot empty"><span class="emoji">·</span><span>libre</span></div>');
     $('players').innerHTML = rows.slice(0, MAX_KARTS).join('');
     $('setTrack').innerHTML = `Circuito: <b>${esc(TRACKS[state.settings.track].name)}</b>`;
@@ -1079,14 +1095,13 @@ import {
     ensureAudio();
     const inp = kbInput();
     const key = e.key;
-    if (inp && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Shift'].includes(key)) {
+    if (inp && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) {
       e.preventDefault();
       if (state.phase !== 'lobby') {
         if (key === 'ArrowUp') inp.g = 1;
         if (key === 'ArrowDown') inp.b = 1;
         if (key === 'ArrowLeft') inp.s = -1;
         if (key === 'ArrowRight') inp.s = 1;
-        if (key === 'Shift') inp.d = 1;
         if (key === ' ' && !e.repeat) { const k = state.karts.find((q) => q.isKb); if (k) sim.useItem(k); }
       }
     }
@@ -1112,9 +1127,8 @@ import {
     if (key === 'ArrowDown') inp.b = 0;
     if (key === 'ArrowLeft' && inp.s === -1) inp.s = 0;
     if (key === 'ArrowRight' && inp.s === 1) inp.s = 0;
-    if (key === 'Shift') inp.d = 0;
   });
-  window.addEventListener('blur', () => { const inp = kbInput(); if (inp) { inp.s = 0; inp.g = 0; inp.b = 0; inp.d = 0; } });
+  window.addEventListener('blur', () => { const inp = kbInput(); if (inp) { inp.s = 0; inp.g = 0; inp.b = 0; } });
   window.addEventListener('pointerdown', ensureAudio);
   function toggleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -1161,6 +1175,9 @@ import {
       case 'land': tone(120, 0.15, { type: 'triangle', to: 60, vol: 0.12 }); break;
       case 'trick': [660, 880, 1320].forEach((f, i) => tone(f, 0.1, { when: i * 0.06, type: 'square', vol: 0.08 })); break;
       case 'pad': tone(500, 0.2, { type: 'sawtooth', to: 1400, vol: 0.1 }); break;
+      case 'drift1': tone(520, 0.12, { type: 'square', to: 700, vol: 0.05 }); break;
+      case 'drift2': tone(700, 0.14, { type: 'square', to: 950, vol: 0.06 }); break;
+      case 'drift3': [900, 1200, 1500].forEach((f, i) => tone(f, 0.1, { when: i * 0.05, type: 'square', vol: 0.06 })); break;
       case 'rescue': [880, 660, 990].forEach((f, i) => tone(f, 0.14, { when: i * 0.09, type: 'sine', vol: 0.09 })); break;
       default: break;
     }
