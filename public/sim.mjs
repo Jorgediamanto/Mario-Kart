@@ -94,19 +94,27 @@ export const OFFROAD_RESCUE = 3.5;      // segundos seguidos fuera de la pista a
 export const SNAIL_SLOW = 0.25;         // a cuánto se queda su velocidad máxima (25 % = un 75 % más lento)
 export const SNAIL_TIME = 3;            // segundos que dura
 export const SNAIL_CHOICE_TIME = 6;     // segundos para elegir antes de que elija solo
-export const MAX_KARTS = 8;
+export const MAX_KARTS = 7;   // siete personajes, siete sitios: nadie repite kart
 export const SAMPLE_SPACING = 8;
 
+/*
+ * Los siete de la fiesta. Cada uno tiene su color (la carrocería) y su acento (llantas, alerón,
+ * bordes) — son los que se ven en la tele para saber de un vistazo quién es quién, así que
+ * conviene que no se parezcan entre sí. `emoji` es el respaldo: se usa en los textos (marcador,
+ * avisos, resultados) y también como cara si el modelo de cabezas no cargara.
+ * `escala` encoge o agranda el kart entero (Carlota es la pequeñaja), y `bandera` pinta una
+ * banderita en el alerón.
+ */
 export const CHARS = [
-  { name: 'Rana', emoji: '🐸', color: '#39ff88', accent: '#ff2d95' },
-  { name: 'Zorro', emoji: '🦊', color: '#ff8a00', accent: '#00e5ff' },
-  { name: 'Panda', emoji: '🐼', color: '#ffffff', accent: '#ff2d95' },
-  { name: 'Tigre', emoji: '🐯', color: '#ffe600', accent: '#9b3bff' },
-  { name: 'Unicornio', emoji: '🦄', color: '#ff5ec8', accent: '#00e5ff' },
-  { name: 'Pulpo', emoji: '🐙', color: '#9b3bff', accent: '#ffe600' },
-  { name: 'Pingüino', emoji: '🐧', color: '#00e5ff', accent: '#ffe600' },
-  { name: 'Dino', emoji: '🦖', color: '#ff3d3d', accent: '#39ff88' },
+  { name: 'El Loco', emoji: '🤪', color: '#39ff88', accent: '#1a1a24' },
+  { name: 'Chuma', emoji: '🧿', color: '#e8a33d', accent: '#ffffff' },
+  { name: 'Toro', emoji: '🐂', color: '#6b3f2a', accent: '#ff2d2d' },
+  { name: 'Diamanto', emoji: '💎', color: '#7fe9ff', accent: '#ffffff' },
+  { name: 'Leini', emoji: '🤠', color: '#2a4fd6', accent: '#ff2d2d', bandera: 'texas' },
+  { name: 'Carlota', emoji: '👧', color: '#ff8ad8', accent: '#ffe600', escala: 0.85 },
+  { name: 'Scarlet', emoji: '🌹', color: '#d62c2c', accent: '#ffe600', bandera: 'cataluna' },
 ];
+
 export const ITEMS = {
   mushroom: { icon: '🍄', name: 'Champiñón' },
   banana: { icon: '🍌', name: 'Plátano' },
@@ -558,7 +566,10 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (g) k.speed += ACCEL * dt;
       else if (b) k.speed -= (k.speed > 0 ? BRAKE : ACCEL * 0.6) * dt;
       else { const c = COAST * dt; if (Math.abs(k.speed) <= c) k.speed = 0; else k.speed -= Math.sign(k.speed) * c; }
-      if (boosting && k.speed < maxS * 0.85) k.speed = maxS * 0.85;
+      // el turbo empuja hasta el 85 % del máximo… salvo si estás frenando: si pisas el freno, frenas.
+      // Sin esta salvedad no había manera de parar con un turbo puesto, y un kart que se liaba
+      // (bots incluidos) se quedaba dando vueltas a toda pastilla sin poder encararse.
+      if (boosting && !b && k.speed < maxS * 0.85) k.speed = maxS * 0.85;
       if (k.speed > maxS) k.speed = Math.max(maxS, k.speed - (k.offroad ? 1100 : 700) * dt);
       const minS = -maxS * 0.35;
       if (k.speed < minS) k.speed = minS;
@@ -740,7 +751,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const alReves = state.phase === 'race' && !k.finished && k.spinUntil <= simTime && k.rescueUntil <= simTime
       && Math.abs(k.speed) > WRONG_WAY_SPEED
       && Math.cos(k.moveAngle - s.ang) * Math.sign(k.speed) < -0.3;
-    k.wrongT = alReves ? k.wrongT + dt : 0;
+    // el reloj no se pone a cero de golpe: baja rápido pero baja. Un kart que da bandazos yendo al
+    // revés lo reiniciaba con cada coletazo y así no llegaba nunca ni al aviso ni al rescate.
+    k.wrongT = alReves ? k.wrongT + dt : Math.max(0, k.wrongT - dt * 2);
     const aviso = k.wrongT >= WRONG_WAY_TIME;
     if (aviso !== k.wrongWay) {
       k.wrongWay = aviso;

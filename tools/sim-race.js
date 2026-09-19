@@ -29,9 +29,18 @@ function mulberry32(seed) {
   };
 }
 
+// Cuántos karts caben: lo dice `MAX_KARTS` en public/sim.mjs. Aquí se lee del archivo porque esto
+// es CommonJS y sim.mjs es un módulo ES, que solo se puede importar (más abajo) desde una función
+// async — y el tope hace falta ya, para los argumentos y para el texto de ayuda.
+const MAX_BOTS = (() => {
+  const fuente = require('fs').readFileSync(path.join(ROOT, 'public/sim.mjs'), 'utf8');
+  const m = fuente.match(/export const MAX_KARTS = (\d+)/);
+  return m ? parseInt(m[1], 10) : 8;
+})();
+
 // ---------------------------------------------------------------- argumentos
 function parseArgs(argv) {
-  const o = { track: '0', laps: 3, bots: 8, seed: 1000, runs: 1, verbose: false, stats: null, json: false, quiet: false };
+  const o = { track: '0', laps: 3, bots: MAX_BOTS, seed: 1000, runs: 1, verbose: false, stats: null, json: false, quiet: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const val = () => argv[++i];
@@ -48,7 +57,7 @@ function parseArgs(argv) {
     else { console.error('No entiendo la opción ' + a); process.exit(2); }
   }
   if (!Number.isInteger(o.laps) || o.laps < 1 || o.laps > 9) { console.error('--laps tiene que ir de 1 a 9'); process.exit(2); }
-  if (!Number.isInteger(o.bots) || o.bots < 2 || o.bots > 8) { console.error('--bots tiene que ir de 2 a 8'); process.exit(2); }
+  if (!Number.isInteger(o.bots) || o.bots < 2 || o.bots > MAX_BOTS) { console.error(`--bots tiene que ir de 2 a ${MAX_BOTS}`); process.exit(2); }
   if (!Number.isInteger(o.runs) || o.runs < 1) { console.error('--runs tiene que ser 1 o más'); process.exit(2); }
   if (o.stats && !['items', 'drift', 'speed'].includes(o.stats)) { console.error('--stats: items, drift o speed'); process.exit(2); }
   return o;
@@ -58,7 +67,7 @@ const AYUDA = `Carreras de prueba de Kart Party (sin navegador).
 
   --track n|all   circuito (0..${trackDefs.length - 1}) o todos                (por defecto 0)
   --laps n        vueltas (1..9)                                  (por defecto 3)
-  --bots n        karts en la parrilla (2..8)                     (por defecto 8)
+  --bots n        karts en la parrilla (2..${MAX_BOTS})                    (por defecto ${MAX_BOTS})
   --seed n        semilla: la misma da siempre la misma carrera   (por defecto 1000)
   --runs k        cuántas carreras por circuito                   (por defecto 1)
   --verbose       registro de todo lo que pasa, con tiempo y posición

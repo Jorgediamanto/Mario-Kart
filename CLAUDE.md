@@ -24,7 +24,7 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   `public/geom.js` — spline Catmull-Rom y remuestreo (compartido con Node).
 - `tools/check-tracks.js` — validador de circuitos. `tools/check-sim.js` — carreras de bots sin
   navegador (fase 4 de `npm test`), con una lista de «escenarios» a la que cada punto nuevo suma el
-  suyo. `tools/check-protocol.js` — el protocolo con una pantalla y ocho móviles de mentira (fase 5).
+  suyo. `tools/check-protocol.js` — el protocolo con una pantalla y la sala llena de móviles de mentira (fase 5).
   `tools/sim-race.js` — `npm run race`: carreras por consola con tabla, registro y histogramas, para
   equilibrar con datos (`npm run race -- --help`). `tools/check-all.js` — comprobación completa
   (`npm test`).
@@ -65,7 +65,8 @@ three.js que no existan en la versión instalada (`node_modules/three/package.js
 - Sin dependencias nuevas salvo que sean imprescindibles y ligeras; nunca subas `node_modules`.
 - La fiesta se juega en una WiFi local sin internet: nada de CDNs ni servicios externos en tiempo de juego.
 - Mantén el rendimiento: la pantalla debe ir a 60 fps en un portátil normal (ojo con partículas,
-  sombras y mallas grandes). Máximo 8 karts.
+  sombras y mallas grandes). **Siete personajes, siete sitios**: `MAX_KARTS` (sim.mjs) manda, y el
+  servidor y las pruebas lo leen de ahí en vez de escribir el número a mano.
 - Las físicas son exageradas pero controlables: los cambios de sensación (velocidad, gravedad, giro)
   deben ser pequeños y justificados. Constantes principales al inicio de `screen.js`.
 - Circuitos nuevos: añade la definición en `tracks.js` y pasa `npm run check` (sin solapes, radios de

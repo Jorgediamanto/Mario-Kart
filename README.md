@@ -272,5 +272,5 @@ sesiones (dónde se quedó, qué falta) y `CHANGELOG.md` el diario de lo que cam
   aparte para poder comprobarlas sin navegador, con poses del móvil conocidas.
 - `public/tracks.js` y `public/geom.js`: circuitos y geometría (spline Catmull-Rom).
 - `tools/check-tracks.js`: validador de circuitos. `tools/check-sim.js`: carreras de prueba sin navegador.
-- `tools/check-protocol.js`: prueba del protocolo con una pantalla y ocho móviles simulados.
+- `tools/check-protocol.js`: prueba del protocolo con una pantalla y una sala llena de móviles simulados.
 - `tools/sim-race.js`: `npm run race`, carreras por consola con estadísticas.

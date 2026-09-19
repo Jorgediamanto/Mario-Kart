@@ -15,6 +15,13 @@ const { spawn } = require('child_process');
 const WebSocket = require('ws');
 
 const ROOT = path.join(__dirname, '..');
+// Cuántos sitios hay en la sala: lo manda `MAX_KARTS` de public/sim.mjs (siete personajes, siete
+// sitios). Se lee del archivo porque esto es CommonJS y sim.mjs es un módulo ES.
+const SITIOS = (() => {
+  const fuente = require('fs').readFileSync(path.join(ROOT, 'public', 'sim.mjs'), 'utf8');
+  const m = fuente.match(/export const MAX_KARTS = (\d+)/);
+  return m ? parseInt(m[1], 10) : 8;
+})();
 let failed = false;
 const ok = (msg) => console.log('  ✓ ' + msg);
 const bad = (msg) => { failed = true; console.log('  ✗ ' + msg); };
@@ -89,9 +96,9 @@ async function recorrido(PORT) {
   const init = await tele.espera('init');
   check(init && Array.isArray(init.players) && init.settings, 'la pantalla recibe `init` con la sala y los ajustes');
 
-  // ---- entran ocho móviles ----
+  // ---- entran tantos móviles como sitios hay (uno por personaje) ----
   const moviles = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < SITIOS; i++) {
     const m = cliente(PORT, 'movil' + i);
     await m.abierto;
     m.manda({ t: 'hello', name: 'Jugador ' + i, char: i });
@@ -101,22 +108,22 @@ async function recorrido(PORT) {
     moviles.push(m);
   }
   check(moviles.every((m) => Number.isInteger(m.id) && typeof m.token === 'string' && m.token.length > 0),
-    'los 8 móviles reciben `welcome` con su id y su token');
-  const lobby = await moviles[7].espera('lobby');
-  check(lobby && lobby.players.length === 8 && lobby.screen === true,
-    'la sala (`lobby`) llega a los móviles con los 8 jugadores y la pantalla puesta');
+    `los ${SITIOS} móviles reciben \`welcome\` con su id y su token`);
+  const lobby = await moviles[SITIOS - 1].espera('lobby');
+  check(lobby && lobby.players.length === SITIOS && lobby.screen === true,
+    `la sala (\`lobby\`) llega a los móviles con los ${SITIOS} jugadores y la pantalla puesta`);
   const joins = tele.recibidos.filter((m) => m.t === 'join');
-  check(joins.length === 8, `la pantalla recibe un \`join\` por jugador (${joins.length} de 8)`);
+  check(joins.length === SITIOS, `la pantalla recibe un \`join\` por jugador (${joins.length} de ${SITIOS})`);
   check(moviles[0].id === lobby.hostId, 'el primero en entrar es el anfitrión');
 
-  // ---- la sala está llena: el noveno se queda fuera ----
+  // ---- la sala está llena: el siguiente se queda fuera ----
   {
-    const nueve = cliente(PORT, 'noveno');
-    await nueve.abierto;
-    nueve.manda({ t: 'hello', name: 'Tarde', char: 3 });
-    const err = await nueve.espera('err');
-    check(err && /llena/i.test(err.msg), 'el 9.º móvil recibe `err` porque la sala está llena');
-    nueve.close();
+    const sobra = cliente(PORT, 'sobra');
+    await sobra.abierto;
+    sobra.manda({ t: 'hello', name: 'Tarde', char: 3 });
+    const err = await sobra.espera('err');
+    check(err && /llena/i.test(err.msg), `el móvil ${SITIOS + 1}.º recibe \`err\` porque la sala está llena`);
+    sobra.close();
   }
 
   // ---- personaje repetido ----
@@ -124,17 +131,17 @@ async function recorrido(PORT) {
     const repe = cliente(PORT, 'repe');
     await repe.abierto;
     // hacemos sitio: sale uno y entra otro pidiendo un personaje que sí está cogido
-    moviles[7].manda({ t: 'leave' });
+    moviles[SITIOS - 1].manda({ t: 'leave' });
     await espera(120);
     repe.manda({ t: 'hello', name: 'Copión', char: 0 });
     const err = await repe.espera('err');
     check(err && /cogido/i.test(err.msg), 'pedir un personaje ya cogido devuelve `err`');
     // y con uno libre, entra sin problema
     repe.olvida();
-    repe.manda({ t: 'hello', name: 'Copión', char: 7 });
+    repe.manda({ t: 'hello', name: 'Copión', char: SITIOS - 1 });
     const w = await repe.espera('welcome');
-    check(w && w.char === 7, 'con un personaje libre, entra sin problema');
-    moviles[7] = repe; repe.id = w && w.id; repe.token = w && w.token;
+    check(w && w.char === SITIOS - 1, 'con un personaje libre, entra sin problema');
+    moviles[SITIOS - 1] = repe; repe.id = w && w.id; repe.token = w && w.token;
   }
 
   // ---- los ajustes solo los toca el anfitrión ----
@@ -259,30 +266,30 @@ async function recorrido(PORT) {
 
   // ---- la pantalla habla con un móvil concreto ----
   {
-    moviles[6].olvida();
-    tele.manda({ t: 'to', id: moviles[6].id, m: { t: 'st', pos: 3, n: 8, lap: 1, laps: 3 } });
-    const st = await moviles[6].espera('st');
+    moviles[SITIOS - 2].olvida();
+    tele.manda({ t: 'to', id: moviles[SITIOS - 2].id, m: { t: 'st', pos: 3, n: SITIOS, lap: 1, laps: 3 } });
+    const st = await moviles[SITIOS - 2].espera('st');
     check(st && st.pos === 3, 'la pantalla manda el estado (`st`) a un móvil concreto');
-    moviles[6].olvida();
-    tele.manda({ t: 'to', id: moviles[6].id, m: { t: 'fx', kind: 'hit' } });
-    const fx = await moviles[6].espera('fx');
+    moviles[SITIOS - 2].olvida();
+    tele.manda({ t: 'to', id: moviles[SITIOS - 2].id, m: { t: 'fx', kind: 'hit' } });
+    const fx = await moviles[SITIOS - 2].espera('fx');
     check(fx && fx.kind === 'hit', 'los avisos (`fx`) llegan al móvil');
     // avisos del derrape automático: drift1..3 al subir de nivel, drift0 al soltarlo
-    moviles[6].olvida();
-    tele.manda({ t: 'to', id: moviles[6].id, m: { t: 'fx', kind: 'drift2' } });
-    const fxd = await moviles[6].espera('fx');
+    moviles[SITIOS - 2].olvida();
+    tele.manda({ t: 'to', id: moviles[SITIOS - 2].id, m: { t: 'fx', kind: 'drift2' } });
+    const fxd = await moviles[SITIOS - 2].espera('fx');
     check(fxd && fxd.kind === 'drift2', 'el aviso de nivel de derrape (`fx` drift2) llega al móvil');
-    moviles[6].olvida();
-    tele.manda({ t: 'to', id: moviles[6].id, m: { t: 'fx', kind: 'wrong' } });
-    const fxw = await moviles[6].espera('fx');
+    moviles[SITIOS - 2].olvida();
+    tele.manda({ t: 'to', id: moviles[SITIOS - 2].id, m: { t: 'fx', kind: 'wrong' } });
+    const fxw = await moviles[SITIOS - 2].espera('fx');
     check(fxw && fxw.kind === 'wrong', 'el aviso de «vas al revés» (`fx` wrong) llega al móvil');
-    moviles[6].olvida();
-    tele.manda({ t: 'to', id: moviles[6].id, m: { t: 'fx', kind: 'zap' } });
-    const fxz = await moviles[6].espera('fx');
+    moviles[SITIOS - 2].olvida();
+    tele.manda({ t: 'to', id: moviles[SITIOS - 2].id, m: { t: 'fx', kind: 'zap' } });
+    const fxz = await moviles[SITIOS - 2].espera('fx');
     check(fxz && fxz.kind === 'zap', 'el aviso del rayo (`fx` zap) llega al móvil');
-    moviles[6].olvida();
-    tele.manda({ t: 'to', id: moviles[6].id, m: { t: 'fx', kind: 'drift0' } });
-    const fxf = await moviles[6].espera('fx');
+    moviles[SITIOS - 2].olvida();
+    tele.manda({ t: 'to', id: moviles[SITIOS - 2].id, m: { t: 'fx', kind: 'drift0' } });
+    const fxf = await moviles[SITIOS - 2].espera('fx');
     check(fxf && fxf.kind === 'drift0', 'al soltar el derrape, el móvil recibe `fx` drift0');
   }
 

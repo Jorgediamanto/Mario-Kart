@@ -26,8 +26,8 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const THREE_DIR = path.join(__dirname, 'node_modules', 'three', 'build'); // motor 3D, servido en /vendor/
 // Complementos de three.js (el cargador de modelos .glb), servidos en /vendor/jsm/…
 const THREE_JSM_DIR = path.join(__dirname, 'node_modules', 'three', 'examples', 'jsm');
-const MAX_PLAYERS = 8;
-const NUM_CHARS = 8;
+const MAX_PLAYERS = 7;   // siete personajes, siete sitios (ver CHARS en public/sim.mjs)
+const NUM_CHARS = 7;
 const DISCONNECT_GRACE_MS = 90 * 1000; // tiempo que guardamos el sitio de un móvil desconectado
 
 const MIME = {
@@ -408,7 +408,7 @@ wss.on('connection', (ws) => {
         toScreen({ t: 'join', player: publicPlayer(p) });
       } else {
         if (char < 0) { send(ws, { t: 'err', msg: 'Elige un personaje.' }); return; }
-        if (players.size >= MAX_PLAYERS) { send(ws, { t: 'err', msg: 'La sala está llena (máximo 8 jugadores).' }); return; }
+        if (players.size >= MAX_PLAYERS) { send(ws, { t: 'err', msg: `La sala está llena (máximo ${MAX_PLAYERS} jugadores).` }); return; }
         if (charTaken(char, -1)) { send(ws, { t: 'err', msg: 'Ese personaje ya está cogido, elige otro.' }); return; }
         p = { id: nextId++, token: crypto.randomBytes(16).toString('hex'), name, char, ws, timer: null };
         players.set(p.id, p);
