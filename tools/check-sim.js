@@ -58,6 +58,10 @@ async function main() {
     check(mismos, 'dos carreras con la misma semilla dan los mismos tiempos');
   }
 
+  console.log('Paneles');
+  const layout = await import(pathToFileURL(path.join(ROOT, 'public/layout.mjs')).href);
+  comprobarPaneles(layout);
+
   console.log('Escenarios');
   for (const esc of escenarios) {
     try {
@@ -218,6 +222,46 @@ function compararConLaReferencia(tiempos) {
     check(medido <= antes * MARGEN,
       `${nombre}: vuelta media ${medido.toFixed(2)} s (referencia ${antes.toFixed(2)} s, ${dif >= 0 ? '+' : ''}${dif.toFixed(1)} %)`);
   }
+}
+
+// ---------------------------------------------------------------- paneles de la pantalla dividida
+// La tabla que manda (IDEAS.md): 1 → completa, 2 → dos anchos, 3-4 → 2×2, 5-6 → 3×2, 7-8 → 4×2.
+const FILAS_ESPERADAS = { 1: [1], 2: [1, 1], 3: [2, 1], 4: [2, 2], 5: [3, 2], 6: [3, 3], 7: [4, 3], 8: [4, 4] };
+
+function comprobarPaneles(layout) {
+  for (let n = 1; n <= 8; n++) {
+    const rects = layout.panelLayout(n);
+    const filas = layout.filasDePaneles(n);
+    const problemas = [];
+    if (rects.length !== n) problemas.push(`devuelve ${rects.length} paneles y no ${n}`);
+    if (JSON.stringify(filas) !== JSON.stringify(FILAS_ESPERADAS[n])) problemas.push(`las filas son ${JSON.stringify(filas)} y no ${JSON.stringify(FILAS_ESPERADAS[n])}`);
+    let area = 0;
+    for (const r of rects) {
+      if (!(r.x >= 0 && r.y >= 0 && r.w > 0 && r.h > 0 && r.x + r.w <= 1 + 1e-9 && r.y + r.h <= 1 + 1e-9)) {
+        problemas.push(`un panel se sale de la pantalla (${JSON.stringify(r)})`);
+      }
+      area += r.w * r.h;
+    }
+    if (Math.abs(area - 1) > 1e-9) problemas.push(`los paneles cubren ${(area * 100).toFixed(1)} % de la pantalla`);
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i], b = rects[j];
+        const solape = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
+          * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+        if (solape > 1e-9) problemas.push(`los paneles ${i + 1} y ${j + 1} se solapan`);
+      }
+    }
+    if (n % 2 === 0 && n > 2) {
+      const iguales = rects.every((r) => Math.abs(r.w - rects[0].w) < 1e-9 && Math.abs(r.h - rects[0].h) < 1e-9);
+      if (!iguales) problemas.push('con un número par, los paneles deberían ser todos iguales');
+    }
+    check(problemas.length === 0, `${n} jugador${n > 1 ? 'es' : ''}: ${filas.join(' + ')} panel(es) por fila${problemas.length ? ' → ' + problemas.join('; ') : ''}`);
+  }
+  // en píxeles, con el origen abajo (lo que quiere three.js)
+  const [arriba, abajo] = layout.panelLayout(2);
+  const pa = layout.panelEnPixeles(arriba, 1920, 1080), pb = layout.panelEnPixeles(abajo, 1920, 1080);
+  check(pa.x === 0 && pa.y === 540 && pa.w === 1920 && pa.h === 540 && pb.y === 0,
+    'en píxeles, el panel de arriba queda arriba (origen abajo, como three.js)');
 }
 
 // ---------------------------------------------------------------- escenarios sueltos

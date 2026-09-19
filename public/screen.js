@@ -7,9 +7,10 @@
  */
 import * as THREE from 'three';
 import {
-  createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, CHARS, ITEMS, ITEM_IDS, TER,
+  createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, BASE_MAX_SPEED, CHARS, ITEMS, ITEM_IDS, TER,
   clamp, lerp, smoothstep, mulberry32, ordinal,
 } from './sim.mjs';
+import { panelLayout, panelEnPixeles } from './layout.mjs';
 
 (() => {
   'use strict';
@@ -20,6 +21,18 @@ import {
   const UI_FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
   // Chispas y brillo del derrape por nivel: 0 = deslizando sin carga, 1 azul, 2 naranja, 3 rosa
   const DRIFT_COLORS = ['#dfe9ff', '#00e5ff', '#ff9f1c', '#ff2d95'];
+  // Cámara de tercera persona (una por persona, en su panel). Distancias en unidades del mapa.
+  const CHASE_DIST = 210;        // lo que se queda por detrás del kart
+  const CHASE_SPEED_DIST = 90;   // cuánto más se aleja a velocidad máxima (da sensación de rapidez)
+  const CHASE_HEIGHT = 105;      // altura sobre el kart
+  const CHASE_AHEAD = 230;       // a qué distancia por delante del kart mira
+  const CHASE_LAG = 7;           // suavizado del seguimiento (más alto = más pegada, menos suave)
+  // Campo de visión: se fija el HORIZONTAL y de ahí sale el vertical según la forma del panel. Si
+  // se fijara el vertical, un panel ancho (dos jugadores) saldría con un ojo de pez tremendo y uno
+  // estrecho (ocho jugadores) se quedaría sin ver los lados.
+  const CHASE_HFOV = 70;         // grados, campo de visión horizontal de la cámara de persecución
+  const CHASE_FOV_MIN = 35, CHASE_FOV_MAX = 75;   // límites del vertical, para no marearse
+  const CHASE_FOV_BOOST = 7;     // grados que se abre la cámara en turbo (sensación de velocidad)
 
   // ===================== Utilidades =====================
   // clamp, lerp, smoothstep, mulberry32 y ordinal vienen de sim.mjs.
@@ -48,6 +61,7 @@ import {
   const ui = document.getElementById('ui');
   const $ = (id) => document.getElementById(id);
   const lobbyEl = $('lobby'), resultsEl = $('results'), noticeEl = $('notice'), hudEl = $('hud'), bigEl = $('big'), toastsEl = $('toasts'), flashEl = $('flash');
+  const timeChipEl = $('timechip'), fpsEl = $('fpsbox');
 
   // ===================== Three.js =====================
   let renderer;
@@ -84,12 +98,16 @@ import {
   }
   function shade(hex, dl) { const c = new THREE.Color(hex); c.offsetHSL(0, 0, dl); return '#' + c.getHexString(); }
 
+  // En pantalla dividida, «la cámara» y «el alto de la pantalla» son los del panel: así las
+  // etiquetas y los emojis siguen midiendo lo mismo en píxeles dentro de cada panel.
+  let camActiva = null, altoActivo = 1;
   let viewW = 1, viewH = 1;
   function resize() {
     viewW = window.innerWidth; viewH = window.innerHeight;
     renderer.setSize(viewW, viewH, false);
     camera.aspect = viewW / viewH;
     camera.updateProjectionMatrix();
+    altoActivo = viewH;
     const s = Math.min(viewW / MAP_W, viewH / MAP_H);
     stage.style.width = Math.floor(MAP_W * s) + 'px'; stage.style.height = Math.floor(MAP_H * s) + 'px';
     ui.style.transform = `scale(${s})`;
@@ -125,9 +143,10 @@ import {
   // escala para que un sprite mida `px` píxeles en pantalla esté donde esté
   const _v = new THREE.Vector3();
   function screenScale(sprite, px, aspect) {
+    const cam = camActiva || camera;
     sprite.getWorldPosition(_v);
-    const dist = _v.distanceTo(camera.position);
-    const worldPerPx = (2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / viewH;
+    const dist = _v.distanceTo(cam.position);
+    const worldPerPx = (2 * dist * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2)) / altoActivo;
     sprite.scale.set(px * worldPerPx * aspect, px * worldPerPx, 1);
   }
 
@@ -634,7 +653,7 @@ import {
       onGo: () => { showBig('¡YA!'); setTimeout(() => hideBig('¡YA!'), 1100); },
       onTrackChanged: (t) => setWorld(t),
       onKartAdded: (k) => makeKartModel(k),
-      onKartRemoved: (k) => removeKartModel(k),
+      onKartRemoved: (k) => { removeKartModel(k); chases.delete(k); },
       onSfx: (name) => sfx(name),
       onDrift: (k, nivel) => { if (nivel > 0) sfx('drift' + nivel); },
       onParticles: (x, h, z, o) => particles.emit(x, h, z, o),
@@ -923,6 +942,136 @@ import {
     camera.lookAt(cam.fx, t.groundAt(cam.fx, cam.fz) * 0.5, cam.fz);
   }
 
+  // ===================== Pantalla dividida (una cámara por persona) =====================
+  // Cada persona ve su kart desde atrás en su panel; los bots no tienen panel. La sala, la cuenta
+  // atrás y los resultados siguen usando la cámara general, que es la que enseña todo el circuito.
+  const chases = new Map();   // kart -> { cam, x, y, z, ang }
+  let panelesActivos = [];    // [{ kart, rect }] del frame actual, para el HUD de cada panel
+
+  function personasEnCarrera() {
+    return state.karts.filter((k) => k.isHuman);
+  }
+  function modoPaneles() {
+    return state.phase === 'race' && personasEnCarrera().length > 0;
+  }
+  function chaseDe(k) {
+    let c = chases.get(k);
+    if (!c) {
+      // arranca ya colocada detrás del kart, para que el primer frame no venga de un salto raro
+      c = {
+        cam: new THREE.PerspectiveCamera(fovVertical(16 / 9), 16 / 9, 12, 9000),
+        x: k.x - Math.cos(k.angle) * CHASE_DIST, y: k.z + CHASE_HEIGHT, z: k.y - Math.sin(k.angle) * CHASE_DIST,
+        ang: k.angle, dist: CHASE_DIST, fovExtra: 0,
+      };
+      chases.set(k, c);
+    }
+    return c;
+  }
+  function updateChase(k, dt) {
+    const c = chaseDe(k);
+    const t = state.track;
+    // el ángulo al que mira la cámara sigue al kart por el camino más corto
+    const objetivoAng = k.angle;
+    c.ang += wrapPi(objetivoAng - c.ang) * (1 - Math.exp(-CHASE_LAG * 0.55 * dt));
+    const vel = Math.min(1, Math.abs(k.speed) / (BASE_MAX_SPEED * 1.5));
+    const distObj = CHASE_DIST + CHASE_SPEED_DIST * vel;
+    c.dist = THREE.MathUtils.damp(c.dist, distObj, 3, dt);
+    const cosA = Math.cos(c.ang), sinA = Math.sin(c.ang);
+    const px = k.x - cosA * c.dist, pz = k.y - sinA * c.dist;
+    const suelo = t ? t.groundAt(px, pz) : 0;
+    const py = Math.max(k.z, suelo) + CHASE_HEIGHT;
+    c.x = THREE.MathUtils.damp(c.x, px, CHASE_LAG, dt);
+    c.z = THREE.MathUtils.damp(c.z, pz, CHASE_LAG, dt);
+    c.y = THREE.MathUtils.damp(c.y, py, CHASE_LAG, dt);
+    // en turbo la cámara se abre un poco y tiembla: velocidad sin tocar la física
+    const turbo = k.boostUntil > state.simTime || k.starUntil > state.simTime;
+    c.fovExtra = THREE.MathUtils.damp(c.fovExtra, turbo ? CHASE_FOV_BOOST : 0, 6, dt);
+    let sx = 0, sy = 0, sz = 0;
+    const meneo = state.shake + (turbo ? 2.5 : 0);
+    if (meneo > 0) { sx = (Math.random() - 0.5) * meneo; sy = (Math.random() - 0.5) * meneo; sz = (Math.random() - 0.5) * meneo; }
+    c.cam.position.set(c.x + sx, c.y + sy, c.z + sz);
+    c.cam.lookAt(k.x + cosA * CHASE_AHEAD, k.z + 40, k.y + sinA * CHASE_AHEAD);
+    return c;
+  }
+  // vertical que hace falta para ver CHASE_HFOV grados a lo ancho en un panel de esta forma
+  function fovVertical(aspect) {
+    const h = THREE.MathUtils.degToRad(CHASE_HFOV);
+    const v = 2 * Math.atan(Math.tan(h / 2) / Math.max(0.01, aspect));
+    return clamp(THREE.MathUtils.radToDeg(v), CHASE_FOV_MIN, CHASE_FOV_MAX);
+  }
+  function wrapPi(a) { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
+
+  // Dibuja la escena una vez por panel, recortando el trozo de lienzo de cada uno
+  function renderPaneles(dt) {
+    const gente = personasEnCarrera();
+    const rects = panelLayout(gente.length);
+    panelesActivos = gente.map((k, i) => ({ kart: k, rect: rects[i] }));
+    renderer.setScissorTest(true);
+    for (let i = 0; i < gente.length; i++) {
+      const k = gente[i], r = rects[i];
+      const px = panelEnPixeles(r, viewW, viewH);
+      if (px.w < 2 || px.h < 2) continue;
+      const c = updateChase(k, dt);
+      c.cam.aspect = px.w / px.h;
+      c.cam.fov = fovVertical(c.cam.aspect) + c.fovExtra;
+      c.cam.updateProjectionMatrix();
+      renderer.setViewport(px.x, px.y, px.w, px.h);
+      renderer.setScissor(px.x, px.y, px.w, px.h);
+      renderer.render(scene, c.cam);
+    }
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, viewW, viewH);
+  }
+
+  // Mini-marcador HTML encima de cada panel: nombre, emoji, posición, vuelta, objeto y avisos
+  const panelHud = new Map();   // kart -> elemento
+  let hudPanelT = 0;
+  function pintarHudPaneles(dt) {
+    const cont = $('panels');
+    if (!panelesActivos.length) {
+      if (panelHud.size) { cont.innerHTML = ''; panelHud.clear(); }
+      return;
+    }
+    const vivos = new Set(panelesActivos.map((p) => p.kart));
+    for (const [k, el] of panelHud) if (!vivos.has(k)) { el.remove(); panelHud.delete(k); }
+    hudPanelT += dt;
+    const tocaTexto = hudPanelT >= 0.15;
+    if (tocaTexto) hudPanelT = 0;
+    for (const { kart, rect } of panelesActivos) {
+      let el = panelHud.get(kart);
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'panel';
+        el.innerHTML = '<div class="pinfo"><span class="pem"></span><span class="pnm"></span></div>'
+          + '<div class="ppos"></div><div class="plap"></div><div class="pitem"></div><div class="pmsg"></div>';
+        el.querySelector('.pem').textContent = kart.emoji;
+        el.querySelector('.pnm').textContent = kart.name;
+        el.querySelector('.pinfo').style.borderLeftColor = kart.color;
+        cont.appendChild(el);
+        panelHud.set(kart, el);
+      }
+      el.style.left = (rect.x * 100) + '%';
+      el.style.top = (rect.y * 100) + '%';
+      el.style.width = (rect.w * 100) + '%';
+      el.style.height = (rect.h * 100) + '%';
+      // todo el mini-marcador va en «em», así que con el tamaño de letra se escala entero
+      el.style.fontSize = Math.max(11, Math.round(rect.h * viewH * 0.055)) + 'px';
+      if (!tocaTexto) continue;
+      el.querySelector('.ppos').textContent = kart.finished ? '🏁' : ordinal(kart.rank);
+      el.querySelector('.plap').textContent = kart.finished ? fmtTime(kart.finishTime) : `Vuelta ${sim.displayLap(kart)}/${state.laps}`;
+      el.querySelector('.pitem').textContent = kart.rolling ? '🎰' : kart.item ? ITEMS[kart.item].icon : '';
+      el.querySelector('.pmsg').textContent = avisoDePanel(kart);
+    }
+  }
+  function avisoDePanel(k) {
+    if (k.finished) return '¡META!';
+    if (k.rescueUntil > state.simTime) return '¡Te devolvemos a la pista!';
+    if (k.trick) return '¡TRUCO!';
+    if (k.driftLevel > 0) return '★'.repeat(k.driftLevel);
+    if (!k.finished && sim.displayLap(k) === state.laps && state.laps > 1) return '¡ÚLTIMA VUELTA!';
+    return '';
+  }
+
   // ===================== Visual por frame =====================
   const _hsl = new THREE.Color();
   function updateVisuals(dt) {
@@ -1040,6 +1189,7 @@ import {
   let hudTimer = 0;
   function updateHud(dt) {
     $('hud-time').textContent = fmtTime(state.raceTime);
+    timeChipEl.textContent = fmtTime(state.raceTime);
     hudTimer += dt;
     if (hudTimer < 0.15) return;
     hudTimer = 0;
@@ -1062,7 +1212,7 @@ import {
   function updateOverlays() {
     lobbyEl.classList.toggle('hidden', state.phase !== 'lobby');
     resultsEl.classList.toggle('hidden', state.phase !== 'results');
-    hudEl.classList.toggle('hidden', state.phase === 'lobby');
+    hudEl.classList.toggle('hidden', state.phase === 'lobby' || panelesPrev);
     if (state.phase !== 'countdown' && state.phase !== 'race') bigEl.classList.add('hidden');
     if (state.phase === 'lobby') renderLobby();
     if (state.phase === 'results') renderResults();
@@ -1107,6 +1257,8 @@ import {
     }
     if (e.repeat) return;
     if (key === 'f' || key === 'F') { toggleFullscreen(); return; }
+    // contador de fps: para comprobar en la fiesta que la pantalla dividida no se atraganta
+    if (key === 'p' || key === 'P') { fpsEl.classList.toggle('hidden'); return; }
     if (state.phase === 'lobby') {
       if (key === 'Enter') startRace();
       else if (key === 'k' || key === 'K') toggleKeyboardPlayer();
@@ -1193,7 +1345,7 @@ import {
     }
   }
 
-  let last = performance.now(), acc = 0;
+  let last = performance.now(), acc = 0, panelesPrev = false;
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
@@ -1202,11 +1354,38 @@ import {
     pushInputs();
     while (acc >= DT && n < 6) { sim.update(DT); acc -= DT; n++; }
     if (n === 6) acc = 0;
+    const paneles = modoPaneles();
+    if (paneles !== panelesPrev) {
+      panelesPrev = paneles;
+      hudEl.classList.toggle('hidden', paneles || state.phase === 'lobby');
+      timeChipEl.classList.toggle('hidden', !paneles);
+      // con muchos paneles, dibujar la escena 8 veces cuesta: se baja la resolución interna
+      renderer.setPixelRatio(paneles && personasEnCarrera().length > 4 ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(viewW, viewH, false);
+    }
+    camActiva = paneles ? (chases.get(personasEnCarrera()[0]) || {}).cam || camera : camera;
+    altoActivo = paneles ? viewH / panelLayout(personasEnCarrera().length).length : viewH;
     updateVisuals(dt);
-    updateCamera(dt);
+    if (paneles) {
+      renderPaneles(dt);
+      updateCamera(dt);            // la general sigue al día para cuando se vuelva a ella
+    } else {
+      panelesActivos = [];
+      updateCamera(dt);
+      renderer.render(scene, camera);
+    }
     if (state.phase !== 'lobby') updateHud(dt);
-    renderer.render(scene, camera);
+    pintarHudPaneles(dt);
+    contarFps(dt, paneles ? panelesActivos.length : 1);
     requestAnimationFrame(frame);
+  }
+
+  let fpsAcc = 0, fpsCuenta = 0;
+  function contarFps(dt, paneles) {
+    fpsAcc += dt; fpsCuenta++;
+    if (fpsAcc < 0.5) return;
+    if (!fpsEl.classList.contains('hidden')) fpsEl.textContent = `${Math.round(fpsCuenta / fpsAcc)} fps · ${paneles} panel${paneles > 1 ? 'es' : ''}`;
+    fpsAcc = 0; fpsCuenta = 0;
   }
 
   window.KART_DEBUG = {

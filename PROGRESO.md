@@ -7,14 +7,14 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 13:20
+- último latido (UTC): 2026-09-19 15:05
 - rama: noche/2026-09-19
 
 ## Punto en curso
 - IDEAS.md: ninguno
-- hecho: bug del contador de progreso arreglado y probado
-- siguiente paso: «Vista en tercera persona por jugador (pantalla dividida)» (Fase 1) — punto grande,
-  probablemente una sesión entera
+- hecho: pantalla dividida completa (layout, cámaras, HUD por panel, README y CHANGELOG)
+- siguiente paso: Fase 2, «Mejorar los circuitos para la vista en tercera persona» (circuito a
+  circuito, con una entrada de CHANGELOG por cada uno)
 - intentos fallidos en este punto: 0
 
 ## Última sesión

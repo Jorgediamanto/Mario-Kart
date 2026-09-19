@@ -191,8 +191,8 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         `DRIFT_*` al principio de `sim.mjs`, hook `onDrift(kart, nivel)`, `fx` nuevos al móvil
         (`drift0..3`) y `tools/referencia.json` como vara de medir de la fase 4.
 
-- [ ] **Vista en tercera persona por jugador (pantalla dividida).** ⭐ **Lo que más quiere el dueño
-      (pedido el 2026-09-19 a mediodía): esto primero, antes que nada.** En vez de la cámara general del circuito,
+- [x] **Vista en tercera persona por jugador (pantalla dividida).** ⭐ **Lo que más quería el dueño
+      (pedido el 2026-09-19 a mediodía); hecho esa misma noche.** En vez de la cámara general del circuito,
       cada persona ve **su kart desde atrás y un poco arriba**, cámara que sigue al kart con suavidad (mira
       algo por delante, se aleja un poco con la velocidad, se agita ligeramente en turbos y golpes, y sigue al
       kart en los saltos). Como todos comparten la tele, la pantalla se divide en paneles: 1 jugador →
@@ -210,6 +210,14 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       paneles es una función pura en `public/layout.mjs` con prueba en `tools/check-sim.js` (para n = 1..8
       devuelve rectángulos dentro de [0,1] que no se solapan, cubren la pantalla y respetan la tabla de arriba); la simulación no cambia (fase 4 idéntica);
         anota en CHANGELOG el coste estimado de render por panel y márcalo «pendiente de probar en fiesta».
+      - **Hecho el 2026-09-19 (noche 2).** `public/layout.mjs` (puro, probado para n = 1..8),
+        cámaras de persecución por persona en `screen.js` (constantes `CHASE_*`), render por paneles
+        con scissor/viewport, mini-HUD HTML por panel y el marcador grande sustituido por una chapa
+        con el tiempo. El campo de visión se fija a lo ancho (70º) y el vertical sale de la forma del
+        panel, para que dos paneles anchos no den ojo de pez. Con más de 4 paneles baja la resolución
+        interna. Como no hay pruebas de navegador, `npm test` gana una fase «Pantalla» que comprueba
+        que no se usan nombres de three.js inexistentes y que siguen ahí scissor y viewport; y la
+        tecla `P` enseña los fps para medirlo en la fiesta.
 - [ ] **Volante de giroscopio: el móvil se inclina como el mando de la Wii. 🚧 EN CURSO (lo está
       haciendo el dueño en su sesión el 2026-09-19 por la tarde — no lo toques).** ⭐ Segunda cosa
       que más quiere el dueño. Girar con los botones ◀ ▶ es incómodo: se acabaron. El móvil se pone

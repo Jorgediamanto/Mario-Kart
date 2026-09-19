@@ -40,6 +40,28 @@ checkSyntax('tools/check-protocol.js', false);
 checkSyntax('tools/sim-race.js', false);
 checkSyntax('public/screen.js', true);
 checkSyntax('public/sim.mjs', false);   // ya es un módulo: node --check lo entiende tal cual
+checkSyntax('public/layout.mjs', false);
+
+// La pantalla no tiene pruebas de navegador, así que al menos se comprueba que no usa nombres de
+// three.js que no existan en la versión instalada (un `THREE.LoQueSea` mal escrito revienta la tele
+// en la fiesta y aquí no se notaría), y que la pantalla dividida sigue en su sitio.
+console.log('Pantalla');
+{
+  const screenSrc = fs.readFileSync(path.join(ROOT, 'public/screen.js'), 'utf8');
+  const threeSrc = fs.readFileSync(path.join(ROOT, 'node_modules/three/build/three.module.js'), 'utf8');
+  const exportados = new Set();
+  for (const m of threeSrc.matchAll(/^export \{([^}]+)\}/gm)) {
+    for (const nombre of m[1].split(',')) exportados.add(nombre.trim().split(/\s+as\s+/).pop());
+  }
+  const usados = new Set([...screenSrc.matchAll(/\bTHREE\.([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]));
+  const faltan = [...usados].filter((n) => !exportados.has(n));
+  if (!exportados.size) bad('no se ha podido leer la lista de exportaciones de three.js');
+  else if (faltan.length) bad(`screen.js usa nombres de three.js que no existen: ${faltan.join(', ')}`);
+  else ok(`los ${usados.size} nombres de three.js que usa screen.js existen en la versión instalada`);
+  const partido = ['setScissorTest', 'setScissor', 'setViewport'].filter((n) => !screenSrc.includes(n));
+  if (partido.length) bad(`la pantalla dividida ha perdido ${partido.join(', ')}`);
+  else ok('la pantalla dividida usa setScissorTest, setScissor y setViewport');
+}
 
 console.log('Circuitos');
 {
@@ -71,6 +93,7 @@ console.log('Servidor');
       ['/qr.svg', 'image/svg+xml', '<svg'],
       ['/screen.js', 'text/javascript', "from 'three'"],
       ['/sim.mjs', 'text/javascript', 'createSim'],
+      ['/layout.mjs', 'text/javascript', 'panelLayout'],
       ['/play.js', 'text/javascript', 'WebSocket'],
       ['/tracks.js', 'text/javascript', 'KART_TRACKS'],
       ['/geom.js', 'text/javascript', 'KART_GEOM'],
