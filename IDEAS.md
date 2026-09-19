@@ -35,6 +35,15 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       se reserva para cuando ya casi está parado. El aviso ⚠ de la fase 4 pasa a ser un fallo de la
       prueba y hay un escenario nuevo («un kart puesto del revés…», los 4 circuitos, pierde menos de
       25 muestras y recupera su avance en < 2,5 s). Volcán Disco: vuelta media 13,5 s → 12,1 s.
+      **Segunda mitad, el 2026-09-19 por la mañana.** Trazando el Bot 4 tick a tick salió la otra
+      causa, que no era la dirección: tras el plátano salía despedido al césped de la horquilla y
+      `nearest()` le devolvía como carretera más cercana el **tramo de enfrente** (81 muestras por
+      delante). Se subía a él, el antiatajos no se lo contaba y al pasar de media vuelta su progreso
+      saltaba a negativo: una vuelta perdida. El rescate tenía el mismo fallo (dejaba al kart,
+      persona o bot, en el tramo más cercano y no en el suyo). Arreglo: `nearestNear()` busca la
+      muestra más cercana **solo alrededor del progreso del kart** (±`win`); `aiInput` y el rescate
+      usan ese «tramo propio». Dos escenarios más en `check-sim.js`, y `sim-race.js` deja de contar
+      las vueltas «de propina» de los karts ya terminados, que falseaban las medias.
 
 - [x] **El contador de progreso se congela cuando un kart vuela por encima de un atajo.** Si un kart
       aterriza más de `win` muestras por delante de donde iba (por ejemplo, saliendo disparado de una

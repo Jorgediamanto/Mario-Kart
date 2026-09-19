@@ -127,6 +127,19 @@ export function buildTrack(def, index, geom) {
       const s = samples[bi];
       return { i: bi, d: Math.sqrt(bd), lat: (x - s.x) * s.nx + (y - s.y) * s.ny };
     },
+    // Muestra más cercana mirando solo alrededor del índice `i0` (±win). Sirve para no confundir
+    // dos tramos de carretera que pasan cerca (una horquilla): a cada kart se le busca su tramo.
+    nearestNear(x, y, i0, win) {
+      let bi = ((i0 % N) + N) % N, bd = Infinity;
+      for (let j = -win; j <= win; j++) {
+        const i = (((i0 + j) % N) + N) % N;
+        const dx = samples[i].x - x, dy = samples[i].y - y;
+        const d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; bi = i; }
+      }
+      const s = samples[bi];
+      return { i: bi, d: Math.sqrt(bd), lat: (x - s.x) * s.nx + (y - s.y) * s.ny };
+    },
     groundAt(x, y) {
       const near = this.nearest(x, y);
       if (near.d <= halfW + 14) return samples[near.i].h;
@@ -355,9 +368,18 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     return true;
   }
 
+  // El tramo de carretera «propio» del kart: la muestra más cercana buscando solo alrededor de su
+  // progreso. Con la búsqueda global, un kart que sale despedido en una horquilla se encontraba
+  // más cerca del tramo de enfrente, se subía a él (los bots) o lo dejaban allí (el rescate), el
+  // antiatajos no le daba crédito y perdía la vuelta entera.
+  function tramoDe(k) {
+    const t = state.track;
+    return t.nearestNear(k.x, k.y, ((k.dist % t.N) + t.N) % t.N, t.win);
+  }
+
   function aiInput(k) {
     const t = state.track, N = t.N;
-    const near = t.nearest(k.x, k.y);
+    const near = tramoDe(k);
     let target;
     if (near.d > t.halfW * 1.6) target = t.samples[near.i];
     else {
@@ -529,12 +551,13 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
 
     // ¿perdido o clavado? a los RESCUE_AFTER segundos, de vuelta a la carretera
     if (state.phase === 'race' && !k.finished && !spinning) {
+      const propio = tramoDe(k);                   // su tramo, no el que le pille más cerca
       const lento = Math.abs(k.speed) < RESCUE_SLOW && !k.air;
-      const perdido = near2.d > t.halfW + RESCUE_FAR;
+      const perdido = propio.d > t.halfW + RESCUE_FAR;
       const atascado = lento && (g || b);          // pisa el gas y no se mueve: contra un muro
       const abandonado = lento && k.offroad;       // parado fuera de la pista
       if (perdido || atascado || abandonado) k.stuckT += dt; else k.stuckT = 0;
-      if (k.stuckT >= RESCUE_AFTER) { rescatar(k, near2); return; }
+      if (k.stuckT >= RESCUE_AFTER) { rescatar(k, propio); return; }
     }
 
     updateProgress(k, near2, dt);

@@ -232,6 +232,32 @@ function carrera(sim, { bots = 1, laps = 3, trackIndex = 0, seed = 7, hooks } = 
 }
 const humano = (s) => s.state.karts.find((k) => !k.isBot);
 
+// Busca en el circuito los dos tramos que pasan más cerca sin ser el mismo (la horquilla) y planta
+// al humano encima del tramo de enfrente, con el progreso del tramo por el que iba: es lo que le
+// pasa a un kart que sale despedido en la horquilla de Volcán Disco.
+function enElTramoDeEnfrente(sim, { bots, seed, hooks, trackIndex = 2 } = {}) {
+  const s = carrera(sim, { bots, seed, hooks, trackIndex });
+  const k = humano(s);
+  const t = s.state.track;
+  for (let f = 0; f < 60 * 2; f++) { s.setInput(k, s.aiInput(k)); s.update(DT); }   // cruza la meta
+  let mejor = null;
+  for (let i = 0; i < t.N; i += 2) {
+    for (let j = i + t.win + 10; j <= i + t.N / 2 - 10; j += 2) {
+      const a = t.samples[i], b = t.samples[j % t.N];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (!mejor || d < mejor.d) mejor = { i, j: j % t.N, d };
+    }
+  }
+  if (!mejor || mejor.d > t.halfW + 400) return { error: 'este circuito no tiene dos tramos lo bastante cerca' };
+  const cur = ((k.dist % t.N) + t.N) % t.N;
+  const base = k.dist - cur;                     // vueltas ya contadas, en muestras
+  k.dist = base + mejor.i;
+  const sj = t.samples[mejor.j];
+  k.x = sj.x; k.y = sj.y; k.z = sj.h; k.ground = sj.h; k.vz = 0; k.air = false;
+  k.angle = sj.ang; k.moveAngle = sj.ang; k.speed = 200; k.stuckT = 0;
+  return { s, k, t, i: mejor.i, j: mejor.j, base };
+}
+
 const escenarios = [
   {
     nombre: 'la cuenta atrás dura 3 s y nadie sale antes',
@@ -514,6 +540,42 @@ const escenarios = [
       s.setInput(k, { s: 1, g: 1, b: 0, d: 0 });
       s.update(DT);
       return k.trick ? null : 'tocar el giro en el aire no ha hecho el truco';
+    },
+  },
+  {
+    // el otro medio bug de la horquilla: la carretera «más cercana» a un kart que sale despedido
+    // puede ser el tramo de enfrente, 80 muestras por delante. Si se sube a él, el antiatajos no
+    // se lo cuenta y al pasar de media vuelta pierde la vuelta entera.
+    nombre: 'un bot que cae en el tramo de enfrente de una horquilla vuelve al suyo sin perder la vuelta',
+    run(sim) {
+      const r = enElTramoDeEnfrente(sim, { bots: 1, seed: 23 });
+      if (r.error) return r.error;
+      const { s, k, t, i } = r;
+      let minDist = k.dist;
+      for (let f = 0; f < 60 * 12 && k.dist < r.base + i + 60; f++) {
+        s.setInput(k, s.aiInput(k)); s.update(DT);
+        minDist = Math.min(minDist, k.dist);
+      }
+      if (minDist < r.base + i - 30) return `ha perdido progreso (de ${r.base + i} a ${minDist})`;
+      if (k.dist < r.base + i + 60) return 'doce segundos después sigue sin retomar su tramo';
+      for (let f = 0; f < 60 * 4 && t.nearest(k.x, k.y).d > t.halfW + 3; f++) { s.setInput(k, s.aiInput(k)); s.update(DT); }
+      return t.nearest(k.x, k.y).d <= t.halfW + 3 ? null : 'ha recuperado el progreso pero no vuelve a la carretera';
+    },
+  },
+  {
+    nombre: 'a quien acaba en el tramo de enfrente lo recogen y lo devuelven a SU tramo',
+    run(sim) {
+      let recogido = false;
+      const r = enElTramoDeEnfrente(sim, { bots: 1, seed: 24, hooks: { onRescue: () => { recogido = true; } } });
+      if (r.error) return r.error;
+      const { s, k, t, i } = r;
+      // sigue a todo gas por el tramo equivocado, como haría una persona despistada
+      for (let f = 0; f < 60 * 6 && !recogido; f++) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
+      if (!recogido) return 'nadie lo ha recogido';
+      const n = t.nearest(k.x, k.y);
+      let delta = n.i - i; if (delta > t.N / 2) delta -= t.N; if (delta < -t.N / 2) delta += t.N;
+      if (Math.abs(delta) > t.win) return `lo han dejado en el tramo equivocado (muestra ${n.i}, la suya era la ${i})`;
+      return k.dist >= r.base + i - 5 ? null : `al recogerlo ha perdido progreso (${k.dist} < ${r.base + i})`;
     },
   },
   {

@@ -3,6 +3,21 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 — Nadie pierde una vuelta en la horquilla (segunda mitad del bug de los bots)
+
+- **Qué pasaba**: el arreglo de esta madrugada curó la mitad del bug (el bot de espaldas). La otra
+  mitad no era la dirección: tras un plátano en la horquilla de Volcán Disco el bot salía despedido
+  al césped y la simulación lo daba por más cerca del **tramo de enfrente** de la horquilla. Se
+  subía a él, y como eso es un atajo de 81 muestras, el antiatajos no se lo contaba: al cabo de
+  media vuelta perdía la vuelta entera. El rescate automático tenía el mismo fallo y podía dejar a
+  una **persona** en el tramo equivocado, haciéndole perder la vuelta.
+- **Qué cambió**: la simulación busca la carretera más cercana **solo alrededor del tramo por el que
+  iba cada kart**. Los bots vuelven al suyo y el rescate te deja en el tuyo.
+- **Cómo probarlo**: `npm test`, con dos escenarios nuevos (un bot que cae en el tramo de enfrente y
+  un rescate desde allí). Medido con `npm run race`: Volcán Disco pasa de 12,5 a 11,8 s de vuelta
+  media y la carrera de 51 a 39 s; los otros tres circuitos no se mueven. En la fiesta: si en la
+  horquilla de Volcán Disco te sacan de la pista y te recogen, sigues por tu tramo.
+
 ## 2026-09-19 (noche 2) — La clasificación deja de mentir tras un vuelo (bug)
 
 - **Qué pasaba**: si un kart aterrizaba muy por delante de donde iba (saliendo disparado de una rampa

@@ -107,7 +107,7 @@ function correr(sim, { trackIndex, laps, bots, seed, verbose }) {
   }
 
   const tope = 60 * laps + 60;
-  let previo = s.state.karts.map((k) => ({ item: k.item, lap: k.lapCount, drift: k.driftT }));
+  let previo = s.state.karts.map((k) => ({ item: k.item, lap: k.lapCount, drift: k.driftT, fin: k.finished }));
   while (s.state.simTime < tope && !s.allFinished() && s.state.phase !== 'results') {
     s.update(DT);
     s.state.karts.forEach((k, i) => {
@@ -120,14 +120,15 @@ function correr(sim, { trackIndex, laps, bots, seed, verbose }) {
       if (!k.item && previo[i].item && !k.finished) { d.itemsUsed++; registra(k, `usa ${sim.ITEMS[previo[i].item].name.toLowerCase()}`); }
       // derrape: se cuenta cuando se suelta
       if (previo[i].drift > 0 && k.driftT === 0) d.drifts.push(previo[i].drift);
-      if (k.lapCount > previo[i].lap && k.lapCount > 0) {
+      // (quien ya ha terminado sigue rodando por la pista: esas vueltas de propina no cuentan)
+      if (k.lapCount > previo[i].lap && k.lapCount > 0 && !previo[i].fin) {
         const t = k.finished ? k.finishTime : s.state.raceTime;
         const vuelta = t - d.ultimaVuelta;
         d.vueltas.push(vuelta);
         d.ultimaVuelta = t;
         registra(k, k.finished ? `¡meta! ${t.toFixed(2)} s (última vuelta ${vuelta.toFixed(2)} s)` : `cierra la vuelta ${k.lapCount} en ${vuelta.toFixed(2)} s`);
       }
-      previo[i] = { item: k.item, lap: k.lapCount, drift: k.driftT };
+      previo[i] = { item: k.item, lap: k.lapCount, drift: k.driftT, fin: k.finished };
     });
   }
 
