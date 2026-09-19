@@ -1,10 +1,13 @@
 # Progreso del agente nocturno
 
 Este archivo es la memoria entre sesiones. El agente lo lee al empezar y lo actualiza en **cada guardado**
-(commit + push). Formato fijo: no borres secciones; escribe «ninguna» o «—» cuando no aplique.
+(commit + push). Formato fijo: no borres secciones; escribe «ninguna» o «—» cuando no aplique. «Último latido»
+es la hora del último push de la sesión: si tiene más de 45 minutos, la sesión se da por muerta y otra puede
+retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): ninguna
+- último latido (UTC): ninguno
 - rama: ninguna
 
 ## Punto en curso

@@ -31,7 +31,8 @@ npm test        # sintaxis de todos los archivos + validador de circuitos + arra
 ```
 
 `npm test` tiene que pasar antes de subir nada a `main`. No hay tests de navegador (la Fase 0 de
-`IDEAS.md` añade una simulación sin navegador que corre carreras de bots dentro de `npm test`): cuando
+`IDEAS.md` añade `public/sim.mjs`, una simulación sin navegador que corre carreras de bots dentro de
+`npm test`, y `npm run race` para ver carreras por consola): cuando
 toques `screen.js`, revisa con cuidado que el código sea válido como módulo ES y que no uses APIs de
 three.js que no existan en la versión instalada (`node_modules/three/package.json`).
 
@@ -55,14 +56,20 @@ Nadie revisa hasta la mañana, así que la prioridad es **avanzar todo lo posibl
 el juego**. La memoria entre sesiones es `PROGRESO.md`; la hoja de ruta, `IDEAS.md`; el diario, `CHANGELOG.md`.
 
 1. **Candado.** `git fetch --all --prune`. Lee `PROGRESO.md` de la rama `noche/*` más reciente (o de `main`
-   si no hay ninguna). Si «Sesión en curso» tiene un inicio de hace **menos de 2,5 horas**, otra sesión está
-   trabajando: termina sin tocar nada. Si no, apunta tu inicio (UTC) y tu rama y haz push.
+   si no hay ninguna). Si «Sesión en curso» tiene un inicio de hace **menos de 2,5 horas** y un «último
+   latido» de hace **menos de 45 minutos**, otra sesión está trabajando: termina sin tocar nada. Si el
+   latido es más viejo, esa sesión murió: retómala. Una rama `noche/*` ya contenida en `main`
+   (`git merge-base --is-ancestor origin/noche/X origin/main`) son restos de una noche terminada: bórrala
+   en el remoto y sigue. Si no hay nada activo, apunta tu inicio (UTC), tu rama y tu primer latido y haz
+   push: ese push es tu candado.
 2. **Retomar.** Si hay un «Punto en curso», sigue por su «siguiente paso» en esa misma rama (rebase sobre
    `main` si `main` avanzó). Si no, coge el primer punto pendiente de `IDEAS.md` (bugs → Fase 0 → Fase 1 → …)
    y crea `noche/AAAA-MM-DD` desde `main`.
 3. **Guardar.** Tras cada subpaso coherente, y como máximo cada 20-30 minutos: actualiza `PROGRESO.md`
-   (hecho / siguiente paso) + `git commit` + `git push origin noche/<fecha>`. Solo lo que está en GitHub
-   sobrevive a un corte de sesión.
+   (hecho / siguiente paso / «último latido» con `date -u`) + `git commit` + `git push origin noche/<fecha>`.
+   Solo lo que está en GitHub sobrevive a un corte de sesión. Si un push es rechazado: `git fetch` y mira
+   el «inicio» de «Sesión en curso» en el `PROGRESO.md` remoto; si no es el tuyo, has perdido el candado:
+   **para inmediatamente** sin más push; si es el tuyo, `git pull --rebase` y reintenta.
 4. **Cerrar un punto.** Solo con `npm ci && npm test` en verde y la «Comprobación» del punto cumplida:
    marca `[x]` en `IDEAS.md`, entrada fechada en `CHANGELOG.md` (qué cambió, cómo probarlo en la fiesta,
    «pendiente de probar en fiesta» si aplica), `PROGRESO.md` sin punto en curso, `git checkout main &&

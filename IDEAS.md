@@ -25,41 +25,68 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 
 ## Fase 0 — Cimientos: que el agente pueda comprobar su trabajo
 
-- [ ] **Simulación sin navegador (el «crash-test»).** Separar el cerebro del juego del render para que `npm test`
-      corra carreras completas de bots en todos los circuitos.
-      - Qué: crear `public/sim.js` (módulo ES) con `createSim({ tracksDef, geom, hooks, random })` que
-        devuelve `{ state, stats, TRACKS, startRace(entries, trackIndex, laps, opts), update(dt), useItem,
-        aiInput, setInput(kartId, input), … }`. Mover **tal cual** (mismos valores, misma lógica) desde
-        `screen.js`: constantes, `CHARS`, `ITEMS`, `TER`, `buildTrack`, `makeKart` (sin modelo), `startRace`,
-        `showResults`/`backToLobby` (parte de estado), `aiInput`, `stepKart`, `land`, `updateProgress`,
-        `finishKart`, `setVel`, `collideKarts`, `rollItem`, `checkBoxes`, `finishRoulettes`, `useItem`,
-        `stepProjectiles`, `checkBananas`, `updateRanking`, `update`, `stats`. Cada costura con efectos pasa a
-        ser un hook opcional: `onSfx(nombre)`, `onParticles(x,y,z,opts)`, `onToast(texto,dur)`,
-        `onStatus(kart)`, `onFx(playerId, kind)`, `onShake(n)`, `onKartCreate(kart)`/`onKartRemove(kart)`,
-        `onProjectileCreate/Remove`, `onBananaCreate/Remove`, `onBig(texto)`, `onFlash()`, `onPhase(fase)`,
-        `onSquash(kart, tipo, fuerza)` (sustituye a `k.model.sq/st.vel`). `random` sustituye a todos los
-        `Math.random` (por defecto `Math.random`; en pruebas `mulberry32(semilla)` para reproducir fallos).
-        `screen.js` importa `./sim.js`, pasa `KART_TRACKS`/`KART_GEOM` a `createSim`, implementa los hooks con
-        three.js/DOM/WebSocket y conserva red, sala, cámara, HUD, audio y render. `window.KART_DEBUG` sigue
+- [ ] **0.1 Simulación sin navegador (el «crash-test»): `public/sim.mjs` + carrera de bots en `npm test`.**
+      - Qué: mover a `public/sim.mjs` (módulo ES; **`.mjs` y no `.js`**, porque `package.json` no tiene
+        `"type": "module"` y Node 18/20 trataría un `.js` como CommonJS al importarlo desde las pruebas; en
+        el navegador funciona igual) todo lo que hoy es simulación en `screen.js`: constantes, `CHARS`,
+        `ITEMS`, `TER`, `buildTrack(def, index, geom)`, `makeKart` (sin modelo), `startRace`,
+        `showResults`/`backToLobby` (la parte de estado), `aiInput`, `stepKart`, `land`, `updateProgress`,
+        `finishKart`, `setVel`, `collideKarts`, `hitKart`, `boost`, `rollItem`, `checkBoxes`,
+        `finishRoulettes`, `useItem`, `stepProjectiles`, `checkBananas`, `updateRanking`, `update`, `stats`.
+        `export function createSim({ geom, trackDefs, hooks = {}, random = Math.random })` devuelve
+        `{ tracks, state, stats, startRace({ entries, trackIndex, laps }), update(dt), setInput(kart, input),
+        useItem, aiInput, hitKart, backToLobby, allFinished() }`. Cada costura con efectos pasa a ser un hook
+        opcional, todos con valor por defecto vacío en un objeto `DEFAULT_HOOKS`: `onPhase`, `onCountdown(n)`,
+        `onGo`, `onTrackChanged(t)`, `onKartAdded`/`onKartRemoved`, `onSfx(nombre, kart)`,
+        `onParticles(x, h, z, opts)`, `onToast`, `onStatus(kart)`, `onFx(kart, kind)`, `onShake(n, kart)`,
+        `onFlash`, `onSquash`/`onStretch(kart, dv)` (sustituyen a `k.model.sq/st.vel`),
+        `onProjectileAdded`/`Removed`, `onBananaAdded`/`Removed`, `onResults`. Los objetos del sim llevan una
+        ranura `view` que el sim nunca lee (ahí guarda `screen.js` las mallas). Todo `Math.random` del sim pasa
+        por `random` (orden de parrilla, `skill`, `lane`, `rollItem`, `itemUseAt`). `screen.js` importa
+        `./sim.mjs`, le pasa `KART_GEOM`/`KART_TRACKS` (globales de los scripts clásicos) y las herramientas
+        se los pasan con `require`. `server.js`: añadir `'.mjs': 'text/javascript; charset=utf-8'` al mapa
+        `MIME`. Refactor puro: ni un número ni una condición de la física cambia. `window.KART_DEBUG` sigue
         exponiendo `state`, `stats`, `TRACKS`, `aiInput`, `startRace`, `backToLobby`, `useItem`, `hitKart`.
-      - Qué (pruebas): fase 4 «Carreras de bots» en `tools/check-all.js`: `await import(pathToFileURL(...))`
-        de `public/sim.js` (los UMD `tracks.js`/`geom.js` se cargan con `require`). Por circuito: 8 bots,
-        3 vueltas, `opts.endWhenAllFinish`, bucle de `update(1/60)` con tope de 4 minutos de tiempo simulado,
-        semilla fija.
+      - Qué (pruebas): `tools/check-sim.js`, lanzado por `check-all.js` como fase 4 «Carrera sin pantalla»
+        (igual que se lanza `check-tracks.js`): `await import(pathToFileURL(...).href)` de `public/sim.mjs`.
+        Por circuito: 7 bots + 1 «pseudo-humano» (`bot: false`, movido por `aiInput`, para ejercitar los
+        avisos y el final «todos los humanos han terminado»), 2 vueltas (3 en el primer circuito), semilla
+        `1000 + índice`, `dt = 1/60`, tope de `60 s × vueltas + 30 s` de tiempo simulado. Contadores nuevos
+        en `stats`: `pickups`, `itemsUsed`, `hits`. `check-sim.js` expone además una lista `escenarios`
+        (funciones que montan un sim, fuerzan un estado y comprueban una regla): cada punto futuro añade el
+        suyo. En `check-all.js`: `node --check public/sim.mjs` en la fase 1 (sin copia temporal) y
+        `['/sim.mjs', 'text/javascript', 'createSim']` en las peticiones de la fase 3.
       - Por qué: sin esto, cada cambio de físicas, objetos o circuitos se sube a ciegas.
-      - Comprobación: en cada circuito todos los bots terminan las 3 vueltas antes del tope; `lapCount` acaba
-        en 3; ninguna coordenada/velocidad es `NaN`; `stats.pads > 0` y `stats.jumps > 0`; se usan objetos
-        (> 0 llamadas a `useItem` con efecto); ningún kart pasa más de 5 s sin avanzar en `dist`; la fase
-        imprime el tiempo medio de vuelta por circuito; toda la fase tarda < 20 s. `npm test` completo en
-        verde. El juego en navegador no cambia de comportamiento (código movido, no reescrito). Actualizar la
+      - Comprobación: en los 4 circuitos todos terminan antes del tope, `lapCount` acaba en el número de
+        vueltas y `finishRank` coincide con el orden por `finishTime`; en cada tick `x, y, z, vz, speed, angle`
+        son finitos, `0 ≤ x ≤ 1920`, `0 ≤ y ≤ 1080`, `|speed| ≤ 2,5 × velocidad base`, `rank` es una
+        permutación y `lapCount` no decrece; en toda ventana de 10 s cada kart no terminado avanza ≥ 40
+        muestras; por circuito `jumps ≥ 1`, `pads ≥ 1`, `pickups ≥ 8`, `itemsUsed ≥ 8`; en total `hits ≥ 1`;
+        dos carreras con la misma semilla dan los mismos `finishTime` (determinismo); `sim.mjs` no contiene
+        `Math.random`, `document`, `window`, `THREE`, `setTimeout`, `performance`, `.mesh` ni `.model`
+        (grep); todo `hooks.onX` usado existe en `DEFAULT_HOOKS`; la fase imprime el tiempo medio de vuelta
+        por circuito y tarda < 20 s (cada carrera < 5 s reales). `npm test` completo en verde. Actualizar la
         frase «No hay tests de navegador» de `CLAUDE.md` y `README.md`, y el aserto de `check-all.js` que
-        busca `from 'three'` en `/screen.js` si deja de cumplirse.
-- [ ] **Prueba de carga de red.** Fase 5 en `tools/check-all.js`: arranca el servidor, conecta un cliente
-      WebSocket «pantalla» y 8 clientes «móvil» (con `ws` en Node), que entran con `hello`, reciben `welcome`
-      y `lobby`, mandan botones `i` 10 veces por segundo durante 3 s y reciben lo que la pantalla les manda
-      (`to`). Comprobación: los 8 entran, el 9.º recibe «sala llena», el anfitrión es el primero, un móvil que
-      se desconecta y vuelve con su token conserva su id, los mensajes `i` llegan a la pantalla con el id
-      correcto, y no hay excepciones en el servidor. Tarda < 10 s.
+        busca `from 'three'` en `/screen.js` si deja de cumplirse. En CHANGELOG: «primera fiesta tras este
+        cambio: jugar con atención».
+- [ ] **0.2 `npm run race`: carreras por consola con estadísticas (los ojos del agente).**
+      `tools/sim-race.js` con `--track n|all`, `--laps`, `--bots`, `--seed`, `--runs k`, `--verbose`
+      (registro por evento: vuelta, objeto cogido/usado, golpe, salto, truco, panel, con tiempo y posición),
+      `--stats items|drift|speed` (histogramas) y `--json`. Tabla final por kart: posición, tiempo, mejor
+      vuelta, objetos usados, golpes dados/recibidos, tiempo fuera de pista y en el aire. Script `"race"` en
+      `package.json`.
+      - Por qué: para equilibrar objetos, derrape y circuitos con datos en vez de imaginar la carrera.
+      - Comprobación: `npm run race -- --track all --runs 3 --json` produce JSON válido con esos campos;
+        `npm test` lo ejecuta una vez en modo silencioso y comprueba que sale con código 0.
+- [ ] **0.3 Prueba del protocolo con móviles simulados (fase 5 de `npm test`).** `tools/check-protocol.js`
+      arranca el servidor en un puerto libre, conecta con `ws` una pantalla falsa y 8 móviles falsos y
+      recorre: `hello`/`welcome`, `roster`, sala llena (el 9.º recibe `err`), personaje repetido, cambio de
+      ajustes solo por el anfitrión, `start`, botones `i` 10 veces por segundo durante 3 s reenviados a la
+      pantalla con el id correcto, `use`, relevo de anfitrión al desconectarse, reconexión con `token` que
+      conserva el id, `leave`, y que un móvil no puede hacerse pasar por pantalla.
+      - Por qué: en la fiesta lo que falla son los móviles y la red, y hoy nada lo prueba.
+      - Comprobación: la fase pasa en < 10 s; cada mensaje del protocolo tiene al menos una aserción; no hay
+        excepciones en el servidor.
 
 ## Fase 1 — Cambios pedidos por el dueño (hacer en este orden)
 
@@ -72,7 +99,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       - Marcha atrás / freno: pulsar **los dos botones de girar a la vez**. Anúncialo en la sala.
       - Rescate automático: si un kart está más de 3 s parado, atascado o lejos de la carretera, una animación
         lo recoloca en el punto más cercano de la pista mirando en el sentido correcto (como Lakitu en Mario
-        Kart), con una pequeña penalización de tiempo. Va en `sim.js` (es física) con hook para el efecto.
+        Kart), con una pequeña penalización de tiempo. Va en `sim.mjs` (es física) con hook para el efecto.
       - Truco en el aire: al despegar en una rampa, tocar cualquier botón de girar en el aire hace el truco
         (turbo al aterrizar). Documéntalo en la pantalla de la sala.
       - El protocolo de botones (`i`: s,g,b,d) sigue igual: el móvil manda `b` cuando se pulsan los dos giros y
@@ -91,7 +118,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       botón de giro y una vibración corta al subir de nivel: manda un `fx` nuevo) y en la pantalla (color de
       chispas y un brillo bajo el kart). Los bots usan el mismo sistema. Ajusta los tiempos para que en curvas
       normales se llegue al nivel 1-2 y solo en horquillas/curvas largas al 3. Quita cualquier resto del derrape
-      manual en pantalla, móvil y README. Los tiempos y turbos son constantes con nombre al inicio de `sim.js`.
+      manual en pantalla, móvil y README. Los tiempos y turbos son constantes con nombre al inicio de `sim.mjs`.
       - Comprobación: en la simulación, un kart controlado con giro mantenido en una curva larga alcanza nivel
         ≥ 1 y recibe un turbo al soltar (aserto sobre `boostUntil`); un kart que gira 0,2 s no entra en
         derrape; los bots siguen terminando todos los circuitos y sus tiempos de vuelta no empeoran más de un
@@ -110,9 +137,9 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       en un portátil normal (reduce partículas/decoración por panel si hace falta, y mantén las etiquetas de
       nombre legibles a esa distancia de cámara). Los karts deben seguir siendo reconocibles desde atrás:
       refuerza el color y el emoji del piloto. Actualiza README.md.
-      - Comprobación: `screen.js` contiene `setScissor` y `setViewport` y una función de disposición de
-        paneles con una prueba unitaria en `tools/check-all.js` (para n = 1..8 devuelve rectángulos que no se
-        solapan, cubren la pantalla y respetan la tabla de arriba); la simulación no cambia (fase 4 idéntica);
+      - Comprobación: `screen.js` contiene `setScissorTest`, `setScissor` y `setViewport`; la disposición de
+      paneles es una función pura en `public/layout.mjs` con prueba en `tools/check-sim.js` (para n = 1..8
+      devuelve rectángulos dentro de [0,1] que no se solapan, cubren la pantalla y respetan la tabla de arriba); la simulación no cambia (fase 4 idéntica);
         anota en CHANGELOG el coste estimado de render por panel y márcalo «pendiente de probar en fiesta».
 
 ## Fase 2 — Iterar sobre la versión final
@@ -228,6 +255,10 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       suben de 58, restaura. Comprobación: lógica como función pura con prueba.
 - [ ] **Karts personalizables.** Color secundario y gorro/accesorio elegidos en el móvil, visibles en el kart.
       Comprobación: `hello` lleva la elección, la pantalla la muestra en la sala.
+- [ ] **`nearest()` con ventana local.** Buscar la muestra más cercana desde el último índice conocido
+      ±80 muestras y solo hacer la búsqueda completa si la distancia sale grande (hoy es un recorrido de
+      ~500-900 muestras varias veces por kart y tick). Comprobación: fase 4 con los mismos tiempos que antes
+      (determinismo) y carrera más rápida (`npm run race -- --bench`).
 - [ ] **Piloto con vida.** El emoji/cabeza se inclina en curvas, se encoge con el rayo, mira atrás cuando viene
       un rojo. Comprobación: sin errores; «pendiente de probar en fiesta».
 
@@ -282,5 +313,18 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       Comprobación: prueba estática de que cada personaje tiene icono único.
 - [ ] **Texto grande y vibración configurable** en el móvil. Comprobación: ajustes guardados en
       `localStorage`.
+- [ ] **Versión del protocolo y recarga de móviles antiguos.** Campo `v` en `hello`; si no coincide con la
+      del servidor, responde `reload` y el móvil se recarga solo (un móvil con la página vieja tras una
+      actualización nocturna no debe romper la partida). Comprobación: en `check-protocol.js`, un `hello` con
+      `v` antigua recibe `reload`.
+- [ ] **Pantalla recargada en mitad de carrera.** La pantalla nueva recibe `init` con fase `race`, avisa
+      «carrera perdida, volvemos a la sala» y manda a todos a la sala. Comprobación: en `check-protocol.js`,
+      al reconectar la pantalla los móviles reciben `phase: lobby`.
+- [ ] **Ritmo de mensajes y salud de la red.** El móvil manda como mucho 30 `i`/s, el servidor descarta
+      ráfagas y el móvil muestra «red: buena/regular/mala» con un ping cada 2 s. Comprobación: 200 mensajes
+      seguidos no bloquean al servidor (< 50 ms de respuesta) y a la pantalla solo llega el último estado.
+- [ ] **Errores no capturados en la pantalla.** `window.onerror`/`unhandledrejection` muestran «algo ha
+      fallado: pulsa F5» sin dejar la tele en negro. Comprobación: el manejador existe (estática); GET `/` en
+      verde.
 - [ ] **Regresión final de fase**: `npm test` completo, simulación de 8 carreras seguidas sin fugas de memoria
       (contador de objetos vivos estable).
