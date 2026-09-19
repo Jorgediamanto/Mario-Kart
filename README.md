@@ -168,15 +168,21 @@ Si saltas por encima de un plátano o un caparazón, no te alcanzan.
 
 | Circuito | Ambiente | Particularidad |
 |---|---|---|
+| **Arcoíris** | Espacio, planetas y estrellas | **El fácil y el largo**: carretera del doble de ancha, quitamiedos en los dos lados de todo el recorrido (no te sales), tres veces más largo, tres saltos, un aro gigante por el que se vuela y un castillo con un árbol de cristal por debajo del que se pasa |
 | Chicle | Prado de chicle: árboles de caramelo, globos, setas | Fácil, una rampa y dos lomos |
 | Playa Neón | Atardecer, arena, palmeras, flamencos | Eses y rampa larga |
 | Volcán Disco | Suelo morado, lava, cristales | Horquilla con bumpers y rampa alta |
 | Luna Loca | Gravedad baja, cráteres, planetas | Dos rampas: saltos larguísimos |
 
+En Arcoíris conviene poner **1 o 2 vueltas** en vez de 3: cada vuelta son unos 30 segundos, tres
+veces lo que dura una de los otros circuitos.
+
 Están en `public/tracks.js`: una lista de puntos por los que pasa la carretera más el relieve
 (`features`), paneles turbo (`pads`), cajas (`boxes`) y bumpers (`barriers`). Si añades o cambias
-uno, ejecuta `npm run check`: comprueba que no se solapa consigo mismo, que cabe en pantalla, que
-no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa.
+uno, ejecuta `npm run check`: comprueba que no se solapa consigo mismo, que cabe en su mundo, que
+no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa. Un circuito puede
+pedir un **mundo más grande** que la pantalla de siempre con `world: { w, h }` (es lo que hace
+Arcoíris); si no lo pide, son los 1920x1080 de toda la vida.
 
 ## Ajustes rápidos
 

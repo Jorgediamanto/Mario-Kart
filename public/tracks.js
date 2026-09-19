@@ -152,5 +152,77 @@
         { x: 150, y: 460 }, { x: 240, y: 300 },
       ],
     },
+    {
+      /*
+       * Arcoíris — el circuito «fácil y largo».
+       *
+       * Está hecho contra las tres quejas del dueño: la carretera era estrecha, te salías todo el
+       * rato y el circuito se acababa enseguida. Aquí la carretera mide 260 (el doble que en los
+       * otros), hay **quitamiedos en los dos lados de todo el recorrido** (no te puedes salir
+       * rodando: rebotas y sigues) y el trazado mide 12.600 px, tres veces los demás. Como no cabe
+       * en la pantalla de siempre, el circuito trae su propio mundo (`world`), más grande.
+       *
+       * Forma: tres rectas larguísimas unidas por dos horquillas anchas, y de vuelta un barrido
+       * enorme por el fondo y el lateral izquierdo. Los puntos están repartidos cada 120 px a
+       * propósito: la spline es Catmull-Rom uniforme y con espaciados dispares se pasa de frenada
+       * en las transiciones de recta a curva. Si tocas el trazado, mantén ese reparto y pasa
+       * `npm run check`.
+       */
+      name: 'Arcoíris',
+      width: 260,
+      gravity: 0.9,            // flota un poco: los saltos son más largos y se caen más suaves
+      world: { w: 3400, h: 1950 },
+      // al ser tres veces más largo necesita tres veces más cajas y paneles que los otros
+      boxes: [0.05, 0.24, 0.33, 0.40, 0.64, 0.73, 0.89, 0.93],
+      pads: [0.225, 0.35, 0.47, 0.63, 0.92],
+      features: [
+        { type: 'ramp', at: 0.085, height: 42, length: 210 },   // salto de la recta de meta
+        { type: 'hill', at: 0.28, height: 22, length: 280 },    // lomo de la segunda recta
+        { type: 'ramp', at: 0.50, height: 50, length: 230 },    // el salto grande, por dentro del aro
+        { type: 'hill', at: 0.69, height: 18, length: 300 },    // lomo del fondo
+        { type: 'ramp', at: 0.75, height: 38, length: 210 },    // último salto antes de la subida
+      ],
+      // quitamiedos en los dos lados de todo el circuito: aquí no se sale nadie
+      barriers: [{ from: 0, to: 0.999, side: 'both' }],
+      theme: {
+        arcoiris: true,                 // la carretera se pinta con todos los colores
+        sky: ['#1a0533', '#4a0a6e'], fog: '#2a0a4a',
+        ground: '#160a2e', groundAlt: '#241046',
+        road: '#2a1150', curb: ['#ffffff', '#ff2d95'], bumper: ['#00e5ff', '#ff2d95'], pad: '#ffe600',
+        decor: [
+          { kind: 'crystal', n: 26 }, { kind: 'moonRock', n: 18 }, { kind: 'planet', n: 10 },
+          { kind: 'rocket', n: 3 },
+        ],
+        // cosas plantadas sobre la carretera, en su sitio exacto (no al azar como la decoración)
+        props: [
+          { kind: 'castillo', at: 0.33 },   // se pasa por debajo, a mitad de la segunda recta
+          { kind: 'aro', at: 0.515 },       // el aro por el que se vuela en el salto grande
+        ],
+        palette: ['#ff2d95', '#00e5ff', '#ffe600', '#39ff88', '#b14bff', '#ff6a00'],
+        clouds: null,
+        sun: null,
+        stars: true,
+      },
+      points: [
+        { x: 900, y: 300 }, { x: 1018, y: 300 }, { x: 1135, y: 300 }, { x: 1253, y: 300 }, { x: 1371, y: 300 }, { x: 1488, y: 300 },
+        { x: 1606, y: 300 }, { x: 1724, y: 300 }, { x: 1841, y: 300 }, { x: 1959, y: 300 }, { x: 2076, y: 300 }, { x: 2194, y: 300 },
+        { x: 2312, y: 300 }, { x: 2429, y: 300 }, { x: 2547, y: 300 }, { x: 2665, y: 300 }, { x: 2782, y: 300 }, { x: 2900, y: 300 },
+        { x: 3008, y: 325 }, { x: 3095, y: 394 }, { x: 3144, y: 494 }, { x: 3144, y: 606 }, { x: 3095, y: 706 }, { x: 3008, y: 775 },
+        { x: 2900, y: 800 }, { x: 2782, y: 800 }, { x: 2665, y: 800 }, { x: 2547, y: 800 }, { x: 2429, y: 800 }, { x: 2312, y: 800 },
+        { x: 2194, y: 800 }, { x: 2076, y: 800 }, { x: 1959, y: 800 }, { x: 1841, y: 800 }, { x: 1724, y: 800 }, { x: 1606, y: 800 },
+        { x: 1488, y: 800 }, { x: 1371, y: 800 }, { x: 1253, y: 800 }, { x: 1135, y: 800 }, { x: 1018, y: 800 }, { x: 900, y: 800 },
+        { x: 792, y: 825 }, { x: 705, y: 894 }, { x: 656, y: 994 }, { x: 656, y: 1106 }, { x: 705, y: 1206 }, { x: 792, y: 1275 },
+        { x: 900, y: 1300 }, { x: 1018, y: 1300 }, { x: 1135, y: 1300 }, { x: 1253, y: 1300 }, { x: 1371, y: 1300 }, { x: 1488, y: 1300 },
+        { x: 1606, y: 1300 }, { x: 1724, y: 1300 }, { x: 1841, y: 1300 }, { x: 1959, y: 1300 }, { x: 2076, y: 1300 }, { x: 2194, y: 1300 },
+        { x: 2312, y: 1300 }, { x: 2429, y: 1300 }, { x: 2547, y: 1300 }, { x: 2665, y: 1300 }, { x: 2782, y: 1300 }, { x: 2900, y: 1300 },
+        { x: 3015, y: 1331 }, { x: 3099, y: 1415 }, { x: 3130, y: 1530 }, { x: 3099, y: 1645 }, { x: 3015, y: 1729 }, { x: 2900, y: 1760 },
+        { x: 2779, y: 1760 }, { x: 2658, y: 1760 }, { x: 2537, y: 1760 }, { x: 2416, y: 1760 }, { x: 2295, y: 1760 }, { x: 2174, y: 1760 },
+        { x: 2053, y: 1760 }, { x: 1932, y: 1760 }, { x: 1811, y: 1760 }, { x: 1689, y: 1760 }, { x: 1568, y: 1760 }, { x: 1447, y: 1760 },
+        { x: 1326, y: 1760 }, { x: 1205, y: 1760 }, { x: 1084, y: 1760 }, { x: 963, y: 1760 }, { x: 842, y: 1760 }, { x: 721, y: 1760 },
+        { x: 600, y: 1760 }, { x: 475, y: 1727 }, { x: 383, y: 1635 }, { x: 350, y: 1510 }, { x: 350, y: 1390 }, { x: 350, y: 1270 },
+        { x: 350, y: 1150 }, { x: 350, y: 1030 }, { x: 350, y: 910 }, { x: 350, y: 790 }, { x: 350, y: 670 }, { x: 350, y: 550 },
+        { x: 383, y: 425 }, { x: 475, y: 333 }, { x: 600, y: 300 }, { x: 700, y: 300 }, { x: 800, y: 300 },
+      ],
+    },
   ];
 });

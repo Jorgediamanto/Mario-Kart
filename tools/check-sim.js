@@ -162,15 +162,24 @@ function comprobarVolante() {
     check(peor < 0.5, `el volante mide igual con el móvil de pie o tumbado (el peor falla ${peor.toFixed(2)}º)`);
   }
 
-  // --- zona muerta, tope y sentido ---
+  // --- zona muerta, tope, sentido y progresividad ---
   {
-    const dir = (grados_) => volante.direccion((grados_ * Math.PI) / 180);
-    const quieto = dir(0) === 0 && dir(4) === 0 && dir(-4) === 0;
-    const tope = dir(40) === 1 && dir(-40) === -1 && dir(90) === 1;
+    const dir = (g) => volante.direccion((g * Math.PI) / 180);
+    const muerta = grados(volante.MUERTA), tope = grados(volante.TOPE);
+    const quieto = dir(0) === 0 && dir(muerta - 1) === 0 && dir(-(muerta - 1)) === 0;
+    const aTope = dir(tope) === 1 && dir(-tope) === -1 && dir(tope + 40) === 1;
     const derecha = dir(20) > 0 && dir(-20) < 0;     // a la derecha como un volante de verdad
-    const medio = dir(20);
-    check(quieto && tope && derecha, 'zona muerta de 5º, tope a 35º y girar a la derecha manda a la derecha');
-    check(medio > 0.4 && medio < 0.6, `a mitad de recorrido la dirección va a la mitad (${medio.toFixed(2)})`);
+    check(quieto && aTope && derecha, `zona muerta de ${muerta.toFixed(0)}º, tope a ${tope.toFixed(0)}º y girar a la derecha manda a la derecha`);
+    /*
+     * Progresiva, no recta: con respuesta recta el kart se iba de lado al menor temblor de la
+     * mano. A mitad del recorrido del volante tiene que salir bastante menos de medio giro, y aun
+     * así no puede haber saltos: cuanto más giras, más gira, siempre.
+     */
+    const mitad = dir((muerta + tope) / 2);
+    let crece = true, previo = -1;
+    for (let g = 0; g <= tope + 5; g += 1) { const d = dir(g); if (d < previo - 1e-9) crece = false; previo = d; }
+    check(mitad > 0.12 && mitad < 0.4, `a mitad de recorrido el kart apenas gira (${mitad.toFixed(2)}, antes era 0,50)`);
+    check(crece, 'la respuesta sube siempre: más volante, más giro');
   }
 
   // --- el filtro se acerca al valor nuevo sin pasarse ---
@@ -221,8 +230,8 @@ function correrCircuito(sim, index, opts = {}) {
       for (const campo of ['x', 'y', 'z', 'vz', 'speed', 'angle']) {
         if (!Number.isFinite(k[campo])) falla(`${k.name}: ${campo} no es finito (${k[campo]})`);
       }
-      if (k.x < 0 || k.x > 1920) falla(`${k.name}: x fuera del mapa (${k.x.toFixed(1)})`);
-      if (k.y < 0 || k.y > 1080) falla(`${k.name}: y fuera del mapa (${k.y.toFixed(1)})`);
+      if (k.x < 0 || k.x > s.state.track.W) falla(`${k.name}: x fuera del mundo (${k.x.toFixed(1)} de ${s.state.track.W})`);
+      if (k.y < 0 || k.y > s.state.track.H) falla(`${k.name}: y fuera del mundo (${k.y.toFixed(1)} de ${s.state.track.H})`);
       if (Math.abs(k.speed) > 2.5 * sim.BASE_MAX_SPEED) falla(`${k.name}: velocidad disparada (${k.speed.toFixed(0)})`);
       if (k.lapCount < lapsPrevias[i]) falla(`${k.name}: la vuelta va hacia atrás`);
       if (k.finished && !vueltasAlLlegar.has(k)) vueltasAlLlegar.set(k, k.lapCount);
@@ -761,7 +770,7 @@ const escenarios = [
       // lo plantamos en el rincón más alejado de la carretera (el circuito da vueltas: no vale
       // con apartarse en perpendicular, se acaba cayendo al lado de otro tramo)
       let lejos = null;
-      for (let x = 60; x < 1920; x += 40) for (let y = 60; y < 1080; y += 40) {
+      for (let x = 60; x < t.W; x += 40) for (let y = 60; y < t.H; y += 40) {
         const d = t.nearest(x, y).d;
         if (!lejos || d > lejos.d) lejos = { x, y, d };
       }

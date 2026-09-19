@@ -256,6 +256,34 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         el giro» y cargue derrape o dispare el truco del aire). El servidor abre HTTPS en
         `PORT + 443` con `.cert/` (ignorado por git), que se rehace solo si cambian las IPs.
 
+- [x] **Circuito Arcoíris: ancho, larguísimo y sin salirse.** ⭐ Pedido por el dueño el 2026-09-19
+      por la tarde, después de probar el volante: «es muy complicado, la carretera es superestrecha».
+      Carretera de 260 (el doble), quitamiedos en los dos lados de **todo** el recorrido, 12.632 px
+      (tres veces los demás), tres rampas, dos lomos, un aro gigante por el que se vuela y un
+      castillo con árbol de cristal por debajo del que se pasa.
+      - **Hecho el 2026-09-19.** Lo que hay que saber si se tocan circuitos a partir de ahora:
+        1. **Cada circuito puede tener su propio mundo** (`world: { w, h }` en `tracks.js`). La
+           malla del terreno (`terrenoDe`), los bordes del mapa, los proyectiles, la cámara general,
+           la niebla y `check-tracks` van con el mundo del circuito. El tamaño de casilla del
+           terreno se estira solo para que la malla tenga siempre ~13.500 casillas.
+        2. **Los puntos de control van repartidos a 120 px**. La spline es Catmull-Rom uniforme y
+           con espaciados dispares se pasa de frenada justo en las transiciones de recta a curva
+           (salían radios de 37 px donde tenía que haber 200). Si editas el trazado, mantén el
+           reparto y pasa `npm run check`.
+        3. **`theme.props`** planta cosas sobre la carretera en una fracción exacta (el castillo y
+           el aro), a diferencia de `theme.decor`, que las reparte al azar fuera de la pista. Dentro
+           del grupo, **+X es hacia donde se corre y +Z hacia el lado**.
+        4. **`theme.arcoiris`** pinta la carretera con todos los colores en vez de con dos.
+        5. Medido: los ocho bots pasan **0,0 s fuera de pista** y la vuelta media es de 30,5 s
+           (guardada en `tools/referencia.json`).
+      - **No se pudo hacer el looping** que pedía el dueño: la física es plana con altura (`z`), el
+        kart nunca se pone boca abajo y permitirlo sería rehacer el motor. Queda el aro por el que
+        se vuela. Si alguna vez se quiere de verdad, es un punto de Fase 8, no un retoque.
+- [x] **El volante giraba demasiado.** El dueño: «giras un poquito y se te gira totalmente el
+      coche». Tope de 35º → **55º** y respuesta **progresiva** en vez de recta (`CURVA` en
+      `public/volante.js`): a mitad de recorrido gira un 27 % en vez de un 50 %. La prueba del
+      volante comprueba que la respuesta sube siempre y que a mitad de recorrido gira poco.
+
 ## Fase 2 — Iterar sobre la versión final
 
 - [ ] **Mejorar los circuitos para la vista en tercera persona.** Ahora se juega viendo desde detrás: las

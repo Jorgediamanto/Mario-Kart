@@ -21,10 +21,19 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.KART_VOLANTE = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
-  const MUERTA = 5 * Math.PI / 180;    // zona muerta: por debajo de esto no cuenta como girar
-  const TOPE = 35 * Math.PI / 180;     // a partir de aquí, volante a tope
+  /*
+   * Cuánto hay que girar el móvil y con qué finura. Con 35º de tope y respuesta recta el kart se
+   * iba de lado al menor movimiento: al sujetar el móvil la mano nunca está quieta, y 5º de más
+   * ya eran un 15 % de volante. Ahora hay que girar bastante más (TOPE) y, sobre todo, la
+   * respuesta es **progresiva** (CURVA): al principio del recorrido el kart casi no se inmuta, y
+   * el giro fuerte se reserva para cuando de verdad tuerces el móvil. Es lo que hacen los mandos
+   * de coches: cerca del centro, fino; en los extremos, bruto.
+   */
+  const MUERTA = 6 * Math.PI / 180;    // zona muerta: por debajo de esto no cuenta como girar
+  const TOPE = 55 * Math.PI / 180;     // a partir de aquí, volante a tope
+  const CURVA = 0.62;                  // cuánta parte de la respuesta es progresiva (0 = recta)
   const PLANO = 0.3;                   // con el móvil más plano que esto no se puede medir el giro
-  const FILTRO = 0.35;                 // suavizado del temblor de la mano (0 = nada, 1 = sin filtrar)
+  const FILTRO = 0.28;                 // suavizado del temblor de la mano (0 = nada, 1 = sin filtrar)
 
   // Hacia dónde tira la gravedad, en coordenadas del móvil, solo el plano de la pantalla.
   // (beta y gamma en grados, tal como los da `deviceorientation`.)
@@ -39,10 +48,14 @@
     return Math.atan2(centro.x * v.y - centro.y * v.x, centro.x * v.x + centro.y * v.y);
   }
   // Del ángulo a la dirección que entiende el juego: -1 (todo a la izquierda) .. 1 (a la derecha).
+  // La respuesta no es recta: `t` (lo girado, de 0 a 1) pasa por una curva que aplasta el
+  // principio del recorrido, para poder corregir sin que el kart dé un volantazo.
   function direccion(ang) {
     const a = Math.abs(ang);
     if (a <= MUERTA) return 0;
-    return (ang < 0 ? -1 : 1) * Math.min(1, (a - MUERTA) / (TOPE - MUERTA));
+    const t = Math.min(1, (a - MUERTA) / (TOPE - MUERTA));
+    const suave = t * ((1 - CURVA) + CURVA * t * t);
+    return (ang < 0 ? -1 : 1) * suave;
   }
   function suaviza(anterior, nuevo) { return anterior + (nuevo - anterior) * FILTRO; }
 

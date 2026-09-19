@@ -193,9 +193,11 @@ console.log('Servidor');
     try {
       const datos = JSON.parse(j.stdout);
       const campos = ['pos', 'nombre', 'tiempo', 'mejorVuelta', 'objetosUsados', 'golpesDados', 'golpesRecibidos', 'fueraDePista', 'enElAire'];
-      const bien = j.status === 0 && datos.carreras.length === 12
+      const esperadas = require(path.join(ROOT, 'public/tracks.js')).length * 3;
+      const bien = j.status === 0 && datos.carreras.length === esperadas
         && datos.carreras.every((c) => c.karts.length === 8 && c.karts.every((k) => campos.every((f) => k[f] !== undefined)));
-      if (bien) ok('npm run race --json (12 carreras con todos los campos)'); else bad('npm run race --json: faltan campos o carreras');
+      if (bien) ok(`npm run race --json (${esperadas} carreras con todos los campos)`);
+      else bad(`npm run race --json: esperaba ${esperadas} carreras y llegan ${datos.carreras ? datos.carreras.length : '?'}, o faltan campos`);
     } catch (e) { bad('npm run race --json no produce JSON válido: ' + e.message); }
   }
 

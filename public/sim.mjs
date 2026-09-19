@@ -104,10 +104,22 @@ export function mulberry32(seed) {
 export function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
 export function ordinal(n) { return `${n}º`; }
 
-// malla de alturas del terreno que rodea la carretera
-export const TER = { x0: -700, y0: -600, cell: 24, cols: 0, rows: 0 };
-TER.cols = Math.ceil((MAP_W + 1400) / TER.cell) + 1;
-TER.rows = Math.ceil((MAP_H + 1200) / TER.cell) + 1;
+/*
+ * Malla de alturas del terreno que rodea la carretera. Cada circuito tiene la suya, porque cada
+ * circuito puede tener su propio tamaño de mundo (`def.world`): Arcoíris es mucho más grande que
+ * los cuatro primeros. El tamaño de casilla se estira con el mundo para que la malla tenga
+ * siempre más o menos las mismas casillas y no se dispare ni el tiempo de montarla ni los
+ * triángulos que dibuja la tele. Con el mundo de siempre salen exactamente las casillas de antes.
+ */
+const TER_CASILLAS = 13500;   // casillas objetivo, sea cual sea el tamaño del mundo
+const TER_MARGEN_X = 1400, TER_MARGEN_Y = 1200;   // cuánto terreno sobra alrededor del circuito
+export function terrenoDe(W, H) {
+  const ancho = W + TER_MARGEN_X, alto = H + TER_MARGEN_Y;
+  const cell = Math.max(24, Math.round(Math.sqrt((ancho * alto) / TER_CASILLAS)));
+  return { x0: -TER_MARGEN_X / 2, y0: -TER_MARGEN_Y / 2, cell, cols: Math.ceil(ancho / cell) + 1, rows: Math.ceil(alto / cell) + 1 };
+}
+// El de siempre (1920x1080), para quien no pida otro.
+export const TER = terrenoDe(MAP_W, MAP_H);
 
 // ===================== Circuitos =====================
 // `geom` es el módulo compartido public/geom.js (spline + remuestreo).
@@ -115,6 +127,9 @@ export function buildTrack(def, index, geom) {
   const samples = geom.buildSamples(def.points, SAMPLE_SPACING);
   const N = samples.length;
   const halfW = def.width / 2;
+  // tamaño del mundo de este circuito (por defecto, el de toda la vida)
+  const W = (def.world && def.world.w) || MAP_W, H = (def.world && def.world.h) || MAP_H;
+  const ter = terrenoDe(W, H);
   const elev = new Float32Array(N);
   for (const f of def.features || []) {
     const start = Math.floor(f.at * N);
@@ -129,6 +144,7 @@ export function buildTrack(def, index, geom) {
 
   const t = {
     def, index, name: def.name, samples, N, halfW, width: def.width, gravity: def.gravity || 1,
+    W, H, ter,
     win: Math.floor(N / 8), boxes: [], grid: [], pads: [], barriers: [], ramps: [], world: null,
     nearest(x, y) {
       let bi = 0, bd = Infinity;
@@ -159,10 +175,11 @@ export function buildTrack(def, index, geom) {
       return this.terrainAt(x, y);
     },
     terrainAt(x, y) {
-      const gx = clamp((x - TER.x0) / TER.cell, 0, TER.cols - 1.001), gy = clamp((y - TER.y0) / TER.cell, 0, TER.rows - 1.001);
+      const T = this.ter;
+      const gx = clamp((x - T.x0) / T.cell, 0, T.cols - 1.001), gy = clamp((y - T.y0) / T.cell, 0, T.rows - 1.001);
       const ix = Math.floor(gx), iy = Math.floor(gy), fx = gx - ix, fy = gy - iy;
       const h = this.terrain;
-      const a = h[iy * TER.cols + ix], b = h[iy * TER.cols + ix + 1], c = h[(iy + 1) * TER.cols + ix], d = h[(iy + 1) * TER.cols + ix + 1];
+      const a = h[iy * T.cols + ix], b = h[iy * T.cols + ix + 1], c = h[(iy + 1) * T.cols + ix], d = h[(iy + 1) * T.cols + ix + 1];
       return lerp(lerp(a, b, fx), lerp(c, d, fx), fy);
     },
     inRange(i, from, to) { return from <= to ? (i >= from && i <= to) : (i >= from || i <= to); },
@@ -195,14 +212,14 @@ export function buildTrack(def, index, geom) {
   }
   // relieve del terreno alrededor de la carretera
   const rnd = mulberry32(77 + index * 31);
-  t.terrain = new Float32Array(TER.cols * TER.rows);
-  for (let iy = 0; iy < TER.rows; iy++) {
-    for (let ix = 0; ix < TER.cols; ix++) {
-      const x = TER.x0 + ix * TER.cell, y = TER.y0 + iy * TER.cell;
+  t.terrain = new Float32Array(ter.cols * ter.rows);
+  for (let iy = 0; iy < ter.rows; iy++) {
+    for (let ix = 0; ix < ter.cols; ix++) {
+      const x = ter.x0 + ix * ter.cell, y = ter.y0 + iy * ter.cell;
       const near = t.nearest(x, y);
       const w = 1 - smoothstep(halfW + 40, halfW + 220, near.d);
       const hills = 12 * (Math.sin(x * 0.0065 + 0.4) * Math.cos(y * 0.0079) + 0.6 * Math.sin(x * 0.013 + 1.7) * Math.sin(y * 0.011 + 0.9));
-      t.terrain[iy * TER.cols + ix] = lerp(hills, samples[near.i].h, w);
+      t.terrain[iy * ter.cols + ix] = lerp(hills, samples[near.i].h, w);
     }
   }
   t.rnd = rnd;
@@ -512,9 +529,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     k.y += Math.sin(k.moveAngle) * k.speed * dt;
 
     if (k.x < KART_R) { k.x = KART_R; k.speed *= 0.5; }
-    if (k.x > MAP_W - KART_R) { k.x = MAP_W - KART_R; k.speed *= 0.5; }
+    if (k.x > t.W - KART_R) { k.x = t.W - KART_R; k.speed *= 0.5; }
     if (k.y < KART_R) { k.y = KART_R; k.speed *= 0.5; }
-    if (k.y > MAP_H - KART_R) { k.y = MAP_H - KART_R; k.speed *= 0.5; }
+    if (k.y > t.H - KART_R) { k.y = t.H - KART_R; k.speed *= 0.5; }
 
     // bumpers elásticos
     const near2 = t.nearest(k.x, k.y);
@@ -833,7 +850,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       p.y += Math.sin(p.angle) * p.speed * dt;
       p.z = t.groundAt(p.x, p.y) + 8;
       const age = now - p.bornAt;
-      if (age > p.life || p.x < 0 || p.x > MAP_W || p.y < 0 || p.y > MAP_H) { p.dead = true; continue; }
+      if (age > p.life || p.x < 0 || p.x > t.W || p.y < 0 || p.y > t.H) { p.dead = true; continue; }
       if (!homing && t.nearest(p.x, p.y).d > t.halfW + 30) { p.dead = true; hooks.onParticles(p.x, p.z, p.y, { n: 8, color: '#ffffff', spread: 120, life: 0.4, size: 4 }); continue; }
       for (const k of state.karts) {
         if (k.id === p.owner && (p.type === 'red' || age < 0.5)) continue;

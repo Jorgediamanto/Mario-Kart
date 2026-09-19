@@ -8,7 +8,7 @@
 const TRACKS = require('../public/tracks.js');
 const GEOM = require('../public/geom.js');
 
-const W = 1920, H = 1080, HUD_H = 90, SPACING = 8;
+const W_POR_DEFECTO = 1920, H_POR_DEFECTO = 1080, HUD_H = 90, SPACING = 8;
 let ok = true;
 
 for (const def of TRACKS) {
@@ -16,11 +16,17 @@ for (const def of TRACKS) {
   const N = samples.length;
   const halfW = def.width / 2;
   const problems = [];
+  // cada circuito puede tener su propio tamaño de mundo (`world`); si no, el de siempre
+  const W = (def.world && def.world.w) || W_POR_DEFECTO;
+  const H = (def.world && def.world.h) || H_POR_DEFECTO;
+  // el marcador de arriba solo estorba en los circuitos que caben en la pantalla de la tele; en
+  // un mundo más grande la cámara va pegada al kart y no hay nada que esquivar
+  const arriba = def.world ? halfW + 10 : HUD_H + halfW + 10;
 
   // límites
   for (const s of samples) {
-    if (s.x < halfW + 10 || s.x > W - halfW - 10 || s.y < HUD_H + halfW + 10 || s.y > H - halfW - 10) {
-      problems.push(`se sale de la pantalla en (${s.x.toFixed(0)}, ${s.y.toFixed(0)})`);
+    if (s.x < halfW + 10 || s.x > W - halfW - 10 || s.y < arriba || s.y > H - halfW - 10) {
+      problems.push(`se sale del mundo (${W}x${H}) en (${s.x.toFixed(0)}, ${s.y.toFixed(0)})`);
       break;
     }
   }
@@ -71,7 +77,7 @@ for (const def of TRACKS) {
 
   const len = N * SPACING;
   const status = problems.length ? 'PROBLEMAS' : 'OK';
-  console.log(`${def.name}: ${status} — longitud ${len}px, ${N} muestras, separación mínima entre tramos ${worst.toFixed(0)}px, radio mínimo ${minRadius.toFixed(0)}px`);
+  console.log(`${def.name}: ${status} — mundo ${W}x${H}, longitud ${len}px, ${N} muestras, ancho ${def.width}px, separación mínima entre tramos ${worst.toFixed(0)}px, radio mínimo ${minRadius.toFixed(0)}px`);
   for (const p of problems) console.log(`   - ${p}`);
   if (problems.length) ok = false;
 }

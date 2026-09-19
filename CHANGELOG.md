@@ -4,6 +4,41 @@ Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del a
 llevan la fecha en que se hicieron.
 
 <<<<<<< HEAD
+## 2026-09-19 — Circuito Arcoíris, y el volante deja de ser un susto
+
+Dos cosas que el dueño pidió después de probar el volante: que girar no fuera tan brusco y un
+circuito ancho, largo y en el que no te salgas.
+
+- **El volante ya no se va de lado**. Antes, con 35º de giro ya ibas a tope y la respuesta era
+  recta: al sujetar el móvil la mano nunca está del todo quieta y cualquier temblor era medio
+  volantazo. Ahora hay que girar hasta **55º** para el tope y, sobre todo, la respuesta es
+  **progresiva**: a mitad del recorrido el kart gira un 27 % en vez de un 50 %, así que cerca del
+  centro se puede corregir con finura y el giro fuerte se reserva para cuando tuerces el móvil de
+  verdad. Los números están en `public/volante.js` (`MUERTA`, `TOPE`, `CURVA`).
+- **Circuito nuevo: Arcoíris.** Es el «fácil»: la carretera mide **260 en vez de 110** (el doble
+  de ancha) y lleva **quitamiedos en los dos lados de todo el recorrido**. Medido con
+  `npm run race`: los ocho bots pasan **0,0 segundos fuera de pista**. No te sales, rebotas.
+- **Tres veces más largo**: 12.632 px frente a los ~4.000 de los demás, unos **30 segundos por
+  vuelta**. En la sala conviene ponerle **1 o 2 vueltas**, no 3. Tres rectas larguísimas unidas
+  por dos horquillas anchas y un barrido enorme de vuelta por el fondo.
+- **Lo que hay dentro**: tres rampas de salto, dos lomos, cinco paneles de turbo, un **aro gigante
+  por el que se vuela** en el salto grande, y un **castillo con un árbol de cristal** por debajo
+  del que se pasa a mitad del circuito. La carretera va cambiando de color a lo largo de la vuelta.
+- **Lo que ha hecho falta por debajo**: un circuito así no cabe en la pantalla de 1920x1080 de
+  siempre, así que ahora **cada circuito puede pedir su propio tamaño de mundo** (`world: {w,h}`
+  en `tracks.js`; Arcoíris usa 3400x1950). La malla del terreno, los bordes, la cámara general, la
+  niebla y el validador van con el mundo del circuito. Los cuatro circuitos de antes no cambian ni
+  un pixel: `npm test` lo comprueba comparando sus tiempos con `tools/referencia.json`.
+- **Lo que NO se ha podido hacer**: un **looping de verdad** (dar la vuelta completa boca abajo).
+  La física del juego es plana con altura: hay saltos y cuestas, pero el kart nunca se pone del
+  revés, y hacerlo posible sería rehacer el motor entero. El aro gigante por el que se vuela es lo
+  más parecido que cabe hoy.
+- **Cómo probarlo**: `npm start`, elegir **Arcoíris** en la sala (`←` `→`), poner 1 vuelta y correr.
+  Mirar que no hay forma de salirse, que el castillo y el aro se ven venir de lejos, y que con el
+  móvil se puede ir recto sin pelearse con el volante. **Pendiente de probar en fiesta**: si 55º de
+  tope es mucho o poco, si 30 s por vuelta se hace largo, y los fps con 8 paneles en la tele de
+  verdad (en pruebas, 51).
+
 ## 2026-09-19 — Se acabaron los anfitriones fantasma
 
 - **Qué pasaba**: al entrar, a veces salía que **ya había otra persona de anfitrión** aunque

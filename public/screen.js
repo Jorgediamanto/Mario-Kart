@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import {
-  createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, BASE_MAX_SPEED, CHARS, ITEMS, ITEM_IDS, TER,
+  createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, BASE_MAX_SPEED, CHARS, ITEMS, ITEM_IDS,
   clamp, lerp, smoothstep, mulberry32, ordinal,
 } from './sim.mjs';
 import { panelLayout, panelEnPixeles } from './layout.mjs';
@@ -17,6 +17,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
 
   // ===================== Constantes de la tele =====================
   // Las de la simulación (tamaño del mapa, física, personajes, objetos) llegan de sim.mjs.
+  const UI_W = 1920, UI_H = 1080;   // lienzo de la interfaz (no es el tamaño del mundo)
   const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
   const UI_FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
   // Chispas y brillo del derrape por nivel: 0 = deslizando sin carga, 1 azul, 2 naranja, 3 rosa
@@ -108,8 +109,10 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     camera.aspect = viewW / viewH;
     camera.updateProjectionMatrix();
     altoActivo = viewH;
-    const s = Math.min(viewW / MAP_W, viewH / MAP_H);
-    stage.style.width = Math.floor(MAP_W * s) + 'px'; stage.style.height = Math.floor(MAP_H * s) + 'px';
+    // el HUD y la sala están dibujados sobre un lienzo de 1920x1080 y se escalan a la tele; no
+    // tienen nada que ver con el tamaño del mundo del circuito, que ahora cambia según el mapa
+    const s = Math.min(viewW / UI_W, viewH / UI_H);
+    stage.style.width = Math.floor(UI_W * s) + 'px'; stage.style.height = Math.floor(UI_H * s) + 'px';
     ui.style.transform = `scale(${s})`;
   }
   window.addEventListener('resize', resize);
@@ -167,14 +170,15 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     {
       const pos = [], col = [], idx = [];
       const c1 = new THREE.Color(th.ground), c2 = new THREE.Color(th.groundAlt);
-      for (let iy = 0; iy < TER.rows; iy++) for (let ix = 0; ix < TER.cols; ix++) {
-        const x = TER.x0 + ix * TER.cell, y = TER.y0 + iy * TER.cell;
-        pos.push(x, t.terrain[iy * TER.cols + ix], y);
+      const TE = t.ter;
+      for (let iy = 0; iy < TE.rows; iy++) for (let ix = 0; ix < TE.cols; ix++) {
+        const x = TE.x0 + ix * TE.cell, y = TE.y0 + iy * TE.cell;
+        pos.push(x, t.terrain[iy * TE.cols + ix], y);
         const c = rnd() < 0.45 ? c2 : c1;
         col.push(c.r, c.g, c.b);
       }
-      for (let iy = 0; iy < TER.rows - 1; iy++) for (let ix = 0; ix < TER.cols - 1; ix++) {
-        const a = iy * TER.cols + ix, b = a + 1, c = a + TER.cols, d = c + 1;
+      for (let iy = 0; iy < TE.rows - 1; iy++) for (let ix = 0; ix < TE.cols - 1; ix++) {
+        const a = iy * TE.cols + ix, b = a + 1, c = a + TE.cols, d = c + 1;
         idx.push(a, c, b, b, c, d);
       }
       let geo = new THREE.BufferGeometry();
@@ -189,7 +193,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     // suelo infinito bajo el terreno, para que el mundo no flote en el vacío
     {
       const base = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), flat(shade(th.groundAlt, -0.12)));
-      base.rotation.x = -Math.PI / 2; base.position.set(MAP_W / 2, -28, MAP_H / 2);
+      base.rotation.x = -Math.PI / 2; base.position.set(t.W / 2, -28, t.H / 2);
       world.add(base);
     }
 
@@ -212,7 +216,13 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
     };
     const roadC = new THREE.Color(th.road), roadC2 = new THREE.Color(shade(th.road, 0.06));
-    world.add(ribbon(-t.halfW, t.halfW, (i) => (Math.floor(i / 6) % 2 ? roadC : roadC2), 1.0));
+    // Arcoíris: la carretera va cambiando de color a lo largo del circuito, en franjas anchas
+    // para que desde la cámara de persecución se vea el color cambiar según avanzas.
+    const _arco = new THREE.Color();
+    const colorCarretera = th.arcoiris
+      ? (i) => { _arco.setHSL(((Math.floor(i / 7) * 7) / t.N * 4) % 1, 0.95, Math.floor(i / 7) % 2 ? 0.58 : 0.5); return _arco; }
+      : (i) => (Math.floor(i / 6) % 2 ? roadC : roadC2);
+    world.add(ribbon(-t.halfW, t.halfW, colorCarretera, 1.0));
     const cA = new THREE.Color(th.curb[0]), cB = new THREE.Color(th.curb[1]);
     world.add(ribbon(t.halfW, t.halfW + 12, (i) => (Math.floor(i / 3) % 2 ? cA : cB), 1.0));
     world.add(ribbon(-t.halfW - 12, -t.halfW, (i) => (Math.floor(i / 3) % 2 ? cA : cB), 1.0));
@@ -274,6 +284,79 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       pole.position.set(s.x - s.nx * (t.halfW + 46), s.h + 22, s.y - s.ny * (t.halfW + 46));
       world.add(sign, pole);
     }
+    /*
+     * Cosas que van sobre la carretera en un sitio exacto (`theme.props`), no repartidas al azar
+     * como la decoración. El grupo se gira con la carretera, así que dentro de él **+X es hacia
+     * donde se corre y +Z es hacia el lado**: todo se coloca en esas coordenadas.
+     */
+    const props = {
+      // Castillo con dos torreones a los lados y un arco enorme por el que se pasa. Encima, el
+      // árbol de cristal que pidió el dueño: es el punto de referencia del circuito.
+      castillo: () => {
+        const g = new THREE.Group();
+        const sep = t.halfW + 175;          // los torreones, bien apartados de la carretera
+        for (const lado of [-1, 1]) {
+          const torre = new THREE.Mesh(new THREE.CylinderGeometry(62, 74, 300, 8), toon('#6a3bd6'));
+          torre.position.set(0, 150, sep * lado);
+          const tejado = new THREE.Mesh(new THREE.ConeGeometry(80, 120, 8), toon('#ff2d95'));
+          tejado.position.set(0, 360, sep * lado);
+          const aro = new THREE.Mesh(new THREE.TorusGeometry(70, 8, 6, 8), toon('#ffe600'));
+          aro.rotation.x = Math.PI / 2; aro.position.set(0, 292, sep * lado);
+          g.add(torre, tejado, aro);
+          for (let k = 0; k < 4; k++) {   // ventanas
+            const v = new THREE.Mesh(new THREE.BoxGeometry(6, 26, 16), flat('#ffe600'));
+            v.position.set(66, 110 + k * 55, sep * lado); g.add(v);
+          }
+        }
+        // el arco: un dintel grueso y almenas encima
+        const dintel = new THREE.Mesh(new THREE.BoxGeometry(90, 56, sep * 2), toon('#7a4be0'));
+        dintel.position.y = 258; g.add(dintel);
+        for (let k = -3; k <= 3; k++) {
+          const almena = new THREE.Mesh(new THREE.BoxGeometry(90, 40, 46), toon('#9b6bff'));
+          almena.position.set(0, 306, k * 72); g.add(almena);
+        }
+        // árbol de cristal en lo alto del castillo
+        const tronco = new THREE.Mesh(new THREE.CylinderGeometry(14, 20, 130, 7), toon('#3a1d7a'));
+        tronco.position.y = 390; g.add(tronco);
+        for (let k = 0; k < 7; k++) {
+          const hoja = new THREE.Mesh(new THREE.OctahedronGeometry(34 + (k % 3) * 12), flat(th.palette[k % th.palette.length]));
+          hoja.position.set(Math.cos(k * 1.9) * 46, 450 + (k % 4) * 34, Math.sin(k * 1.9) * 46);
+          hoja.scale.y = 1.5;
+          g.add(hoja);
+        }
+        const luz = new THREE.PointLight('#ff6ae6', 0, 900, 1.6);
+        luz.position.y = 470; luz.intensity = 500000; g.add(luz);
+        anim({ kind: 'spinY', obj: g.children[g.children.length - 2], speed: 0.5 });
+        return g;
+      },
+      // El aro por el que se vuela en el salto grande. De pie, cruzado en la carretera.
+      aro: () => {
+        const g = new THREE.Group();
+        const r = t.halfW + 60;
+        const anillo = new THREE.Mesh(new THREE.TorusGeometry(r, 18, 10, 44), flat('#ff2d95'));
+        anillo.rotation.y = Math.PI / 2;    // de pie y cruzado: se vuela por dentro
+        anillo.position.y = r + 30;
+        const dentro = new THREE.Mesh(new THREE.TorusGeometry(r - 22, 7, 8, 40), flat('#00e5ff'));
+        dentro.rotation.y = Math.PI / 2; dentro.position.y = r + 30;
+        for (const lado of [-1, 1]) {
+          const pata = new THREE.Mesh(new THREE.CylinderGeometry(10, 14, r + 30, 8), toon('#9b3bff'));
+          pata.position.set(0, (r + 30) / 2, lado * (r - 10)); g.add(pata);
+        }
+        g.add(anillo, dentro);
+        anim({ kind: 'pulse', obj: g, phase: 1.3 });
+        return g;
+      },
+    };
+    for (const pr of th.props || []) {
+      const hacer = props[pr.kind];
+      if (!hacer) continue;
+      const s = t.samples[Math.floor(pr.at * t.N) % t.N];
+      const obj = hacer();
+      obj.position.set(s.x, s.h, s.y);
+      obj.rotation.y = -s.ang;
+      world.add(obj);
+    }
+
     // ---- bumpers ----
     {
       const geo = new THREE.CylinderGeometry(7, 8, 16, 12);
@@ -372,7 +455,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       while (placed < th.pools.count && tries < 4000) {
         tries++;
         const r = th.pools.minR + rnd() * (th.pools.maxR - th.pools.minR);
-        const x = 60 + r + rnd() * (MAP_W - 120 - 2 * r), y = 60 + r + rnd() * (MAP_H - 120 - 2 * r);
+        const x = 60 + r + rnd() * (t.W - 120 - 2 * r), y = 60 + r + rnd() * (t.H - 120 - 2 * r);
         if (t.nearest(x, y).d < t.halfW + r + 50) continue;
         const h = t.terrainAt(x, y);
         const grp = new THREE.Group();
@@ -577,7 +660,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       let placed = 0, tries = 0;
       while (placed < d.n && tries < 3000) {
         tries++;
-        const x = 30 + rnd() * (MAP_W - 60), y = 30 + rnd() * (MAP_H - 60);
+        const x = 30 + rnd() * (t.W - 60), y = 30 + rnd() * (t.H - 60);
         const obj = maker();
         const margin = obj.userData && obj.userData.big ? 190 : 46;
         if (t.nearest(x, y).d < t.halfW + margin) continue;
@@ -597,7 +680,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
           s.position.set(j * 30 - n * 15, rnd() * 10, (rnd() - 0.5) * 20);
           g.add(s);
         }
-        g.position.set(rnd() * MAP_W, 300 + rnd() * 180, rnd() * MAP_H - 100);
+        g.position.set(rnd() * t.W, 300 + rnd() * 180, rnd() * t.H - 100);
         anim({ kind: 'drift', obj: g, speed: 8 + rnd() * 10 });
         world.add(g);
       }
@@ -612,7 +695,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       const pos = [];
       for (let i = 0; i < 900; i++) {
         const a = rnd() * Math.PI * 2, e = 0.15 + rnd() * 1.2, r = 3000;
-        pos.push(MAP_W / 2 + Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, MAP_H / 2 + Math.sin(a) * Math.cos(e) * r);
+        pos.push(t.W / 2 + Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, t.H / 2 + Math.sin(a) * Math.cos(e) * r);
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -641,7 +724,10 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     scene.add(currentWorld);
     const th = t.def.theme;
     scene.background = skyTexture(th.sky[0], th.sky[1]);
-    scene.fog = new THREE.Fog(new THREE.Color(th.fog), 1800, 4200);
+    // en un mundo grande la cámara de la sala se aleja mucho: si la niebla no se estira con él,
+    // el circuito entero se ve gris desde arriba
+    const lejos = Math.max(1, Math.max(t.W / MAP_W, t.H / MAP_H));
+    scene.fog = new THREE.Fog(new THREE.Color(th.fog), 1800 * lejos, 4200 * lejos);
     hemi.color.set(th.sky[1]); hemi.groundColor.set(th.ground);
   }
 
@@ -995,20 +1081,20 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     let fx, fz, dist, angle = 0, pitch = CAM_PITCH;
     if (state.phase === 'lobby') {
       cam.orbit += dt * 0.12;
-      fx = MAP_W / 2; fz = MAP_H / 2 + 40; dist = 2300; angle = cam.orbit; pitch = THREE.MathUtils.degToRad(38);
+      fx = t.W / 2; fz = t.H / 2 + 40; dist = 2300 * Math.max(1, Math.max(t.W / MAP_W, t.H / MAP_H)); angle = cam.orbit; pitch = THREE.MathUtils.degToRad(38);
       cam.fx = fx; cam.fz = fz; cam.dist = dist;
     } else {
       const active = state.karts.filter((k) => !k.finished);
       const list = active.length ? active : state.karts;
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       for (const k of list) { minX = Math.min(minX, k.x); maxX = Math.max(maxX, k.x); minY = Math.min(minY, k.y); maxY = Math.max(maxY, k.y); }
-      if (!list.length) { minX = 0; maxX = MAP_W; minY = 0; maxY = MAP_H; }
+      if (!list.length) { minX = 0; maxX = t.W; minY = 0; maxY = t.H; }
       const margin = 240;
       const ex = (maxX - minX) / 2 + margin, ey = (maxY - minY) / 2 + margin;
       fx = (minX + maxX) / 2; fz = (minY + maxY) / 2;
       const fovV = THREE.MathUtils.degToRad(camera.fov), fovH = 2 * Math.atan(Math.tan(fovV / 2) * camera.aspect);
       const dW = ex / Math.tan(fovH / 2), dH = (ey * Math.sin(CAM_PITCH)) / Math.tan(fovV / 2) + ey * 0.35;
-      const maxD = Math.max(MAP_W / 2 / Math.tan(fovH / 2), (MAP_H / 2 * Math.sin(CAM_PITCH)) / Math.tan(fovV / 2) + 260);
+      const maxD = Math.max(t.W / 2 / Math.tan(fovH / 2), (t.H / 2 * Math.sin(CAM_PITCH)) / Math.tan(fovV / 2) + 260);
       dist = clamp(Math.max(dW, dH), 1000, maxD);
       if (state.phase === 'countdown') {
         const u = smoothstep(0, 3, state.countdownT);
@@ -1172,7 +1258,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       for (const a of currentWorld.userData.animated) {
         if (a.kind === 'bob') a.obj.position.y += Math.sin(animT * 1.3 + a.phase) * a.amp * dt;
         else if (a.kind === 'spinY') a.obj.rotation.y += a.speed * dt;
-        else if (a.kind === 'drift') { a.obj.position.x += a.speed * dt; if (a.obj.position.x > MAP_W + 200) a.obj.position.x = -200; }
+        else if (a.kind === 'drift') { a.obj.position.x += a.speed * dt; if (a.obj.position.x > state.track.W + 200) a.obj.position.x = -200; }
         else if (a.kind === 'pad') a.tex.offset.x -= dt * 1.5;
         else if (a.kind === 'pulse') { const s = 1 + Math.sin(animT * 3 + a.phase) * 0.08; a.obj.scale.set(s, s, s); }
         else if (a.kind === 'pool') { const s = 1 + Math.sin(animT * 1.2 + a.phase) * 0.03; a.obj.scale.set(s, 1, s); }
