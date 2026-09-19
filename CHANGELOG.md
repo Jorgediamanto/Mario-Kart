@@ -4,6 +4,15 @@ Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del a
 llevan la fecha en que se hicieron.
 
 <<<<<<< HEAD
+## 2026-09-19 — Una sola habilidad a la vez (ya era así, ahora está atado)
+
+- El dueño pidió que solo se pueda llevar una habilidad guardada. **Ya funcionaba así** desde el
+  principio: el kart tiene una única ranura, y con algo en la mano (o con la ruleta girando) pasar
+  por una caja no hace nada. La caja ni se gasta: se queda para el siguiente.
+- Lo que se ha hecho es **dejarlo atado con una prueba**, para que no se rompa sin querer al tocar
+  los objetos: «solo se puede llevar una habilidad». Comprueba las cuatro situaciones (con objeto,
+  con la ruleta girando, después de usarlo, y con las manos vacías).
+
 ## 2026-09-19 — Fuera el caparazón verde, llega el caracol 🐌
 
 - **Se va el caparazón verde.** Era el objeto que menos hacía: salía recto y casi nunca acertaba.

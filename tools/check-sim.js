@@ -958,6 +958,54 @@ const escenarios = [
     },
   },
   {
+    /*
+     * Regla de oro pedida por el dueño: **una habilidad y nada más**. Nadie guarda dos ni encadena.
+     * Se comprueba lo que de verdad importa: con algo en la mano, pasar por una caja no da nada
+     * (y la caja se queda ahí para el siguiente); y mientras da vueltas la ruleta, tampoco.
+     */
+    nombre: 'solo se puede llevar una habilidad: con una en la mano, las cajas no dan nada',
+    run(sim) {
+      const s = carrera(sim, { bots: 1, seed: 41 });
+      const k = humano(s);
+      const encima = (caja) => { k.x = caja.x; k.y = caja.y; k.z = caja.h; k.ground = caja.h; k.air = false; };
+      const cajas = s.state.track.boxes;
+
+      // 1) con un objeto en la mano, la caja no se toca siquiera
+      k.item = 'banana'; k.rolling = null;
+      const caja = cajas[0];
+      caja.respawnAt = 0;
+      encima(caja);
+      s.update(DT);
+      if (k.rolling) return 'con un objeto en la mano ha cogido otro';
+      if (k.item !== 'banana') return `le han cambiado el objeto por ${k.item}`;
+      if (caja.respawnAt > s.state.simTime) return 'la caja ha desaparecido aunque no se la ha llevado nadie';
+
+      // 2) con la ruleta girando, tampoco
+      k.item = null; k.rolling = null;
+      const caja2 = cajas[1]; caja2.respawnAt = 0;
+      encima(caja2);
+      s.update(DT);
+      if (!k.rolling) return 'sin nada en la mano no ha cogido la caja';
+      const salia = k.rolling.result;
+      const caja3 = cajas[2]; caja3.respawnAt = 0;
+      encima(caja3);
+      s.update(DT);
+      if (k.rolling.result !== salia) return 'la ruleta ha cambiado de objeto al pasar por otra caja';
+      if (caja3.respawnAt > s.state.simTime) return 'se ha llevado una segunda caja con la ruleta girando';
+
+      // 3) y al usar lo que lleva, se queda con las manos vacías y ya puede coger otra
+      for (let i = 0; i < 120 && k.rolling; i++) s.update(DT);
+      if (!k.item) return 'la ruleta no ha acabado dando un objeto';
+      s.useItem(k);
+      if (s.state.eligiendo) s.elegirVictima(null);     // por si le tocó el caracol
+      if (k.item) return `después de usarlo sigue llevando ${k.item}`;
+      const caja4 = cajas[3]; caja4.respawnAt = 0;
+      encima(caja4);
+      s.update(DT);
+      return k.rolling ? null : 'con las manos vacías ya no coge cajas';
+    },
+  },
+  {
     nombre: 'el caracol para la carrera hasta que se elige víctima',
     run(sim) {
       let avisado = null;
