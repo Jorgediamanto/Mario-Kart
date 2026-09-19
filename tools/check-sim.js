@@ -812,6 +812,41 @@ const escenarios = [
     },
   },
   {
+    // El atasco más molesto de la fiesta: entrabas en diagonal al quitamiedos, rebotabas, seguías
+    // apuntando al muro y volvías a entrar, una y otra vez sin avanzar (y sin que el rescate te
+    // salvara, porque técnicamente te movías). Ver BUMPER_ENDEREZA en sim.mjs.
+    nombre: 'quien se come el quitamiedos en diagonal vuelve a rodar en menos de 1,5 s',
+    run(sim) {
+      // Arcoíris es el que lleva quitamiedos en los dos lados de todo el recorrido
+      const s = carrera(sim, { bots: 0, trackIndex: trackDefs.findIndex((d) => d.name === 'Arcoíris') });
+      const k = humano(s);
+      const t = s.state.track;
+      const sm = t.samples[t.nearest(k.x, k.y).i];
+      const lado = 1;
+      k.x = sm.x + sm.nx * (t.halfW - 10) * lado;
+      k.y = sm.y + sm.ny * (t.halfW - 10) * lado;
+      k.z = t.groundAt(k.x, k.y); k.ground = k.z; k.vz = 0; k.air = false;
+      k.angle = sm.ang + 1.1 * lado;    // ~63º contra el muro
+      k.moveAngle = k.angle; k.speed = 300; k.stuckT = 0;
+      const d0 = k.dist;
+      let libre = -1;
+      for (let f = 0; f < 60 * 3; f++) {
+        s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+        s.update(DT);
+        if (libre < 0) {
+          const n = t.nearest(k.x, k.y);
+          const desvio = Math.abs(sim.wrapAngle(k.angle - t.samples[n.i].ang));
+          if (desvio < 0.5 && Math.abs(n.lat) < t.halfW - 20 && k.speed > 150) libre = (f + 1) / 60;
+        }
+      }
+      const avance = (k.dist - d0) * 8;
+      if (libre < 0) return 'se ha quedado picoteando el muro: nunca vuelve a rodar recto';
+      if (libre > 1.5) return `tarda ${libre.toFixed(2)} s en volver a rodar (más de 1,5)`;
+      if (avance < 600) return `solo ha avanzado ${avance.toFixed(0)}px en 3 s (se ha quedado pegado al muro)`;
+      return null;
+    },
+  },
+  {
     nombre: 'quien está parado en la carretera sin tocar nada no molesta a nadie',
     run(sim) {
       let recogido = false;

@@ -51,6 +51,12 @@ export const DRIFT_TURN = 1.4;       // cuánto gira de más mientras derrapa
 // La dirección es analógica (el volante del móvil manda un decimal de -1 a 1). Por debajo de esto
 // se considera que estás corrigiendo, no girando: no carga derrape ni dispara el truco del aire.
 export const STEER_FIRME = 0.55;
+// Al rebotar en un quitamiedos no basta con devolver la velocidad: si el morro sigue apuntando al
+// muro, el gas te vuelve a meter y te quedas picoteando el quitamiedos sin avanzar. Al rebotar se
+// le endereza también el morro hacia la carretera, esta fracción del ángulo que le falta. Con 0,6
+// dos rebotes bastan para salir; con menos vuelve el atasco, con 1 el kart se endereza solo del
+// todo y el golpe deja de notarse.
+export const BUMPER_ENDEREZA = 0.6;
 // Progreso: cuando un kart aparece de golpe muy por delante (ha volado por encima de un atajo), su
 // avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
 // clasificación congelada media vuelta.
@@ -563,6 +569,10 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
         const vx = Math.cos(k.moveAngle) * k.speed, vy = Math.sin(k.moveAngle) * k.speed;
         const vn = vx * sm.nx + vy * sm.ny;
         if (vn * sideSign > 0) {
+          // el morro, hacia la carretera (ver BUMPER_ENDEREZA): sin esto el kart rebota, vuelve a
+          // apuntar al muro y se queda dando botes contra el quitamiedos toda la carrera
+          const recto = Math.cos(wrapAngle(k.angle - sm.ang)) >= 0 ? sm.ang : sm.ang + Math.PI;
+          k.angle = wrapAngle(k.angle + wrapAngle(recto - k.angle) * BUMPER_ENDEREZA);
           setVel(k, vx - vn * sm.nx * 1.7, vy - vn * sm.ny * 1.7);
           k.vz = Math.max(k.vz, 90); k.air = true;
           hooks.onSquash(k, 5);
