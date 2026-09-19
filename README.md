@@ -48,6 +48,10 @@ nombre en el Escritorio): doble clic y se abre la Terminal con el servidor y, so
 juego en el navegador. Es lo mismo que `Abrir Kart Party.command`, pero con icono. Para apagar el
 juego, cierra esa ventana de la Terminal.
 
+El volante de los móviles funciona igual arrancando así: el certificado de HTTPS se genera solo la
+primera vez con el `openssl` que trae macOS, sin instalar nada. La terminal imprime las dos
+direcciones, la del QR (`https://…`) y la de repuesto (`http://…`).
+
 ## Controles
 
 **En el móvil: el móvil ES el volante.** Ponlo **en horizontal**, sujétalo con las dos manos y

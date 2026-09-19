@@ -101,10 +101,12 @@ function certificado() {
   try {
     fs.mkdirSync(CERT_DIR, { recursive: true });
     const san = 'subjectAltName=' + [...ips.map((ip) => (/^[\d.]+$/.test(ip) ? 'IP:' + ip : 'DNS:' + ip)), 'DNS:localhost'].join(',');
-    const r = spawnSync('openssl', [
-      'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '3650',
-      '-keyout', keyFile, '-out', certFile, '-subj', '/CN=Kart Party', '-addext', san,
-    ], { encoding: 'utf8', timeout: 25000 });
+    const args = ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '3650',
+      '-keyout', keyFile, '-out', certFile, '-subj', '/CN=Kart Party', '-addext', san];
+    // `/usr/bin/openssl` como repuesto: al abrir el juego con doble clic desde el Finder, la
+    // Terminal a veces no trae el PATH completo, y ese siempre está en macOS.
+    let r = spawnSync('openssl', args, { encoding: 'utf8', timeout: 25000 });
+    if (r.status !== 0) r = spawnSync('/usr/bin/openssl', args, { encoding: 'utf8', timeout: 25000 });
     if (r.status !== 0) return null;
     fs.writeFileSync(ipsFile, firma);
     return { key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) };
