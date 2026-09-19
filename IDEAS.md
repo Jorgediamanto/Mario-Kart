@@ -99,7 +99,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         miniturbo de hoy) y **ninguno** llega a 1,6 s. Es decir: tal y como conducen los bots hoy, el
         derrape casi nunca da turbo. Los tiempos del derrape automático por niveles habrá que medirlos
         con esto, no a ojo.
-- [ ] **0.3 Prueba del protocolo con móviles simulados (fase 5 de `npm test`).** `tools/check-protocol.js`
+- [x] **0.3 Prueba del protocolo con móviles simulados (fase 5 de `npm test`).** `tools/check-protocol.js`
       arranca el servidor en un puerto libre, conecta con `ws` una pantalla falsa y 8 móviles falsos y
       recorre: `hello`/`welcome`, `roster`, sala llena (el 9.º recibe `err`), personaje repetido, cambio de
       ajustes solo por el anfitrión, `start`, botones `i` 10 veces por segundo durante 3 s reenviados a la
@@ -108,6 +108,10 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       - Por qué: en la fiesta lo que falla son los móviles y la red, y hoy nada lo prueba.
       - Comprobación: la fase pasa en < 10 s; cada mensaje del protocolo tiene al menos una aserción; no hay
         excepciones en el servidor.
+      - **Hecho el 2026-09-19** (25 comprobaciones en 4,5 s). La prueba cazó un fallo de verdad a la primera:
+        **cualquier móvil podía hacerse pasar por la pantalla** mandando `{t:'screen'}`; el servidor le daba
+        el relevo y echaba a la tele de la fiesta (la dejaba con el aviso de «se ha abierto en otro sitio»).
+        Arreglado en `server.js`: un socket que ya es jugador no puede declararse pantalla.
 
 ## Fase 1 — Cambios pedidos por el dueño (hacer en este orden)
 

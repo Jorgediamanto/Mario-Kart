@@ -216,6 +216,8 @@ wss.on('connection', (ws) => {
 
     // ----- Pantalla (tele) -----
     if (m.t === 'screen') {
+      // un móvil que ya está jugando no puede hacerse pasar por la tele y echarla de la fiesta
+      if (ws.role === 'player') return;
       if (screenWs && screenWs !== ws && screenWs.readyState === WebSocket.OPEN) {
         send(screenWs, { t: 'replaced' });
         try { screenWs.close(); } catch (_) { /* ignore */ }

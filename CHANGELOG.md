@@ -3,6 +3,20 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 — Ocho móviles de mentira prueban la fiesta (punto 0.3)
+
+- **Qué cambió**: `npm test` tiene una fase nueva que arranca el servidor de verdad y conecta una
+  pantalla y ocho móviles falsos por WebSocket: entrar en la sala, sala llena, personaje repetido,
+  ajustes solo del anfitrión, empezar, 30 pulsaciones de botón seguidas, usar objeto, avisos a un
+  móvil concreto, relevo de anfitrión al desconectarse, volver con el token y salir. 25
+  comprobaciones en 4,5 segundos.
+- **Fallo gordo arreglado**: cualquier móvil podía **hacerse pasar por la pantalla** mandando un
+  mensaje `screen`. El servidor le daba el relevo y la tele se quedaba inactiva con el aviso de «se
+  ha abierto la pantalla en otro sitio», es decir, adiós a la carrera. Ahora un móvil que ya está
+  jugando no puede declararse pantalla.
+- **Cómo probarlo**: `npm test` (la última fase, «Móviles de mentira»). En la fiesta no se nota nada
+  nuevo; lo que se nota es que ya no se puede tirar la pantalla desde un móvil.
+
 ## 2026-09-19 — `npm run race`: ver las carreras por consola (punto 0.2)
 
 - **Qué cambió**: nueva herramienta `npm run race`. Corre carreras de bots sin navegador y saca una

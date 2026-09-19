@@ -5,6 +5,7 @@
  *  2. validador de circuitos
  *  3. arranque real del servidor y petición de cada página/recurso
  *  4. carrera de bots sin navegador dentro de public/sim.mjs
+ *  5. el protocolo de la fiesta con una pantalla y ocho móviles de mentira
  */
 const { spawnSync, spawn } = require('child_process');
 const fs = require('fs');
@@ -34,6 +35,9 @@ checkSyntax('public/play.js', false);
 checkSyntax('public/tracks.js', false);
 checkSyntax('public/geom.js', false);
 checkSyntax('tools/check-tracks.js', false);
+checkSyntax('tools/check-sim.js', false);
+checkSyntax('tools/check-protocol.js', false);
+checkSyntax('tools/sim-race.js', false);
 checkSyntax('public/screen.js', true);
 checkSyntax('public/sim.mjs', false);   // ya es un módulo: node --check lo entiende tal cual
 
@@ -109,6 +113,14 @@ console.log('Servidor');
         && datos.carreras.every((c) => c.karts.length === 8 && c.karts.every((k) => campos.every((f) => k[f] !== undefined)));
       if (bien) ok('npm run race --json (12 carreras con todos los campos)'); else bad('npm run race --json: faltan campos o carreras');
     } catch (e) { bad('npm run race --json no produce JSON válido: ' + e.message); }
+  }
+
+  console.log('Móviles de mentira');
+  {
+    const r = spawnSync(process.execPath, [path.join(ROOT, 'tools/check-protocol.js')], { encoding: 'utf8' });
+    process.stdout.write(r.stdout.split('\n').map((l) => (l ? '    ' + l : l)).join('\n'));
+    if (r.stderr) process.stdout.write(r.stderr);
+    if (r.status === 0) ok('protocolo móvil ↔ servidor ↔ pantalla'); else bad('protocolo móvil ↔ servidor ↔ pantalla');
   }
 
   console.log(failed ? '\nHAY FALLOS' : '\nTodo correcto');

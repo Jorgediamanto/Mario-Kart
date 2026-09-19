@@ -7,11 +7,11 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 03:31
-- último latido (UTC): 2026-09-19 03:52
+- último latido (UTC): 2026-09-19 03:55
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno (0.1 y 0.2 cerrados; 0.2 pendiente de fusionar en main)
+- IDEAS.md: ninguno (0.1, 0.2 y 0.3 cerrados; Fase 0 completa)
 - hecho: —
 - siguiente paso: —
 - intentos fallidos en este punto: 0
