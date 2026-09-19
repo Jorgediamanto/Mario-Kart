@@ -6,14 +6,14 @@ es la hora del último push de la sesión: si tiene más de 45 minutos, la sesi�
 retomar la rama.
 
 ## Sesión en curso
-- inicio (UTC): ninguna
-- último latido (UTC): ninguno
-- rama: ninguna
+- inicio (UTC): 2026-09-19 10:32
+- último latido (UTC): 2026-09-19 10:35
+- rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno
-- hecho: —
-- siguiente paso: —
+- IDEAS.md: Bug «un bot golpeado se da la vuelta y corre en dirección contraria»
+- hecho: candado puesto; el push funciona (lo de anoche estaba arreglado)
+- siguiente paso: reproducir el aviso con `node tools/check-sim.js` y arreglar `aiInput`
 - intentos fallidos en este punto: 0
 
 ## Última sesión
