@@ -176,6 +176,7 @@ export const DEFAULT_HOOKS = {
   onToast() {},                 // (texto, segundos)
   onStatus() {},                // (kart) hay que reenviar su estado al móvil
   onFx() {},                    // (kart, tipo) aviso al móvil: vibración, color…
+  onHit() {},                   // (kart, causa) le han dado; causa = { id, tipo } de quien se lo ha hecho
   onShake() {},                 // (intensidad, kart)
   onFlash() {},                 // fogonazo de pantalla (rayo)
   onSquash() {},                // (kart, impulso) aplasta el kart
@@ -310,7 +311,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     hooks.onSfx('boost', k);
   }
 
-  function hitKart(k) {
+  // `causa` ({ id, tipo }) dice quién se lo ha hecho: sirve para las estadísticas de `npm run race`
+  function hitKart(k, causa) {
     const now = simTime;
     if (k.starUntil > now || k.invUntil > now || k.spinUntil > now) return false;
     k.spinUntil = now + SPIN_TIME;
@@ -322,6 +324,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     hooks.onShake(6, k);
     hooks.onSfx('hit', k);
     hooks.onFx(k, 'hit');
+    hooks.onHit(k, causa || null);
     stats.hits++;
     return true;
   }
@@ -545,8 +548,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
           }
         }
         const aStar = a.starUntil > now, bStar = b.starUntil > now;
-        if (aStar && !bStar) hitKart(b);
-        if (bStar && !aStar) hitKart(a);
+        if (aStar && !bStar) hitKart(b, { id: a.id, tipo: 'star' });
+        if (bStar && !aStar) hitKart(a, { id: b.id, tipo: 'star' });
       }
     }
   }
@@ -643,7 +646,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
         for (const o of state.karts) {
           if (o === k || o.starUntil > now) continue;
           o.shrinkUntil = now + 5;
-          if (o.spinUntil <= now && o.invUntil <= now) { o.spinUntil = now + 0.6; o.speed *= 0.4; o.vz = Math.max(o.vz, 120); o.air = true; }
+          if (o.spinUntil <= now && o.invUntil <= now) { o.spinUntil = now + 0.6; o.speed *= 0.4; o.vz = Math.max(o.vz, 120); o.air = true; hooks.onHit(o, { id: k.id, tipo: 'lightning' }); }
           hooks.onParticles(o.x, o.z + 30, o.y, { n: 10, color: ['#ffe600', '#00e5ff'], spread: 100, vy: -200, life: 0.5, size: 4, g: 0 });
           hooks.onFx(o, 'hit');
         }
@@ -685,7 +688,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
         const dx = k.x - p.x, dy = k.y - p.y;
         if (dx * dx + dy * dy < (KART_R + 10) * (KART_R + 10)) {
           if (k.starUntil > now) { p.dead = true; hooks.onParticles(p.x, p.z, p.y, { n: 8, color: '#ffffff', spread: 120, life: 0.4, size: 4 }); }
-          else if (hitKart(k)) p.dead = true;
+          else if (hitKart(k, { id: p.owner, tipo: p.type })) p.dead = true;
           break;
         }
       }
@@ -709,7 +712,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
         if (k.z - k.ground > 22) continue;
         const dx = bn.x - k.x, dy = bn.y - k.y;
         if (dx * dx + dy * dy < (KART_R + 10) * (KART_R + 10)) {
-          if (k.starUntil > now || hitKart(k)) { hooks.onBananaRemoved(bn); state.bananas.splice(i, 1); hooks.onParticles(bn.x, k.z + 6, bn.y, { n: 8, color: '#ffe600', spread: 140, life: 0.5, size: 4 }); break; }
+          if (k.starUntil > now || hitKart(k, { id: bn.owner, tipo: 'banana' })) { hooks.onBananaRemoved(bn); state.bananas.splice(i, 1); hooks.onParticles(bn.x, k.z + 6, bn.y, { n: 8, color: '#ffe600', spread: 140, life: 0.5, size: 4 }); break; }
         }
       }
     }

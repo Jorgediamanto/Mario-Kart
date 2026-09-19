@@ -135,6 +135,20 @@ con la misma semilla sale exactamente la misma carrera. Debajo hay una lista de 
 plátano hace girar, la estrella protege, el derrape da turbo…) a la que conviene sumar uno nuevo cada
 vez que se toca el juego. Con esto, un cambio de física se puede comprobar sin encender la tele.
 
+Para mirar el juego de cerca sin jugarlo está `npm run race`:
+
+```bash
+npm run race                                  # una carrera en el primer circuito
+npm run race -- --track all --runs 3          # los cuatro circuitos, tres carreras cada uno
+npm run race -- --track 2 --laps 5 --verbose  # registro de todo, con tiempo y posición
+npm run race -- --stats items                 # histogramas: items | drift | speed
+npm run race -- --track all --runs 3 --json   # en JSON, para comparar antes y después de un cambio
+```
+
+Saca una tabla por carrera (posición, tiempo, mejor vuelta, objetos usados, golpes dados y recibidos,
+saltos, trucos, paneles, tiempo fuera de pista y por el aire) y sirve para equilibrar objetos, derrape
+y circuitos con datos. `npm run race -- --help` lista todas las opciones.
+
 Un agente de Claude en la nube trabaja en el repositorio **dos veces cada noche** (02:30 y 05:30)
 siguiendo el protocolo de `CLAUDE.md`: avanza en orden por la hoja de ruta de `IDEAS.md` (edítala
 para mandar), guarda cada paso en una rama `noche/fecha` para no perder nada, y solo fusiona en `main`
@@ -153,3 +167,4 @@ sesiones (dónde se quedó, qué falta) y `CHANGELOG.md` el diario de lo que cam
 - `public/play.html` + `public/play.js`: el mando del móvil.
 - `public/tracks.js` y `public/geom.js`: circuitos y geometría (spline Catmull-Rom).
 - `tools/check-tracks.js`: validador de circuitos. `tools/check-sim.js`: carreras de prueba sin navegador.
+- `tools/sim-race.js`: `npm run race`, carreras por consola con estadísticas.

@@ -84,7 +84,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         pseudo-humano, que comprueba justo ese final; (2) `sim.mjs` menciona `Math.random` una sola
         vez, como valor por defecto del parámetro `random` que pide el propio enunciado, y la prueba
         comprueba que no hay ninguna llamada directa.
-- [ ] **0.2 `npm run race`: carreras por consola con estadísticas (los ojos del agente).**
+- [x] **0.2 `npm run race`: carreras por consola con estadísticas (los ojos del agente).**
       `tools/sim-race.js` con `--track n|all`, `--laps`, `--bots`, `--seed`, `--runs k`, `--verbose`
       (registro por evento: vuelta, objeto cogido/usado, golpe, salto, truco, panel, con tiempo y posición),
       `--stats items|drift|speed` (histogramas) y `--json`. Tabla final por kart: posición, tiempo, mejor
@@ -93,6 +93,12 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       - Por qué: para equilibrar objetos, derrape y circuitos con datos en vez de imaginar la carrera.
       - Comprobación: `npm run race -- --track all --runs 3 --json` produce JSON válido con esos campos;
         `npm test` lo ejecuta una vez en modo silencioso y comprueba que sale con código 0.
+      - **Hecho el 2026-09-19.** Primer dato que sale de la herramienta y que conviene tener a mano para
+        el punto del derrape automático: con `--stats drift`, de 745 derrapes de bots en 8 carreras, 523
+        duran menos de 0,35 s, 204 entre 0,35 y 0,7 s, solo 18 pasan de 0,7 s (el mínimo para el
+        miniturbo de hoy) y **ninguno** llega a 1,6 s. Es decir: tal y como conducen los bots hoy, el
+        derrape casi nunca da turbo. Los tiempos del derrape automático por niveles habrá que medirlos
+        con esto, no a ojo.
 - [ ] **0.3 Prueba del protocolo con móviles simulados (fase 5 de `npm test`).** `tools/check-protocol.js`
       arranca el servidor en un puerto libre, conecta con `ws` una pantalla falsa y 8 móviles falsos y
       recorre: `hello`/`welcome`, `roster`, sala llena (el 9.º recibe `err`), personaje repetido, cambio de
@@ -124,7 +130,8 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         `#btn-item`, uno `data-k="g"`) y ninguno con `data-k="d"`/`data-k="b"`; `play.js` no envía `d=1` nunca;
         la simulación pasa con el rescate activo (un bot colocado a propósito fuera de pista vuelve a la
         carretera en < 4 s y termina la carrera); prueba de red intacta.
-- [ ] **Derrape automático con 3 niveles.** Sin botón de derrape: si el jugador mantiene el giro en la misma
+- [ ] **Derrape automático con 3 niveles.** (Antes de tocar los tiempos, mira el dato de `--stats drift`
+      anotado en el punto 0.2: hoy los bots casi nunca llegan al miniturbo.) Sin botón de derrape: si el jugador mantiene el giro en la misma
       dirección más de ~0,35 s a velocidad suficiente (> 55 % de la máxima), el kart entra en derrape solo
       (deslizamiento y chispas). Mientras siga girando en esa dirección acumula nivel: **nivel 1** a ~0,8 s
       (chispas azules), **nivel 2** a ~1,6 s (naranjas), **nivel 3** a ~2,6 s (rosas/moradas). Al soltar el giro

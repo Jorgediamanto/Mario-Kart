@@ -97,6 +97,19 @@ console.log('Servidor');
     if (r.stderr) process.stdout.write(r.stderr);
     if (r.status === 0) ok('simulación de carreras'); else bad('simulación de carreras');
   }
+  {
+    // `npm run race`: una pasada en silencio y otra en JSON, para que no se pudra la herramienta
+    const q = spawnSync(process.execPath, [path.join(ROOT, 'tools/sim-race.js'), '--track', 'all', '--laps', '2', '--quiet'], { encoding: 'utf8' });
+    if (q.status === 0) ok('npm run race (silencioso)'); else bad('npm run race (silencioso)\n' + (q.stderr || ''));
+    const j = spawnSync(process.execPath, [path.join(ROOT, 'tools/sim-race.js'), '--track', 'all', '--runs', '3', '--laps', '2', '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    try {
+      const datos = JSON.parse(j.stdout);
+      const campos = ['pos', 'nombre', 'tiempo', 'mejorVuelta', 'objetosUsados', 'golpesDados', 'golpesRecibidos', 'fueraDePista', 'enElAire'];
+      const bien = j.status === 0 && datos.carreras.length === 12
+        && datos.carreras.every((c) => c.karts.length === 8 && c.karts.every((k) => campos.every((f) => k[f] !== undefined)));
+      if (bien) ok('npm run race --json (12 carreras con todos los campos)'); else bad('npm run race --json: faltan campos o carreras');
+    } catch (e) { bad('npm run race --json no produce JSON válido: ' + e.message); }
+  }
 
   console.log(failed ? '\nHAY FALLOS' : '\nTodo correcto');
   process.exit(failed ? 1 : 0);
