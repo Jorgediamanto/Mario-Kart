@@ -485,6 +485,120 @@ const escenarios = [
     },
   },
   {
+    // el reparto por posición es la regla de oro del juego: el último tiene que remontar y el
+    // primero no puede sentirse robado. Si se tocan los pesos de `rollItem`, esta tabla cambia a
+    // propósito (y aquí se ve cuánto).
+    nombre: 'el reparto de objetos por posición es el declarado',
+    run(sim) {
+      // porcentajes declarados con 8 corredores, de la posición 1 a la 8
+      const DECLARADO = {
+        1: { mushroom: 25.0, banana: 37.5, green: 37.5, red: 0, star: 0, lightning: 0 },
+        2: { mushroom: 25.7, banana: 28.7, green: 29.5, red: 15.1, star: 0.9, lightning: 0.1 },
+        4: { mushroom: 29.8, banana: 19.4, green: 21.3, red: 20.7, star: 6.7, lightning: 2.1 },
+        6: { mushroom: 29.8, banana: 11.3, green: 13.9, red: 22.6, star: 14.7, lightning: 7.9 },
+        8: { mushroom: 27.0, banana: 5.4, green: 8.1, red: 21.6, star: 21.6, lightning: 16.2 },
+      };
+      const TIRADAS = 20000, MARGEN = 2.5;   // puntos porcentuales
+      const s = sim.createSim({ geom, trackDefs, random: mulberry32(99) });
+      for (const [pos, esperado] of Object.entries(DECLARADO)) {
+        const cuenta = {};
+        for (let i = 0; i < TIRADAS; i++) {
+          const id = s.rollItem(Number(pos), 8);
+          cuenta[id] = (cuenta[id] || 0) + 1;
+        }
+        for (const [id, pct] of Object.entries(esperado)) {
+          const medido = ((cuenta[id] || 0) / TIRADAS) * 100;
+          if (Math.abs(medido - pct) > MARGEN) {
+            return `en la posición ${pos}, ${id} sale el ${medido.toFixed(1)} % y lo declarado es ${pct} %`;
+          }
+        }
+      }
+      // y el primero nunca tiene que recibir rayo ni caparazón rojo
+      for (let i = 0; i < 3000; i++) {
+        const id = s.rollItem(1, 8);
+        if (id === 'lightning' || id === 'red') return `al primero le ha salido ${id}`;
+      }
+      return null;
+    },
+  },
+  {
+    nombre: 'el rayo no encoge dos veces al mismo en menos de 30 s',
+    run(sim) {
+      const s = carrera(sim, { bots: 3 });
+      const k = humano(s);
+      const victimas = s.state.karts.filter((o) => o !== k);
+      k.item = 'lightning';
+      s.useItem(k);
+      const encogidos = victimas.filter((o) => o.shrinkUntil > s.state.simTime);
+      if (encogidos.length !== victimas.length) return 'el primer rayo no ha encogido a todos';
+      const antes = victimas.map((o) => o.shrinkUntil);
+      // cinco segundos después, otro rayo: a los mismos no les puede volver a caer
+      for (let i = 0; i < 60 * 5; i++) s.update(DT);
+      const otro = victimas[0];
+      otro.item = 'lightning';
+      s.useItem(otro);
+      const t = s.state.simTime;
+      for (let i = 1; i < victimas.length; i++) {
+        if (victimas[i].shrinkUntil > antes[i] && victimas[i].shrinkUntil > t) {
+          return `${victimas[i].name} se ha comido dos rayos en ${sim.LIGHTNING_IMMUNITY} s`;
+        }
+      }
+      // pasada la inmunidad, el rayo vuelve a funcionar
+      for (const o of victimas) o.zapUntil = 0;
+      otro.item = 'lightning';
+      s.useItem(otro);
+      return victimas[1].shrinkUntil > s.state.simTime ? null : 'pasada la inmunidad, el rayo ya no encoge';
+    },
+  },
+  {
+    nombre: 'por muchos golpes que te tiren, no te dan más de 3 en 10 s',
+    run(sim) {
+      const s = carrera(sim, { bots: 1 });
+      const k = humano(s);
+      let golpes = 0;
+      for (let i = 0; i < 60 * 10; i++) {
+        if (s.hitKart(k, { id: 0, tipo: 'prueba' })) golpes++;
+        s.update(DT);
+      }
+      if (golpes > 3) return `le han dado ${golpes} veces en 10 s`;
+      if (golpes < 2) return `solo le han dado ${golpes} veces en 10 s: la inmunidad es demasiado larga`;
+      return k.hitsTaken === golpes ? null : `el contador del kart dice ${k.hitsTaken} golpes y han sido ${golpes}`;
+    },
+  },
+  {
+    nombre: 'el último de la parrilla sube al podio alguna vez (8 carreras)',
+    run(sim) {
+      let podios = 0, terminan = 0;
+      for (let ronda = 0; ronda < 8; ronda++) {
+        const s = sim.createSim({ geom, trackDefs, random: mulberry32(700 + ronda) });
+        const entries = [];
+        for (let i = 0; i < 8; i++) entries.push({ playerId: null, bot: true, name: 'Bot ' + (i + 1), char: i });
+        s.startRace({ entries, trackIndex: ronda % trackDefs.length, laps: 2 });
+        while (s.state.simTime < 150 && s.state.phase !== 'results' && !s.allFinished()) s.update(DT);
+        const ks = s.state.karts;
+        if (ks.every((k) => k.finished)) terminan++;
+        const ultimo = ks[ks.length - 1];
+        if (ultimo.finishRank <= 3) podios++;
+        // y de paso: el reparto por posición queda registrado en las estadísticas
+        if (ronda === 0 && !Object.keys(s.stats.itemsByPos).length) return 'las estadísticas no apuntan los objetos por posición';
+      }
+      if (terminan < 8) return `en ${8 - terminan} de 8 carreras no terminan los 8 bots`;
+      return podios > 0 ? null : 'el último de la parrilla no sube al podio ni una vez en 8 carreras';
+    },
+  },
+  {
+    // la fiesta también existe con dos: los objetos y el reparto tienen que funcionar igual
+    nombre: 'con solo dos corredores la carrera también acaba (y sin rayos)',
+    run(sim) {
+      const s = sim.createSim({ geom, trackDefs, random: mulberry32(77) });
+      s.startRace({ entries: [{ playerId: null, bot: true, name: 'Bot 1', char: 0 }, { playerId: null, bot: true, name: 'Bot 2', char: 1 }], trackIndex: 1, laps: 2 });
+      while (s.state.simTime < 150 && s.state.phase !== 'results' && !s.allFinished()) s.update(DT);
+      if (!s.state.karts.every((k) => k.finished)) return 'con dos corredores alguno no termina';
+      for (let i = 0; i < 2000; i++) if (s.rollItem(2, 2) === 'lightning') return 'con dos corredores sale el rayo (no debería)';
+      return null;
+    },
+  },
+  {
     nombre: 'el rayo encoge a los demás y no al que lo usa',
     run(sim) {
       const s = carrera(sim, { bots: 3 });

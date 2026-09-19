@@ -282,7 +282,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         salte por encima de una curva**: si llegas rápido, caes más adelante y el contador de
         progreso ya lo acepta (`PROGRESS_JUMP_WAIT`); si llegas lento, caes al césped o al agua y
         pierdes más de lo que ganabas.
-- [ ] **Afinar las habilidades (objetos).** Con la nueva vista y el derrape automático, equilibra: duración y
+- [x] **Afinar las habilidades (objetos).** Con la nueva vista y el derrape automático, equilibra: duración y
       potencia de turbo/estrella/rayo, velocidad y homing de los caparazones, distancia de lanzamiento,
       probabilidades por posición (el último debe remontar pero el primero no debe sentirse injusto) y feedback
       en pantalla y móvil (vibración, flash, sonido) de cada objeto. Que funcione igual de bien con 2 y con 8
@@ -292,6 +292,13 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         acumula más de 3 golpes en 10 s (inmunidad), el reparto por posición sigue las probabilidades
         declaradas (±10 %), y en 8 carreras simuladas de 8 bots el último de la parrilla termina alguna vez
         en el podio.
+      - **Hecho el 2026-09-19 (noche 2).** Medido primero: el reparto y los aciertos (rojo 71 %,
+        plátano 67 %, verde 25 %) ya estaban sanos, así que **no se ha tocado ninguna potencia ni
+        duración**; lo que faltaba eran dos reglas de justicia: inmunidad al rayo de 30 s
+        (`LIGHTNING_IMMUNITY`) y 2,5 s de inmunidad tras un golpe (`HIT_IMMUNITY`, antes 1,5), con
+        lo que la peor racha baja de 3 golpes a 2 en 10 s. `stats.itemsByPos` y `kart.hitsTaken`
+        nuevos, cinco escenarios en `check-sim.js` y avisos `fx` `zap`/`star` al móvil. Lo que sigue
+        sin tocar y quizá pida la fiesta: la velocidad y el homing de los caparazones.
 - [ ] **Regresión de fase.** Repasa que rescate, derrape, paneles, objetos y pantalla dividida siguen
       funcionando juntos: simulación + `npm test` + una lista de comprobación manual en `CHANGELOG.md` para la
       próxima fiesta.

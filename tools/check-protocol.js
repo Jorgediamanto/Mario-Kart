@@ -214,6 +214,10 @@ async function recorrido(PORT) {
     const fxd = await moviles[6].espera('fx');
     check(fxd && fxd.kind === 'drift2', 'el aviso de nivel de derrape (`fx` drift2) llega al móvil');
     moviles[6].olvida();
+    tele.manda({ t: 'to', id: moviles[6].id, m: { t: 'fx', kind: 'zap' } });
+    const fxz = await moviles[6].espera('fx');
+    check(fxz && fxz.kind === 'zap', 'el aviso del rayo (`fx` zap) llega al móvil');
+    moviles[6].olvida();
     tele.manda({ t: 'to', id: moviles[6].id, m: { t: 'fx', kind: 'drift0' } });
     const fxf = await moviles[6].espera('fx');
     check(fxf && fxf.kind === 'drift0', 'al soltar el derrape, el móvil recibe `fx` drift0');

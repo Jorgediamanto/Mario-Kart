@@ -23,6 +23,9 @@ export const BASE_MAX_SPEED = 420;   // unidades/s (sube o baja este número par
 export const ACCEL = 460, BRAKE = 750, COAST = 240;
 export const GRAVITY = 950;          // unidades/s²
 export const SPIN_TIME = 1.0;
+// Tras un golpe, este rato sin que te puedan volver a dar (se suma al trompo). Con 2,5 s, lo más
+// que te pueden pegar son 3 golpes en 10 s: nadie se queda sin jugar a base de caparazones.
+export const HIT_IMMUNITY = 2.5;
 export const ROULETTE_TIME = 1.6;
 export const BOX_RESPAWN = 5;
 // Rescate automático (el «Lakitu»): si un kart se queda clavado o muy lejos de la carretera,
@@ -49,6 +52,9 @@ export const DRIFT_TURN = 1.4;       // cuánto gira de más mientras derrapa
 // avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
 // clasificación congelada media vuelta.
 export const PROGRESS_JUMP_WAIT = 1.0;   // segundos
+// Rayo: a quien le cae no le puede volver a caer en este rato. Sin esto, dos rayos seguidos dejaban
+// al líder encogido media carrera y sin nada que hacer, que es justo lo que no queremos en la fiesta.
+export const LIGHTNING_IMMUNITY = 30;   // segundos
 export const MAX_KARTS = 8;
 export const SAMPLE_SPACING = 8;
 
@@ -246,7 +252,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     firstFinish: 0, finishedCount: 0, endAt: 0, results: null,
     simTime: 0,
   };
-  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0 };
+  // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
+  // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
+  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {} };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -271,7 +279,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
-      aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
+      zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,
@@ -355,7 +363,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const now = simTime;
     if (k.starUntil > now || k.invUntil > now || k.spinUntil > now) return false;
     k.spinUntil = now + SPIN_TIME;
-    k.invUntil = now + SPIN_TIME + 1.5;
+    k.invUntil = now + SPIN_TIME + HIT_IMMUNITY;
     k.speed *= 0.25;
     k.driftT = 0; k.driftLevel = 0; k.steerT = 0; k.boostUntil = 0; k.trick = false;
     k.vz = Math.max(k.vz, 230); k.air = true;
@@ -365,6 +373,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     hooks.onFx(k, 'hit');
     hooks.onHit(k, causa || null);
     stats.hits++;
+    k.hitsTaken++;
     return true;
   }
 
@@ -684,6 +693,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
           box.respawnAt = now + BOX_RESPAWN;
           k.rolling = { until: now + ROULETTE_TIME, result: rollItem(k.rank, state.karts.length) };
           stats.pickups++;
+          const fila = stats.itemsByPos[k.rank] || (stats.itemsByPos[k.rank] = {});
+          fila[k.rolling.result] = (fila[k.rolling.result] || 0) + 1;
           hooks.onParticles(box.x, box.h + 18, box.y, { n: 16, color: 'rainbow', spread: 200, vy: 120, life: 0.7, size: 5 });
           hooks.onSfx('pickup', k);
           hooks.onStatus(k);
@@ -745,16 +756,18 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       }
       case 'star':
         k.starUntil = now + 7; k.spinUntil = 0;
+        hooks.onFx(k, 'star');
         hooks.onParticles(k.x, k.z + 20, k.y, { n: 24, color: 'rainbow', spread: 240, vy: 150, life: 0.9, size: 5 });
         hooks.onSfx('star', k);
         break;
       case 'lightning':
         for (const o of state.karts) {
-          if (o === k || o.starUntil > now) continue;
+          if (o === k || o.starUntil > now || o.zapUntil > now) continue;
+          o.zapUntil = now + LIGHTNING_IMMUNITY;
           o.shrinkUntil = now + 5;
           if (o.spinUntil <= now && o.invUntil <= now) { o.spinUntil = now + 0.6; o.speed *= 0.4; o.vz = Math.max(o.vz, 120); o.air = true; hooks.onHit(o, { id: k.id, tipo: 'lightning' }); }
           hooks.onParticles(o.x, o.z + 30, o.y, { n: 10, color: ['#ffe600', '#00e5ff'], spread: 100, vy: -200, life: 0.5, size: 4, g: 0 });
-          hooks.onFx(o, 'hit');
+          hooks.onFx(o, 'zap');
         }
         hooks.onFlash();
         hooks.onShake(10, k);
@@ -882,7 +895,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
 
   return {
     tracks, state, stats,
-    startRace, update, setInput, useItem, aiInput, hitKart, boost, backToLobby, removeKart,
+    startRace, update, setInput, useItem, aiInput, hitKart, boost, backToLobby, removeKart, rollItem,
     setTrack, displayLap, updateRanking, allFinished,
     now: () => simTime,
   };
