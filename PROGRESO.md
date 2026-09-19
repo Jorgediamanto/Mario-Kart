@@ -6,14 +6,14 @@ es la hora del último push de la sesión: si tiene más de 45 minutos, la sesi�
 retomar la rama.
 
 ## Sesión en curso
-- inicio (UTC): ninguna
-- último latido (UTC): ninguno
-- rama: ninguna
+- inicio (UTC): 2026-09-19 03:31
+- último latido (UTC): 2026-09-19 03:31
+- rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno
-- hecho: —
-- siguiente paso: —
+- IDEAS.md: 0.1 Simulación sin navegador (`public/sim.mjs` + carrera de bots en `npm test`)
+- hecho: nada todavía (arranque de la sesión)
+- siguiente paso: leer `screen.js` por partes e inventariar qué es simulación y qué es vista
 - intentos fallidos en este punto: 0
 
 ## Última sesión
