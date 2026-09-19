@@ -191,7 +191,8 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         `DRIFT_*` al principio de `sim.mjs`, hook `onDrift(kart, nivel)`, `fx` nuevos al móvil
         (`drift0..3`) y `tools/referencia.json` como vara de medir de la fase 4.
 
-- [ ] **Vista en tercera persona por jugador (pantalla dividida).** En vez de la cámara general del circuito,
+- [ ] **Vista en tercera persona por jugador (pantalla dividida).** ⭐ **Lo que más quiere el dueño
+      (pedido el 2026-09-19 a mediodía): esto primero, antes que nada.** En vez de la cámara general del circuito,
       cada persona ve **su kart desde atrás y un poco arriba**, cámara que sigue al kart con suavidad (mira
       algo por delante, se aleja un poco con la velocidad, se agita ligeramente en turbos y golpes, y sigue al
       kart en los saltos). Como todos comparten la tele, la pantalla se divide en paneles: 1 jugador →
@@ -209,6 +210,34 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       paneles es una función pura en `public/layout.mjs` con prueba en `tools/check-sim.js` (para n = 1..8
       devuelve rectángulos dentro de [0,1] que no se solapan, cubren la pantalla y respetan la tabla de arriba); la simulación no cambia (fase 4 idéntica);
         anota en CHANGELOG el coste estimado de render por panel y márcalo «pendiente de probar en fiesta».
+- [ ] **Volante de giroscopio: el móvil se inclina como el mando de la Wii. 🚧 EN CURSO (lo está
+      haciendo el dueño en su sesión el 2026-09-19 por la tarde — no lo toques).** ⭐ Segunda cosa
+      que más quiere el dueño. Girar con los botones ◀ ▶ es incómodo: se acabaron. El móvil se pone
+      **en horizontal, con el giro de pantalla bloqueado**, se sujeta con las dos manos y se **gira
+      como un volante**. Solo quedan **dos botones**: **GAS** (mitad derecha, toda la altura) y
+      **OBJETO** (mitad izquierda). Nada de freno ni marcha atrás: si te quedas clavado, el rescate
+      automático te recoge a los 3 s.
+      - La dirección pasa a ser **analógica**: el mando manda `s` como decimal entre −1 y 1 (antes
+        era −1, 0 o 1). La simulación ya multiplica por `s`, así que solo hay que dejar de
+        redondear y que los bots y el teclado sigan mandando ±1.
+      - Cómo se mide el volante: de `deviceorientation` se saca el vector de la gravedad en
+        coordenadas del móvil y se compara con el que se guardó al **centrar**; el ángulo entre
+        los dos, medido en el plano de la pantalla, es el giro del volante. Así da igual cómo de
+        inclinado se sujete el móvil. Zona muerta de unos 5°, tope a unos 35°.
+      - **Ojo, esto es lo difícil**: los navegadores solo dan el giroscopio en **contexto seguro**
+        (HTTPS). El juego se sirve por `http://192.168.x.x:3000`, así que hoy **no hay sensores en
+        ningún móvil**. Hay que servir también por **HTTPS con un certificado propio** generado al
+        arrancar (con `openssl`, que viene en macOS; sin dependencias nuevas), y que el QR apunte
+        ahí. Cada móvil tendrá que aceptar el aviso del navegador **una vez**. En iPhone hay además
+        que pedir permiso con `DeviceOrientationEvent.requestPermission()` desde un botón.
+      - **Siempre con respaldo**: si el móvil no da sensores (no hay HTTPS, permiso denegado,
+        navegador viejo), el mando enseña los botones ◀ ▶ de ahora y se juega igual. Nadie se queda
+        sin jugar en la fiesta por esto.
+      - Comprobación: `GET /play` sirve los dos botones grandes (`#btn-item` y `data-k="g"`) y los
+        de giro solo dentro del bloque de respaldo; `play.js` manda `s` decimal; la prueba del
+        protocolo acepta y reenvía un `s` decimal sin redondearlo; en la simulación, un kart con
+        `s = 0,5` gira la mitad que uno con `s = 1`; el servidor sigue sirviendo por HTTP aunque no
+        haya certificado, y `npm test` pasa sin `openssl` instalado.
 
 ## Fase 2 — Iterar sobre la versión final
 
