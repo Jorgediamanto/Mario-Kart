@@ -277,6 +277,29 @@ const escenarios = [
     },
   },
   {
+    // el contador de progreso se congelaba media vuelta cuando un kart aterrizaba muy por delante
+    nombre: 'volar por encima de un atajo no congela la clasificación',
+    run(sim) {
+      const s = carrera(sim);
+      const k = humano(s);
+      const t = s.state.track, N = t.N;
+      // lo ponemos de golpe muy por delante en la carretera, como quien cae de una rampa larga
+      const i0 = t.nearest(k.x, k.y).i;
+      const destino = t.samples[(i0 + t.win + 25) % N];
+      const antes = k.dist;
+      k.x = destino.x; k.y = destino.y; k.z = destino.h; k.ground = destino.h; k.air = false; k.vz = 0;
+      k.angle = destino.ang; k.moveAngle = destino.ang; k.speed = 200;
+      // de entrada no se le regala el avance (si no, cortar el circuito saldría gratis)
+      for (let i = 0; i < 20; i++) { s.setInput(k, s.aiInput(k)); s.update(DT); }
+      if (k.dist - antes > t.win) return 'el salto cuenta al momento: cortar el circuito sale gratis';
+      // pero en cuanto se ve que está ahí de verdad, se le cuenta y deja de mentir la clasificación
+      for (let i = 0; i < 90; i++) { s.setInput(k, s.aiInput(k)); s.update(DT); }
+      const avance = k.dist - antes;
+      if (avance < t.win) return `sigue congelado: solo ha avanzado ${avance.toFixed(0)} muestras en 1,8 s`;
+      return null;
+    },
+  },
+  {
     nombre: 'un plátano hace girar al que lo pisa',
     run(sim) {
       const s = carrera(sim);

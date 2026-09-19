@@ -7,13 +7,14 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 12:50
+- último latido (UTC): 2026-09-19 13:20
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno (el derrape automático está cerrado y fusionado en `main`)
-- hecho: derrape automático de 3 niveles completo (simulación, pantalla, móvil, README y pruebas)
-- siguiente paso: bug nuevo «el contador de progreso se congela al volar por encima de un atajo»
+- IDEAS.md: ninguno
+- hecho: bug del contador de progreso arreglado y probado
+- siguiente paso: «Vista en tercera persona por jugador (pantalla dividida)» (Fase 1) — punto grande,
+  probablemente una sesión entera
 - intentos fallidos en este punto: 0
 
 ## Última sesión
