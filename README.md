@@ -125,7 +125,7 @@ no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa.
 ## Comprobaciones y desarrollo nocturno
 
 ```bash
-npm test        # sintaxis + circuitos + arranca el servidor y pide cada página + carreras de bots
+npm test        # sintaxis + circuitos + servidor + carreras de bots + móviles de mentira
 ```
 
 La última fase de `npm test` (`tools/check-sim.js`) corre carreras enteras **sin navegador**: usa la
@@ -167,4 +167,5 @@ sesiones (dónde se quedó, qué falta) y `CHANGELOG.md` el diario de lo que cam
 - `public/play.html` + `public/play.js`: el mando del móvil.
 - `public/tracks.js` y `public/geom.js`: circuitos y geometría (spline Catmull-Rom).
 - `tools/check-tracks.js`: validador de circuitos. `tools/check-sim.js`: carreras de prueba sin navegador.
+- `tools/check-protocol.js`: prueba del protocolo con una pantalla y ocho móviles simulados.
 - `tools/sim-race.js`: `npm run race`, carreras por consola con estadísticas.
