@@ -44,13 +44,20 @@ di que **sí** (si no, los móviles no podrán conectarse).
 
 **En el móvil** (mejor en horizontal):
 
+El mando tiene **cuatro botones grandes** y nada que configurar: la mitad izquierda son ◀ y ▶, y
+la derecha lleva OBJETO arriba y GAS abajo.
+
 | Botón | Qué hace |
 |---|---|
-| ◀ ▶ | Girar |
+| ◀ ▶ | Girar (ocupan media pantalla cada uno: se puede girar y acelerar a la vez) |
 | GAS | Acelerar |
-| FRENO | Frenar / marcha atrás |
-| DERRAPE | Mantén pulsado en las curvas mientras giras: gira más cerrado y, al soltar tras ~0,7 s, sale un **miniturbo** (más largo si aguantas 1,6 s). **En el aire**, púlsalo para hacer un **truco**: al aterrizar recibes turbo |
+| ◀ + ▶ a la vez | Frenar / marcha atrás |
 | Objeto (morado) | Usar el objeto que llevas |
+| ◀ o ▶ **en el aire** | Hacer un **truco** en los saltos: al aterrizar recibes turbo |
+
+No hay botón de derrape: el kart derrapa solo en las curvas. Y si te pierdes, te quedas clavado
+contra algo o te sales de la pista, a los 3 segundos te recogen y te dejan otra vez en la carretera
+mirando hacia donde toca (pierdes un segundo, nada más).
 
 **En el ordenador** (quien está al lado del teclado también puede jugar):
 

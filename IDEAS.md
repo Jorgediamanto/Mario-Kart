@@ -115,7 +115,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 
 ## Fase 1 — Cambios pedidos por el dueño (hacer en este orden)
 
-- [ ] **Mando de móvil con solo 4 botones grandes.** Los botones de girar de ahora son demasiado pequeños.
+- [x] **Mando de móvil con solo 4 botones grandes.** Los botones de girar de ahora son demasiado pequeños.
       Nuevo `play.html`/`play.js`: la mitad izquierda de la pantalla son dos botones enormes ◀ ▶ (cada uno la
       mitad del ancho de esa zona y toda la altura); la mitad derecha son dos botones: arriba **OBJETO** (usar
       la habilidad; muestra el icono del objeto o «—») y abajo **GAS**, más grande que el de objeto. Nada más:
@@ -134,6 +134,13 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         `#btn-item`, uno `data-k="g"`) y ninguno con `data-k="d"`/`data-k="b"`; `play.js` no envía `d=1` nunca;
         la simulación pasa con el rescate activo (un bot colocado a propósito fuera de pista vuelve a la
         carretera en < 4 s y termina la carrera); prueba de red intacta.
+      - **Hecho el 2026-09-19.** Constantes del rescate al principio de `sim.mjs` (`RESCUE_AFTER` 3 s,
+        `RESCUE_TIME` 1,2 s, `RESCUE_FAR` 140 px, `RESCUE_SLOW` 40). Tres condiciones para que te
+        recojan: perdido lejos de la carretera, acelerando sin moverte (clavado en un muro) o parado
+        fuera de pista; quien se para en la carretera sin tocar nada **no** se recoge, que si no es
+        un incordio. Cuatro escenarios nuevos en `check-sim.js` y una comprobación del HTML del mando
+        en `check-all.js`. El truco en el aire lo dispara ahora un toque de giro; medido con
+        `npm run race` antes y después, los tiempos de los bots no se mueven (± 0,13 s).
 - [ ] **Derrape automático con 3 niveles.** (Antes de tocar los tiempos, mira el dato de `--stats drift`
       anotado en el punto 0.2: hoy los bots casi nunca llegan al miniturbo.) Sin botón de derrape: si el jugador mantiene el giro en la misma
       dirección más de ~0,35 s a velocidad suficiente (> 55 % de la máxima), el kart entra en derrape solo

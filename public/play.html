@@ -55,14 +55,17 @@
   .status .nm { color: #aab0e8; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pad { flex: 1; display: flex; gap: 10px; padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); min-height: 0; }
   .left { flex: 1; display: flex; gap: 10px; }
-  .right { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; }
+  .right { flex: 1; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr 1.7fr; gap: 10px; }
   .ctl { border: 0; border-radius: 20px; font-size: 20px; font-weight: 800; color: #fff; background: #2a2f65; touch-action: none; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 0; min-height: 0; }
   .ctl.on { filter: brightness(1.6); transform: scale(.96); }
   .left .ctl { flex: 1; font-size: 56px; }
-  .ctl.gas { background: #16c96a; } .ctl.brake { background: #ff3d6e; } .ctl.drift { background: #1fa8ff; } .ctl.item { background: #9b3bff; font-size: 46px; }
+  .ctl.gas { background: #16c96a; font-size: 34px; } .ctl.item { background: #9b3bff; font-size: 46px; }
   .left .ctl { background: #ff8a00; }
+  .left .ctl.on { background: #ffa733; }
+  /* los dos botones de girar a la vez = marcha atrás */
+  .left.reverse .ctl.on { background: #ff3d6e; }
   .ctl small { font-size: 12px; font-weight: 700; opacity: .85; margin-top: 2px; }
-  @media (orientation: portrait) { .pad { max-height: 58vh; margin-top: auto; } .portrait-hint { display: block; } }
+  @media (orientation: portrait) { .pad { max-height: 78vh; margin-top: auto; } .portrait-hint { display: block; } }
   .portrait-hint { display: none; flex: 1; align-items: center; justify-content: center; text-align: center; color: #aab0e8; padding: 20px; font-size: 16px; }
   @media (orientation: portrait) { .portrait-hint { display: flex; } }
   .overlay-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(8, 10, 20, .92); padding: 18px 26px; border-radius: 16px; font-size: 26px; font-weight: 800; text-align: center; pointer-events: none; display: none; z-index: 5; max-width: 80vw; }
@@ -102,22 +105,27 @@
       <button id="btn-fs" class="btn">Pantalla completa</button>
       <button id="btn-leave" class="btn" style="background:#5a2a2a">Salir</button>
     </div>
-    <p class="hint" style="margin-top:14px">Consejo: pon el móvil en horizontal durante la carrera. Salta en las rampas y pulsa DERRAPE en el aire para hacer un truco con turbo.</p>
+    <div class="hint" style="margin-top:14px; text-align:left; line-height:1.6">
+      <b style="color:#fff">El mando tiene cuatro botones:</b><br>
+      ◀ ▶ para girar · <b style="color:#16c96a">GAS</b> para acelerar · <b style="color:#9b3bff">OBJETO</b> para usar lo que lleves.<br>
+      <b style="color:#ff3d6e">Marcha atrás</b>: pulsa <b>los dos botones de girar a la vez</b>.<br>
+      <b style="color:#ffd23f">Truco</b>: en las rampas, toca un botón de girar mientras vuelas (turbo al caer).<br>
+      El derrape sale solo en las curvas. Si te pierdes o te quedas clavado, te devolvemos a la pista.<br>
+      Consejo: pon el móvil en horizontal.
+    </div>
   </div>
 
   <div class="view" id="v-race">
     <div class="status"><span class="pos" id="st-pos">—</span><span id="st-lap">—</span><span class="nm" id="st-name"></span></div>
     <div class="portrait-hint">Gira el móvil en horizontal para jugar más cómodo 🔄</div>
     <div class="pad">
-      <div class="left">
+      <div class="left" id="turn-zone">
         <button class="ctl" data-k="left">◀</button>
         <button class="ctl" data-k="right">▶</button>
       </div>
       <div class="right">
         <button class="ctl item" id="btn-item"><span id="item-icon">·</span><small id="item-name">sin objeto</small></button>
-        <button class="ctl brake" data-k="b">FRENO<small>marcha atrás</small></button>
-        <button class="ctl drift" data-k="d">DERRAPE<small>en curvas · truco en el aire</small></button>
-        <button class="ctl gas" data-k="g">GAS</button>
+        <button class="ctl gas" data-k="g">GAS<small id="gas-hint">los dos giros a la vez = marcha atrás</small></button>
       </div>
     </div>
     <div id="race-msg" class="overlay-msg"></div>

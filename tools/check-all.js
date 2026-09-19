@@ -86,6 +86,22 @@ console.log('Servidor');
         else bad(`GET ${p} → ${r.status} ${ct}${text.includes(needle) ? '' : ' (contenido inesperado)'}`);
       } catch (e) { bad(`GET ${p} → ${e.message}`); }
     }
+    // el mando: exactamente cuatro botones grandes y ni rastro de freno ni de derrape
+    try {
+      const html = await (await fetch(base + '/play')).text();
+      const ctl = html.match(/class="ctl[^"]*"/g) || [];
+      const teclas = (html.match(/data-k="([a-z]+)"/g) || []).map((m) => m.slice(8, -1)).sort();
+      const js = await (await fetch(base + '/play.js')).text();
+      const mandaDerrape = /\bd:\s*1\b/.test(js) || /held\.d\b/.test(js);
+      const bien = ctl.length === 4
+        && JSON.stringify(teclas) === JSON.stringify(['g', 'left', 'right'])
+        && html.includes('id="btn-item"')
+        && !/data-k="[bd]"/.test(html)
+        && !mandaDerrape;
+      if (bien) ok('el mando tiene 4 botones (◀ ▶, objeto, gas) y no manda derrape');
+      else bad(`el mando no cuadra: ${ctl.length} botones .ctl, teclas ${teclas.join(',')}${mandaDerrape ? ', play.js manda derrape' : ''}`);
+    } catch (e) { bad('no se puede comprobar el mando: ' + e.message); }
+
     try {
       const r = await fetch(base + '/../server.js');
       if (r.status === 200 && (await r.text()).includes('WebSocketServer')) bad('sirve archivos fuera de public/'); else ok('no sirve archivos fuera de public/');
