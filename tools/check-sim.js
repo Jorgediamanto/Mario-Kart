@@ -48,6 +48,8 @@ async function main() {
   check(hits >= 1, `se reparten golpes entre karts (${hits} en total)`);
   check(total < 20, `las ${trackDefs.length} carreras tardan ${total.toFixed(1)} s (< 20 s)`);
 
+  compararConLaReferencia(tiempos);
+
   console.log('Determinismo');
   {
     const a = correrCircuito(sim, 0, { silencioso: true });
@@ -180,6 +182,37 @@ function correrCircuito(sim, index, opts = {}) {
     `${titulo}: con una persona, la carrera acaba cuando esta llega a meta (${persona.finishTime.toFixed(1)} s)`);
 
   return { nombre, hits: st.hits, finishTimes: ks.map((k) => k.finishTime), vueltaMedia };
+}
+
+// Los tiempos de vuelta de referencia (tools/referencia.json) son la vara de medir de los cambios
+// de física: si los bots empeoran más de un 10 %, el cambio ha roto algo. Para volver a medir (solo
+// cuando el cambio es a propósito y está justificado): `KART_REFERENCIA=escribir node tools/check-sim.js`.
+const REFERENCIA = path.join(ROOT, 'tools/referencia.json');
+const MARGEN = 1.10;
+
+function compararConLaReferencia(tiempos) {
+  console.log('Tiempos de vuelta');
+  const medidos = {};
+  for (const t of tiempos) medidos[t.nombre] = Number(t.vueltaMedia.toFixed(2));
+  if (process.env.KART_REFERENCIA === 'escribir') {
+    fs.writeFileSync(REFERENCIA, JSON.stringify({
+      que: 'Vuelta media de los bots en la fase 4 de npm test, circuito a circuito (segundos).',
+      comoRehacerlo: 'KART_REFERENCIA=escribir node tools/check-sim.js',
+      fecha: new Date().toISOString().slice(0, 10),
+      vueltaMedia: medidos,
+    }, null, 2) + '\n');
+    ok('referencia reescrita a propósito (KART_REFERENCIA=escribir)');
+    return;
+  }
+  if (!fs.existsSync(REFERENCIA)) { bad('falta tools/referencia.json (créalo con KART_REFERENCIA=escribir)'); return; }
+  const ref = JSON.parse(fs.readFileSync(REFERENCIA, 'utf8')).vueltaMedia || {};
+  for (const [nombre, medido] of Object.entries(medidos)) {
+    const antes = ref[nombre];
+    if (antes == null) { bad(`${nombre}: no está en la referencia`); continue; }
+    const dif = ((medido - antes) / antes) * 100;
+    check(medido <= antes * MARGEN,
+      `${nombre}: vuelta media ${medido.toFixed(2)} s (referencia ${antes.toFixed(2)} s, ${dif >= 0 ? '+' : ''}${dif.toFixed(1)} %)`);
+  }
 }
 
 // ---------------------------------------------------------------- escenarios sueltos

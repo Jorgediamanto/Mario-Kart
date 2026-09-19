@@ -7,13 +7,14 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 10:58
+- último latido (UTC): 2026-09-19 11:12
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno (el bug de los bots está cerrado y fusionado en `main`)
-- hecho: bug «bot en dirección contraria» arreglado, probado y fusionado
-- siguiente paso: «Derrape automático con 3 niveles» (Fase 1)
+- IDEAS.md: «Derrape automático con 3 niveles» (Fase 1)
+- hecho: bug de los bots cerrado y fusionado; `tools/referencia.json` con los tiempos de vuelta de
+  antes del cambio y la fase 4 comparándolos (falla si empeoran más de un 10 %)
+- siguiente paso: el derrape automático en `sim.mjs` (constantes + niveles + hook `onDrift`)
 - intentos fallidos en este punto: 0
 
 ## Última sesión
