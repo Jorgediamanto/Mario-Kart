@@ -25,6 +25,12 @@ export const GRAVITY = 950;          // unidades/s²
 export const SPIN_TIME = 1.0;
 export const ROULETTE_TIME = 1.6;
 export const BOX_RESPAWN = 5;
+// Rescate automático (el «Lakitu»): si un kart se queda clavado o muy lejos de la carretera,
+// se le recoloca en la pista mirando bien, y pierde un momento: esa es toda la penalización.
+export const RESCUE_AFTER = 3;    // segundos perdido o atascado antes de que lo recojan
+export const RESCUE_TIME = 1.2;   // lo que tarda la maniobra (el kart no se mueve)
+export const RESCUE_FAR = 140;    // a esta distancia del borde de la carretera ya está «perdido»
+export const RESCUE_SLOW = 40;    // por debajo de esta velocidad se considera parado
 export const MAX_KARTS = 8;
 export const SAMPLE_SPACING = 8;
 
@@ -185,6 +191,7 @@ export const DEFAULT_HOOKS = {
   onProjectileRemoved() {},     // (proyectil)
   onBananaAdded() {},           // (plátano)
   onBananaRemoved() {},         // (plátano)
+  onRescue() {},                // (kart) lo han recogido y devuelto a la pista
   onResults() {},               // (clasificación final)
 };
 
@@ -207,7 +214,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     firstFinish: 0, finishedCount: 0, endAt: 0, results: null,
     simTime: 0,
   };
-  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0 };
+  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0 };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -232,7 +239,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
-      driftT: 0, driftDir: 0, trick: false, trickAngle: 0, dPrev: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
+      driftT: 0, driftDir: 0, trick: false, trickAngle: 0, dPrev: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,
@@ -350,8 +357,26 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     return { s: reverse ? -steer : steer, g: brake || reverse ? 0 : 1, b: brake || reverse ? 1 : 0, d: drift };
   }
 
+  // Lo recogen y lo dejan en el punto más cercano de la carretera, mirando en el sentido correcto
+  function rescatar(k, near) {
+    const s = state.track.samples[near.i];
+    k.x = s.x; k.y = s.y; k.z = s.h; k.ground = s.h; k.vz = 0; k.air = false; k.airT = 0;
+    k.angle = s.ang; k.moveAngle = s.ang; k.speed = 0;
+    k.driftT = 0; k.boostUntil = 0; k.trick = false; k.trickAngle = 0; k.offroad = false;
+    k.stuckT = 0;
+    k.rescueUntil = simTime + RESCUE_TIME;
+    k.invUntil = Math.max(k.invUntil, simTime + RESCUE_TIME + 0.5);
+    stats.rescues++;
+    hooks.onRescue(k);
+    hooks.onSfx('rescue', k);
+    hooks.onFx(k, 'rescue');
+    hooks.onToast(`${k.emoji} ${k.name}: ¡de vuelta a la pista!`, 2);
+  }
+
   function stepKart(k, inp, dt) {
     const t = state.track, now = simTime;
+    // mientras lo recogen se queda quieto: es la penalización por salirse
+    if (k.rescueUntil > now) { k.speed = 0; k.vz = 0; k.air = false; k.driftT = 0; return; }
     const spinning = k.spinUntil > now;
     const active = state.phase === 'race' && !spinning;
     const s = active ? inp.s : 0, g = active ? inp.g : 0, b = active ? inp.b : 0, d = active ? inp.d : 0;
@@ -389,9 +414,10 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (k.driftT >= 0.7) boost(k, k.driftT >= 1.6 ? 1.1 : 0.7);
       k.driftT = 0;
     }
-    // truco en el aire: pulsar derrape en un salto de verdad (no en un botecito)
-    if (k.air && d && !k.dPrev && !k.trick && k.z - k.ground > 16 && k.airT > 0.12) { k.trick = true; k.trickAngle = 0; hooks.onSfx('trick', k); }
-    k.dPrev = d;
+    // truco en el aire: en un salto de verdad (no en un botecito), tocar derrape o un botón de girar
+    const tocaTruco = (d && !k.dPrev) || (s !== 0 && k.sPrev === 0);
+    if (k.air && tocaTruco && !k.trick && k.z - k.ground > 16 && k.airT > 0.12) { k.trick = true; k.trickAngle = 0; hooks.onSfx('trick', k); }
+    k.dPrev = d; k.sPrev = s;
 
     k.angle += s * turn * dt * (k.speed >= 0 ? 1 : -1);
     const lag = drifting ? 3.2 : k.air ? 2 : 11;
@@ -461,6 +487,16 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     if (k.air && k.trick) k.trickAngle = Math.min(Math.PI * 2, k.trickAngle + dt * 9);
     if (k.air) stats.maxAir = Math.max(stats.maxAir, k.z - k.ground);
     if (k.offroad && spd > 60) { k.dustT += dt; if (k.dustT > 0.06) { k.dustT = 0; hooks.onParticles(k.x, k.z + 3, k.y, { n: 2, color: [t.def.theme.groundAlt, t.def.theme.ground], spread: 40, vy: 50, life: 0.6, size: 6, g: 60 }); } }
+
+    // ¿perdido o clavado? a los RESCUE_AFTER segundos, de vuelta a la carretera
+    if (state.phase === 'race' && !k.finished && !spinning) {
+      const lento = Math.abs(k.speed) < RESCUE_SLOW && !k.air;
+      const perdido = near2.d > t.halfW + RESCUE_FAR;
+      const atascado = lento && (g || b);          // pisa el gas y no se mueve: contra un muro
+      const abandonado = lento && k.offroad;       // parado fuera de la pista
+      if (perdido || atascado || abandonado) k.stuckT += dt; else k.stuckT = 0;
+      if (k.stuckT >= RESCUE_AFTER) { rescatar(k, near2); return; }
+    }
 
     updateProgress(k, near2);
   }
