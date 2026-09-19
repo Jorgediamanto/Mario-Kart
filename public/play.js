@@ -114,6 +114,9 @@
       case 'fx':
         if (m.kind === 'hit') { vibrate([120, 40, 120]); flashBody('#a83232'); }
         if (m.kind === 'rescue') { vibrate([40, 60, 40]); flashBody('#1f6aa8'); showRaceMsg('¡De vuelta a la pista!', 1200); }
+        if (m.kind === 'zap') { vibrate([60, 50, 60, 50, 60]); flashBody('#b8a400'); showRaceMsg('⚡ ¡Te han encogido!', 1400); }
+        if (m.kind === 'wrong') { vibrate([200, 100, 200]); flashBody('#a83232'); showRaceMsg('↩ ¡Vas al revés! Date la vuelta', 2500); }
+        if (m.kind === 'star') { vibrate([25, 40, 25, 40, 60]); flashBody('#6a4fb8'); showRaceMsg('⭐ ¡Invencible!', 1400); }
         // derrape automático: drift0 = se ha soltado; drift1..3 = nivel cargado
         if (typeof m.kind === 'string' && m.kind.startsWith('drift')) pintarDerrape(Number(m.kind.slice(5)) || 0);
         break;

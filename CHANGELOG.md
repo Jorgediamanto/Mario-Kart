@@ -3,6 +3,7 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+<<<<<<< HEAD
 ## 2026-09-19 — El móvil es el volante (y solo quedan dos botones)
 
 - **Qué cambió**: se acabó girar con los botones ◀ ▶. Ahora el móvil se pone **en horizontal** y se
@@ -39,6 +40,95 @@ llevan la fecha en que se hicieron.
   respaldo, el servidor reenvía la dirección decimal sin redondearla y recorta la basura, HTTPS
   sirve el mando, y en la simulación medio volante gira la mitad y un roce de volante no carga
   derrape.
+=======
+## 2026-09-19 (noche 2) — «¡Vas al revés!» (Fase 3)
+
+- **Qué cambió**: si un kart lleva **más de 1,5 segundos avanzando contra el sentido del circuito**,
+  en su panel sale un cartel rojo parpadeante «↩ ¡VAS AL REVÉS!», suena un aviso y **el móvil vibra
+  largo** y pone «Date la vuelta». En cuanto se endereza, el aviso se apaga solo.
+- **Cuándo no molesta**: no cuenta mientras das un trompo, mientras te recoge el rescate, ni casi
+  parado (por debajo de 60 de velocidad), que es cuando cualquiera se lía maniobrando. Dar marcha
+  atrás un momento con los dos botones tampoco avisa: hacen falta 1,5 s seguidos.
+- **Constantes**: `WRONG_WAY_TIME` y `WRONG_WAY_SPEED` al principio de `public/sim.mjs`; hook nuevo
+  `onWrongWay(kart, siVaAlReves)` y avisos `fx` `wrong` / `wrong0` al móvil.
+- **Cómo probarlo**: `npm test` (escenario «ir al revés más de 1,5 s dispara el aviso, y girarse lo
+  apaga»). En la fiesta: date la vuelta a propósito en una recta y mira que el cartel aparece pronto
+  pero no en cuanto rozas un muro. **Pendiente de probar en fiesta**: si 1,5 s es la espera justa.
+
+## 2026-09-19 (noche 2) — Regresión de fase: todo junto, y la lista para la fiesta
+
+- **Qué cambió**: `npm test` tiene un escenario nuevo que corre una carrera entera **de verdad** (8
+  karts, 3 vueltas, una persona conducida por el piloto automático a la que se saca al césped a
+  propósito) y exige que se disparen **todos los sistemas a la vez**: saltos, paneles de turbo,
+  cajas, objetos usados, golpes, rescate, turbo de derrape y el registro de objetos por posición. Si
+  algo se desconecta al tocar otra cosa, esto se pone rojo aunque los escenarios sueltos pasen.
+  También se apunta `stats.driftBoosts` (cuántos turbos de derrape de cada nivel).
+
+### Lista de comprobación para la próxima fiesta
+
+Lo que ninguna prueba puede mirar. Con el juego abierto y dos o tres móviles:
+
+1. **Mando**: los cuatro botones se pulsan bien con los pulgares, en horizontal y en vertical.
+   Girando con los dos a la vez se va marcha atrás (los botones se ponen rojos).
+2. **Derrape**: aguantar el giro en una curva larga enciende el botón (azul ★ → naranja ★★ → rosa
+   ★★★) con una vibración en cada escalón, y al soltar el kart sale disparado. ¿Se llega al ★★★
+   alguna vez? ¿Apetece derrapar o estorba?
+3. **Pantalla dividida**: cada persona se reconoce en su panel a la primera. Con 4 paneles, pulsa
+   `P` en el ordenador: ¿60 fps? Con 8, ¿al menos 30? ¿Marea la cámara en las curvas cerradas?
+4. **Avisos**: ¿da tiempo a reaccionar a los arcos de las rampas y los paneles de turbo?
+5. **Rescate**: sal del circuito a propósito y quédate quieto: a los 3 s te recogen. ¿Se entiende lo
+   que ha pasado? ¿La espera es larga?
+6. **Objetos**: ¿alguien se queja de que le pegan sin parar? ¿El primero se siente robado? ¿El
+   último remonta? Si el rayo se nota poco, está limitado a uno por kart cada 30 s a propósito.
+7. **Sonido**: haz clic una vez en la pantalla al empezar; comprueba que se oyen turbos, golpes y
+   los escalones del derrape.
+8. **Final**: los resultados se leen desde el sofá y «Otra carrera» funciona a la primera.
+
+Lo que salga de aquí, a `IDEAS.md`: son los datos que el agente nocturno no puede medir solo.
+
+## 2026-09-19 (noche 2) — Los objetos, medidos y con dos reglas de justicia (Fase 2)
+
+- **Lo primero, los números** (8 carreras de 8 bots, 3 vueltas, medidos antes de tocar nada). Objetos
+  usados: 57 caparazones verdes, 50 champiñones, 39 plátanos, 24 rojos, 12 estrellas y 7 rayos. De
+  cada uno, cuántos hacen daño: **rojo 71 %**, **plátano 67 %**, **verde 25 %** y el rayo pilla a
+  cuatro karts de media. El reparto por posición hace lo que promete: al primero nunca le sale rojo
+  ni rayo; al octavo le salen estrella (22 %) y rayo (16 %). En 8 carreras, el último de la parrilla
+  acabó **2 veces en el podio**. Conclusión: el equilibrio de fondo está bien y **no se ha tocado
+  ninguna potencia ni duración**; solo se han puesto dos reglas de justicia que faltaban.
+- **Regla 1 — no te pueden encoger dos veces seguidas**: a quien le cae un rayo queda inmune al rayo
+  **30 segundos** (`LIGHTNING_IMMUNITY`). Antes, dos rayos seguidos podían dejar al líder encogido
+  media carrera sin nada que hacer.
+- **Regla 2 — no más de tres golpes en diez segundos**: tras un golpe ahora hay **2,5 s** de
+  inmunidad en vez de 1,5 (`HIT_IMMUNITY`), que es lo que hace falta para que ni con mala suerte te
+  peguen cuatro veces seguidas. Medido: la peor racha de las 8 carreras baja de 3 golpes a 2.
+- **Se nota en el móvil**: si te encoge un rayo, el móvil vibra distinto y pone «⚡ ¡Te han
+  encogido!»; al coger estrella, «⭐ ¡Invencible!». (Mensajes `fx` nuevos: `zap` y `star`.)
+- **Se puede vigilar**: la simulación apunta ahora `stats.itemsByPos` (qué objeto sale en cada
+  posición) y `kart.hitsTaken`, y `npm test` comprueba cuatro reglas: el reparto por posición
+  coincide con la tabla declarada (±2,5 puntos en 20.000 tiradas), el rayo no repite en 30 s, nadie
+  se come más de 3 golpes en 10 s y el último de la parrilla sube al podio alguna vez en 8 carreras.
+  Con dos corredores la carrera también acaba y no sale el rayo.
+- **Cómo probarlo**: `npm test` y `npm run race -- --track all --runs 2 --stats items`. En la fiesta:
+  **pendiente de probar** si la inmunidad de 2,5 s se nota demasiado generosa cuando alguien va
+  pegado detrás tirando caparazones.
+
+## 2026-09-19 (noche 2) — Lo que viene se ve venir: arcos y bordillos (Fase 2, primer paso)
+
+- **Qué cambió**: con la cámara detrás del kart ya no se ve el circuito entero, así que ahora un
+  **arco de color cruza la carretera** unas 200 unidades (algo más de medio segundo) antes de cada
+  **rampa** (amarillo) y de cada **panel de turbo** (del color del panel), y las **curvas llevan
+  bordillos altos por fuera**, que es la referencia para saber cuánto falta y por dónde se entra.
+- **Sin coste**: todo va en mallas instanciadas (seis dibujados más en total, no uno por arco),
+  porque con la pantalla dividida cada dibujado se multiplica por el número de paneles. La
+  simulación no cambia: la fase 4 de `npm test` da exactamente lo mismo que antes.
+- **Cómo probarlo**: `npm start` y una vuelta mirando si da tiempo a reaccionar a las rampas y a los
+  paneles desde el panel propio. **Pendiente de probar en fiesta**: si 200 unidades de aviso son
+  suficientes (la constante es `ARCO_ANTES`, en `setWorld` de `public/screen.js`).
+- **Queda pendiente** lo gordo de este punto: rehacer los trazados. Antes hay que decidir una cosa
+  que está anotada con números en `IDEAS.md`: la hoja de ruta pide vueltas de 25-60 s y hoy son de
+  9-12 s, y para eso o se juegan más vueltas, o el mapa se hace más grande, o los circuitos se
+  vuelven serpientes. Es una decisión del dueño, no del agente.
+>>>>>>> origin/main
 
 ## 2026-09-19 — Nadie pierde una vuelta en la horquilla (segunda mitad del bug de los bots)
 
@@ -54,6 +144,34 @@ llevan la fecha en que se hicieron.
   un rescate desde allí). Medido con `npm run race`: Volcán Disco pasa de 12,5 a 11,8 s de vuelta
   media y la carrera de 51 a 39 s; los otros tres circuitos no se mueven. En la fiesta: si en la
   horquilla de Volcán Disco te sacan de la pista y te recogen, sigues por tu tramo.
+
+## 2026-09-19 (noche 2) — Pantalla dividida: cada uno ve su kart desde atrás (Fase 1)
+
+- **Qué cambió**: durante la carrera, la tele deja de enseñar el circuito entero desde arriba y se
+  reparte en **paneles, uno por persona** (los bots no tienen). En cada panel, la cámara va detrás y
+  un poco por encima de tu kart, mira hacia donde vas, se aleja cuando corres, se abre siete grados
+  y tiembla en los turbos, y te acompaña en los saltos. La sala, la cuenta atrás y los resultados
+  siguen con la cámara general, que enseña la pista entera.
+- **Cómo se reparte**: 1 → completa · 2 → dos anchos, uno encima del otro · 3 → dos arriba y uno
+  ancho abajo · 4 → 2×2 · 5 → tres y dos · 6 → 3×2 · 7 → cuatro y tres · 8 → 4×2. Con número impar,
+  la fila de abajo lleva uno menos y sus paneles salen más anchos: así no queda un cuadro negro.
+- **Marcador**: el marcador grande de arriba desaparece durante la carrera (tapaba los paneles de la
+  fila de arriba) y queda el tiempo en una chapa centrada. Cada panel lleva el suyo: emoji, nombre,
+  posición, vuelta, objeto y avisos («¡TRUCO!», «¡ÚLTIMA VUELTA!», las estrellas del derrape, el
+  rescate). El «¡YA!» de la salida sigue saliendo grande en medio de la tele, para todos.
+- **Cuánto cuesta**: cada panel es **un dibujado completo de la escena**, así que el coste sube casi
+  en proporción al número de paneles; a cambio, cada cámara ve solo un trozo del circuito y three.js
+  se ahorra lo que queda fuera. Con **más de cuatro paneles** se baja la resolución interna a un
+  píxel por píxel (en una pantalla Retina, hasta cuatro veces menos píxeles que dibujar). Esto **no
+  se puede medir sin navegador**, así que hay una tecla nueva: **`P` enseña los fps** y cuántos
+  paneles hay.
+- **Cómo probarlo**: `npm start`, entrar con dos o tres móviles y mirar que cada uno ve su kart desde
+  atrás en su panel, que el nombre y el emoji se leen, y que la cámara no marea en las curvas.
+  **Pendiente de probar en fiesta**: pulsar `P` y comprobar que con 4 paneles se mantienen los 60 fps
+  y con 8 no baja de 30 en el portátil de casa; si baja, lo primero que hay que tocar son las
+  partículas (`particles.emit`) y las sombras de los karts. También está por ver si la cámara (210
+  unidades por detrás, 105 por encima, 70º a lo ancho) queda a buena altura: son las constantes
+  `CHASE_*` al principio de `public/screen.js`.
 
 ## 2026-09-19 (noche 2) — La clasificación deja de mentir tras un vuelo (bug)
 

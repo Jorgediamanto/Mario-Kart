@@ -6,51 +6,53 @@ es la hora del último push de la sesión: si tiene más de 45 minutos, la sesi�
 retomar la rama.
 
 ## Sesión en curso
-- inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 13:20
-- rama: noche/2026-09-19
+- inicio (UTC): ninguna
+- último latido (UTC): ninguno
+- rama: ninguna
 
 ## Punto en curso
 - IDEAS.md: ninguno
-- hecho: bug del contador de progreso arreglado y probado
-- siguiente paso: «Vista en tercera persona por jugador (pantalla dividida)» (Fase 1) — punto grande,
-  probablemente una sesión entera
+- hecho: —
+- siguiente paso: —
 - intentos fallidos en este punto: 0
 
 ## Última sesión
-- fin (UTC): 2026-09-19 04:03
-- resultado: **cuatro puntos cerrados, `npm test` en verde en `main`** (en local: ver el aviso de abajo).
-  Fase 0 entera (0.1 simulación sin navegador, 0.2 `npm run race`, 0.3 prueba del protocolo) y el primer
-  punto de la Fase 1 (mando de 4 botones + rescate automático). Dos fallos de verdad encontrados y uno
-  arreglado: cualquier móvil podía hacerse pasar por la pantalla (arreglado en `server.js`) y los bots a
-  veces se dan la vuelta y corren en dirección contraria (anotado en «Bugs conocidos»).
-- commits: rama `noche/2026-09-19`, fusionada en `main` con cuatro merges (uno por punto).
-
-## ⚠️ AVISO IMPORTANTE PARA LA SIGUIENTE SESIÓN: no se pudo hacer push
-- Durante toda la noche GitHub devolvió **403** (`Claude doesn't have GitHub access to
-  Jorgediamanto/Mario-Kart`) tanto en `git push` como en la API. Leer el repositorio sí funcionaba.
-- Por eso **todo el trabajo está solo en commits locales** y en un **bundle de git** que se le envió al
-  dueño en el chat (`kart-party-fase0-completa.bundle` y otro final con los cuatro puntos).
-- Si al empezar ves que `main` en GitHub sigue en `e4bf6f0` («Afina el protocolo nocturno…»), esta noche
-  se perdió: hay que recuperarla del bundle (`git fetch <bundle> main:noche-recuperada`) o rehacerla.
-- Antes de nada, comprueba que puedes hacer push (por ejemplo, empujando el candado de PROGRESO.md). Si
-  vuelve a dar 403, avisa al dueño en el primer momento en vez de trabajar cuatro horas a ciegas.
-- El arreglo es suyo: instalar/reinstalar la Claude GitHub App con permiso de escritura
-  (https://github.com/apps/claude/installations/select_target) o reconectar GitHub en claude.ai.
+- fin (UTC): 2026-09-19 17:50
+- resultado: **siete puntos cerrados y fusionados en `main`, `npm test` en verde** (comprobado con
+  `npm ci` limpio al final). Por orden: el bug del piloto automático de los bots; el **derrape
+  automático de tres niveles**; el bug del contador de progreso; la **pantalla dividida en tercera
+  persona** (lo que más quería el dueño); el primer paso de los circuitos (arcos de aviso y
+  bordillos); el **afinado de los objetos**; la **regresión de fase** con lista para la fiesta; y el
+  aviso **«¡Vas al revés!»**.
+- también: se fusionó sin perder nada lo que el dueño empujó a `main` a mediodía (su arreglo de la
+  horquilla con `nearestNear`) y se dejó intacto su punto del volante de giroscopio.
+- commits: rama `noche/2026-09-19`, fusionada en `main` con siete merges (uno por punto).
 
 ## Notas para la siguiente sesión
-- **Siguiente punto**: «Derrape automático con 3 niveles» (Fase 1). Antes de tocar nada, corre
-  `npm run race -- --track all --runs 2 --stats drift`: hoy, de ~745 derrapes de bots, 523 duran menos de
-  0,35 s y **ninguno** pasa de 1,6 s, así que con los tiempos de ahora el nivel 3 no se ve nunca. Mide
-  otra vez después de cada ajuste y compara los tiempos de vuelta (guarda la referencia en
-  `tools/referencia.json`, como pide el punto).
-- Al quitar el botón de derrape, **las personas se han quedado sin derrape**: `play.js` manda `d: 0`
-  siempre y la simulación solo derrapa si le llega `d`. El punto del derrape automático es justo lo que
-  lo arregla, así que conviene hacerlo la próxima noche y no dejarlo pasar.
-- La simulación ya tiene sitio para ello: `stepKart` en `public/sim.mjs`, donde está `drifting`, con los
-  hooks `onSfx`/`onParticles`/`onFx` para chispas, sonido y vibración del móvil, y `onStretch` para el
-  estirón del kart al salir disparado.
-- Para cualquier cambio de físicas: añade su escenario a la lista `escenarios` de `tools/check-sim.js`
-  (hay 11) y comprueba con `npm run race` que los bots no se vuelven tontos ni imbatibles.
-- Sigue pendiente de mirar en la fiesta lo que dice `CHANGELOG.md`: que el juego se sienta igual que
-  antes del refactor, el tamaño de los botones del mando nuevo y si 3 s es buen tiempo para el rescate.
+
+1. **Lo primero: mirar si el dueño ha contestado dos cosas** que se le dejaron por escrito.
+   - En `IDEAS.md`, dentro de «Mejorar los circuitos para la vista en tercera persona», hay una
+     decisión con números: la hoja de ruta pide vueltas de **25-60 s** y hoy son de **9-12 s**. Las
+     salidas son: más vueltas (barato), mapa más grande (`MAP_W`/`MAP_H`, el cambio serio) o
+     trazados en serpiente (feo con la cámara nueva). **Sin esa respuesta no se rehacen trazados.**
+   - Si ya ha jugado una fiesta, en `CHANGELOG.md` está la **lista de ocho comprobaciones**: lo que
+     conteste de ahí (derrape, fps con 4 y 8 paneles, avisos, rescate, objetos) manda sobre la hoja
+     de ruta.
+2. **No tocar `play.html` / `play.js` sin mirar antes `git log`**: el dueño estaba rehaciendo el
+   mando para el **volante de giroscopio** (punto marcado «en curso, lo hace él»). Por eso se saltó
+   el **«Modo fácil por jugador»**, que necesita un interruptor en la sala del móvil: retomarlo
+   cuando el volante esté dentro.
+3. **Siguiente punto pendiente en orden**: «Salida perfecta» (Fase 3). Ojo con los bots: hoy aprietan
+   el gas durante toda la cuenta atrás, así que si «pisar antes de tiempo» penaliza, hay que darles
+   un tiempo de reacción propio o se quedarían todos patinando en la salida.
+4. **Herramientas que ya existen y conviene usar** antes de tocar física:
+   - `tools/referencia.json` + fase 4: si los bots empeoran más de un 10 %, `npm test` se pone rojo.
+     Para remedir a propósito: `KART_REFERENCIA=escribir node tools/check-sim.js`.
+   - `npm run race -- --track all --runs 2 --stats drift|items|speed` para decidir con datos.
+   - La fase «Pantalla» de `npm test` caza nombres de three.js que no existan: es lo único que
+     protege a `screen.js`, que no tiene pruebas de navegador. Si añades APIs nuevas, mira que estén
+     en `node_modules/three/build/three.module.js`.
+   - Tecla `P` en la pantalla: fps y número de paneles (para el rendimiento de la pantalla dividida).
+5. **Pendiente de probar en fiesta** (está en cada entrada del CHANGELOG): la sensación del derrape
+   (0,5 / 0,9 / 1,4 s), la altura de la cámara de persecución (`CHASE_*`), los fps con 8 paneles, los
+   200 unidades de aviso de los arcos (`ARCO_ANTES`) y la inmunidad de 2,5 s tras un golpe.

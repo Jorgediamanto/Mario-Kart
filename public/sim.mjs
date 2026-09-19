@@ -23,6 +23,9 @@ export const BASE_MAX_SPEED = 420;   // unidades/s (sube o baja este número par
 export const ACCEL = 460, BRAKE = 750, COAST = 240;
 export const GRAVITY = 950;          // unidades/s²
 export const SPIN_TIME = 1.0;
+// Tras un golpe, este rato sin que te puedan volver a dar (se suma al trompo). Con 2,5 s, lo más
+// que te pueden pegar son 3 golpes en 10 s: nadie se queda sin jugar a base de caparazones.
+export const HIT_IMMUNITY = 2.5;
 export const ROULETTE_TIME = 1.6;
 export const BOX_RESPAWN = 5;
 // Rescate automático (el «Lakitu»): si un kart se queda clavado o muy lejos de la carretera,
@@ -52,6 +55,13 @@ export const STEER_FIRME = 0.55;
 // avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
 // clasificación congelada media vuelta.
 export const PROGRESS_JUMP_WAIT = 1.0;   // segundos
+// Rayo: a quien le cae no le puede volver a caer en este rato. Sin esto, dos rayos seguidos dejaban
+// al líder encogido media carrera y sin nada que hacer, que es justo lo que no queremos en la fiesta.
+export const LIGHTNING_IMMUNITY = 30;   // segundos
+// Aviso de «vas al revés»: tanto tiempo seguido avanzando contra el sentido del circuito antes de
+// avisar. Corto marea (basta un coletazo en una curva); largo llega tarde.
+export const WRONG_WAY_TIME = 1.5;      // segundos
+export const WRONG_WAY_SPEED = 60;      // por debajo de esta velocidad no se considera que avanza
 export const MAX_KARTS = 8;
 export const SAMPLE_SPACING = 8;
 
@@ -226,6 +236,7 @@ export const DEFAULT_HOOKS = {
   onBananaAdded() {},           // (plátano)
   onBananaRemoved() {},         // (plátano)
   onDrift() {},                 // (kart, nivel) 1, 2, 3 al subir de nivel; -1 cuando suelta el derrape
+  onWrongWay() {},              // (kart, siVaAlReves) empieza o deja de ir en sentido contrario
   onRescue() {},                // (kart) lo han recogido y devuelto a la pista
   onResults() {},               // (clasificación final)
 };
@@ -249,7 +260,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     firstFinish: 0, finishedCount: 0, endAt: 0, results: null,
     simTime: 0,
   };
-  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0 };
+  // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
+  // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
+  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -274,7 +287,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
-      aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
+      wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,
@@ -361,7 +374,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const now = simTime;
     if (k.starUntil > now || k.invUntil > now || k.spinUntil > now) return false;
     k.spinUntil = now + SPIN_TIME;
-    k.invUntil = now + SPIN_TIME + 1.5;
+    k.invUntil = now + SPIN_TIME + HIT_IMMUNITY;
     k.speed *= 0.25;
     k.driftT = 0; k.driftLevel = 0; k.steerT = 0; k.boostUntil = 0; k.trick = false;
     k.vz = Math.max(k.vz, 230); k.air = true;
@@ -371,6 +384,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     hooks.onFx(k, 'hit');
     hooks.onHit(k, causa || null);
     stats.hits++;
+    k.hitsTaken++;
     return true;
   }
 
@@ -412,6 +426,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     k.x = s.x; k.y = s.y; k.z = s.h; k.ground = s.h; k.vz = 0; k.air = false; k.airT = 0;
     k.angle = s.ang; k.moveAngle = s.ang; k.speed = 0;
     k.driftT = 0; k.driftLevel = 0; k.steerT = 0; k.steerDir = 0;
+    k.wrongT = 0;
+    if (k.wrongWay) { k.wrongWay = false; hooks.onWrongWay(k, false); hooks.onFx(k, 'wrong0'); }
     k.boostUntil = 0; k.trick = false; k.trickAngle = 0; k.offroad = false;
     k.stuckT = 0;
     k.rescueUntil = simTime + RESCUE_TIME;
@@ -479,7 +495,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       }
     } else if (seguia && !k.air) {
       // en el aire el derrape se queda en pausa (un salto no te quita la carga)
-      if (k.driftLevel > 0) boost(k, DRIFT_BOOST[k.driftLevel - 1]);
+      if (k.driftLevel > 0) { boost(k, DRIFT_BOOST[k.driftLevel - 1]); stats.driftBoosts[k.driftLevel - 1]++; }
       k.driftT = 0; k.driftLevel = 0;
       hooks.onDrift(k, -1);
       hooks.onFx(k, 'drift0');
@@ -569,6 +585,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (k.stuckT >= RESCUE_AFTER) { rescatar(k, propio); return; }
     }
 
+    comprobarSentido(k, near2, dt);
     updateProgress(k, near2, dt);
   }
 
@@ -582,6 +599,23 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (k.airT >= 0.4) { stats.tricks++; boost(k, 0.9); if (k.isHuman) hooks.onToast(`${k.emoji} ${k.name}: ¡truco! 🤸`, 1.5); }
     }
     if (impact > 80) hooks.onSfx('land', k);
+  }
+
+  // ¿va en sentido contrario? Se mira si su movimiento apunta contra el trazado de su tramo. No
+  // cuenta mientras da un trompo, mientras lo recogen ni casi parado (ahí cualquiera se lía).
+  function comprobarSentido(k, near, dt) {
+    const s = state.track.samples[near.i];
+    const alReves = state.phase === 'race' && !k.finished && k.spinUntil <= simTime && k.rescueUntil <= simTime
+      && Math.abs(k.speed) > WRONG_WAY_SPEED
+      && Math.cos(k.moveAngle - s.ang) * Math.sign(k.speed) < -0.3;
+    k.wrongT = alReves ? k.wrongT + dt : 0;
+    const aviso = k.wrongT >= WRONG_WAY_TIME;
+    if (aviso !== k.wrongWay) {
+      k.wrongWay = aviso;
+      hooks.onWrongWay(k, aviso);
+      hooks.onFx(k, aviso ? 'wrong' : 'wrong0');
+      if (aviso) hooks.onSfx('wrong', k);
+    }
   }
 
   function updateProgress(k, near, dt) {
@@ -693,6 +727,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
           box.respawnAt = now + BOX_RESPAWN;
           k.rolling = { until: now + ROULETTE_TIME, result: rollItem(k.rank, state.karts.length) };
           stats.pickups++;
+          const fila = stats.itemsByPos[k.rank] || (stats.itemsByPos[k.rank] = {});
+          fila[k.rolling.result] = (fila[k.rolling.result] || 0) + 1;
           hooks.onParticles(box.x, box.h + 18, box.y, { n: 16, color: 'rainbow', spread: 200, vy: 120, life: 0.7, size: 5 });
           hooks.onSfx('pickup', k);
           hooks.onStatus(k);
@@ -754,16 +790,18 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       }
       case 'star':
         k.starUntil = now + 7; k.spinUntil = 0;
+        hooks.onFx(k, 'star');
         hooks.onParticles(k.x, k.z + 20, k.y, { n: 24, color: 'rainbow', spread: 240, vy: 150, life: 0.9, size: 5 });
         hooks.onSfx('star', k);
         break;
       case 'lightning':
         for (const o of state.karts) {
-          if (o === k || o.starUntil > now) continue;
+          if (o === k || o.starUntil > now || o.zapUntil > now) continue;
+          o.zapUntil = now + LIGHTNING_IMMUNITY;
           o.shrinkUntil = now + 5;
           if (o.spinUntil <= now && o.invUntil <= now) { o.spinUntil = now + 0.6; o.speed *= 0.4; o.vz = Math.max(o.vz, 120); o.air = true; hooks.onHit(o, { id: k.id, tipo: 'lightning' }); }
           hooks.onParticles(o.x, o.z + 30, o.y, { n: 10, color: ['#ffe600', '#00e5ff'], spread: 100, vy: -200, life: 0.5, size: 4, g: 0 });
-          hooks.onFx(o, 'hit');
+          hooks.onFx(o, 'zap');
         }
         hooks.onFlash();
         hooks.onShake(10, k);
@@ -891,7 +929,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
 
   return {
     tracks, state, stats,
-    startRace, update, setInput, useItem, aiInput, hitKart, boost, backToLobby, removeKart,
+    startRace, update, setInput, useItem, aiInput, hitKart, boost, backToLobby, removeKart, rollItem,
     setTrack, displayLap, updateRanking, allFinished,
     now: () => simTime,
   };

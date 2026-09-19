@@ -191,8 +191,8 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         `DRIFT_*` al principio de `sim.mjs`, hook `onDrift(kart, nivel)`, `fx` nuevos al móvil
         (`drift0..3`) y `tools/referencia.json` como vara de medir de la fase 4.
 
-- [ ] **Vista en tercera persona por jugador (pantalla dividida).** ⭐ **Lo que más quiere el dueño
-      (pedido el 2026-09-19 a mediodía): esto primero, antes que nada.** En vez de la cámara general del circuito,
+- [x] **Vista en tercera persona por jugador (pantalla dividida).** ⭐ **Lo que más quería el dueño
+      (pedido el 2026-09-19 a mediodía); hecho esa misma noche.** En vez de la cámara general del circuito,
       cada persona ve **su kart desde atrás y un poco arriba**, cámara que sigue al kart con suavidad (mira
       algo por delante, se aleja un poco con la velocidad, se agita ligeramente en turbos y golpes, y sigue al
       kart en los saltos). Como todos comparten la tele, la pantalla se divide en paneles: 1 jugador →
@@ -210,6 +210,14 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       paneles es una función pura en `public/layout.mjs` con prueba en `tools/check-sim.js` (para n = 1..8
       devuelve rectángulos dentro de [0,1] que no se solapan, cubren la pantalla y respetan la tabla de arriba); la simulación no cambia (fase 4 idéntica);
         anota en CHANGELOG el coste estimado de render por panel y márcalo «pendiente de probar en fiesta».
+      - **Hecho el 2026-09-19 (noche 2).** `public/layout.mjs` (puro, probado para n = 1..8),
+        cámaras de persecución por persona en `screen.js` (constantes `CHASE_*`), render por paneles
+        con scissor/viewport, mini-HUD HTML por panel y el marcador grande sustituido por una chapa
+        con el tiempo. El campo de visión se fija a lo ancho (70º) y el vertical sale de la forma del
+        panel, para que dos paneles anchos no den ojo de pez. Con más de 4 paneles baja la resolución
+        interna. Como no hay pruebas de navegador, `npm test` gana una fase «Pantalla» que comprueba
+        que no se usan nombres de three.js inexistentes y que siguen ahí scissor y viewport; y la
+        tecla `P` enseña los fps para medirlo en la fiesta.
 - [x] **Volante de giroscopio: el móvil se inclina como el mando de la Wii.** ⭐ Segunda cosa
       que más quiere el dueño. Girar con los botones ◀ ▶ es incómodo: se acabaron. El móvil se pone
       **en horizontal, con el giro de pantalla bloqueado**, se sujeta con las dos manos y se **gira
@@ -259,7 +267,31 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       - Comprobación: `npm run check` en verde; en la simulación todos los bots terminan cada circuito y el
         tiempo medio de vuelta queda entre 25 y 60 s; los atajos se validan con un bot que los toma
         (variante de `aiInput` con carril alternativo) y llega antes que uno que no.
-- [ ] **Afinar las habilidades (objetos).** Con la nueva vista y el derrape automático, equilibra: duración y
+      - **Primer subpaso hecho el 2026-09-19 (noche 2)**, el que vale para los cuatro circuitos:
+        arcos de aviso cruzando la carretera 200 unidades antes de cada rampa y de cada panel, y
+        bordillos altos por fuera de las curvas. Falta el trazado circuito a circuito.
+      - ⚠️ **Decisión para el dueño antes de rehacer los trazados (medido, no opinado).** La
+        comprobación pide **vueltas de 25-60 s** y hoy son de **9-12 s**: los circuitos miden unos
+        4.000 px de trazado y los karts van a ~380 unidades/s. Para una vuelta de 25 s harían falta
+        **~9.500 px dentro de un mapa de 1920×1080**, y el validador exige 140 px de separación entre
+        tramos y radios de curva de 65 px como mínimo. Cabe, pero solo en forma de **serpiente**
+        (unas 6 pasadas de lado a lado), que se parece más a un laberinto que a un circuito de karts.
+        Las salidas posibles, de menos a más invasiva:
+        1. **Más vueltas** (5-7 en vez de 3): carreras de 60-90 s sin tocar los trazados. Es un
+           cambio de un número en la sala y no rompe nada. *Lo más barato con diferencia.*
+        2. **Mapa más grande** (`MAP_W`/`MAP_H` en `sim.mjs`, p. ej. 2880×1620): trazados de verdad
+           más largos y con sitio para chicanes y atajos. Toca terreno, decoración, cámara general,
+           validador y los cuatro circuitos; es el cambio serio.
+        3. **Trazados en serpiente** dentro del mapa de ahora: cumple el número, pero el circuito
+           pierde gracia y con la cámara de detrás se vuelve mareante.
+        Mientras no haya respuesta, lo que sí se puede hacer sin decidir nada: chicanes y curvas
+        largas para el nivel 3 del derrape reaprovechando la longitud de ahora, y repasar el ancho.
+      - Nota para quien lo haga: **la simulación no sabe de caminos alternativos** (`nearest` + `lat`
+        define la carretera, no hay ramas). Un «atajo con riesgo» se puede hacer con una **rampa que
+        salte por encima de una curva**: si llegas rápido, caes más adelante y el contador de
+        progreso ya lo acepta (`PROGRESS_JUMP_WAIT`); si llegas lento, caes al césped o al agua y
+        pierdes más de lo que ganabas.
+- [x] **Afinar las habilidades (objetos).** Con la nueva vista y el derrape automático, equilibra: duración y
       potencia de turbo/estrella/rayo, velocidad y homing de los caparazones, distancia de lanzamiento,
       probabilidades por posición (el último debe remontar pero el primero no debe sentirse injusto) y feedback
       en pantalla y móvil (vibración, flash, sonido) de cada objeto. Que funcione igual de bien con 2 y con 8
@@ -269,9 +301,20 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         acumula más de 3 golpes en 10 s (inmunidad), el reparto por posición sigue las probabilidades
         declaradas (±10 %), y en 8 carreras simuladas de 8 bots el último de la parrilla termina alguna vez
         en el podio.
-- [ ] **Regresión de fase.** Repasa que rescate, derrape, paneles, objetos y pantalla dividida siguen
+      - **Hecho el 2026-09-19 (noche 2).** Medido primero: el reparto y los aciertos (rojo 71 %,
+        plátano 67 %, verde 25 %) ya estaban sanos, así que **no se ha tocado ninguna potencia ni
+        duración**; lo que faltaba eran dos reglas de justicia: inmunidad al rayo de 30 s
+        (`LIGHTNING_IMMUNITY`) y 2,5 s de inmunidad tras un golpe (`HIT_IMMUNITY`, antes 1,5), con
+        lo que la peor racha baja de 3 golpes a 2 en 10 s. `stats.itemsByPos` y `kart.hitsTaken`
+        nuevos, cinco escenarios en `check-sim.js` y avisos `fx` `zap`/`star` al móvil. Lo que sigue
+        sin tocar y quizá pida la fiesta: la velocidad y el homing de los caparazones.
+- [x] **Regresión de fase.** Repasa que rescate, derrape, paneles, objetos y pantalla dividida siguen
       funcionando juntos: simulación + `npm test` + una lista de comprobación manual en `CHANGELOG.md` para la
       próxima fiesta.
+      - **Hecho el 2026-09-19 (noche 2).** Escenario «en una carrera normal se disparan todos los
+        sistemas a la vez» (carrera entera con una persona a la que se saca al césped: exige saltos,
+        paneles, cajas, objetos, golpes, rescate y turbo de derrape en la misma carrera) y lista de
+        ocho comprobaciones para la fiesta en `CHANGELOG.md`.
 
 ## Fase 3 — Intuitivo y simple (que cualquiera juegue a la primera)
 
@@ -280,9 +323,15 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       carretera. Se recuerda en el móvil. Comprobación: en la simulación un kart con «modo fácil» y sin
       entradas termina la carrera solo (más lento que un bot); el mensaje `hello` lleva el flag y la pantalla lo
       muestra en la sala.
-- [ ] **Aviso «¡Vas al revés!».** Si un kart avanza en sentido contrario más de 1,5 s: cartel en su panel,
+      - ⏭ **Saltado a propósito la noche del 2026-09-19**: el interruptor va en la **sala del móvil**
+        y el dueño estaba rehaciendo `play.html`/`play.js` esa misma tarde para el volante de
+        giroscopio. Hacerlo a la vez era pisarse. Retomarlo cuando el volante esté dentro.
+- [x] **Aviso «¡Vas al revés!».** Si un kart avanza en sentido contrario más de 1,5 s: cartel en su panel,
       flecha grande hacia la dirección correcta y vibración larga en el móvil. Comprobación: simulación con un
       kart forzado al revés dispara el hook `onWrongWay` y deja de dispararlo al girar.
+      - **Hecho el 2026-09-19 (noche 2).** Con `WRONG_WAY_TIME` (1,5 s) y `WRONG_WAY_SPEED` (60) en
+        `sim.mjs`; cartel rojo parpadeante en el panel, sonido y vibración larga en el móvil (`fx`
+        `wrong`/`wrong0`). No cuenta en trompos, rescates ni casi parado.
 - [ ] **Salida perfecta.** Pulsar GAS justo en el «¡YA!» (ventana de 0,4 s) da un turbo de salida; pulsarlo
       demasiado pronto hace patinar 0,8 s. Cuenta atrás con vibración en cada número. Comprobación: simulación
       con entradas programadas: GAS en la ventana → turbo; GAS 1 s antes → patinazo.
