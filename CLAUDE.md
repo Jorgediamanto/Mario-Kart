@@ -18,7 +18,9 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   simulación y le pone lo que se ve y se oye: mundo 3D, modelos de kart, partículas, cámara, HUD,
   audio sintetizado y la conexión con los móviles. La sala y los resultados son HTML encima del canvas.
 - `public/play.html` + `public/play.js` — el mando del móvil: botones táctiles, sala, estado de carrera.
-- `public/tracks.js` — circuitos (puntos de control + relieve, cajas, paneles, bumpers, tema de colores).
+- `public/tracks.js` — circuitos (puntos de control, `relieve` con el sube y baja de la vuelta,
+  rampas y lomos, cajas, paneles, bumpers, tema de colores). `tools/traza-arcoiris.js` genera el
+  trazado de Arcoíris (polígono con las esquinas redondeadas) y lo valida antes de pegarlo.
   `public/geom.js` — spline Catmull-Rom y remuestreo (compartido con Node).
 - `tools/check-tracks.js` — validador de circuitos. `tools/check-sim.js` — carreras de bots sin
   navegador (fase 4 de `npm test`), con una lista de «escenarios» a la que cada punto nuevo suma el

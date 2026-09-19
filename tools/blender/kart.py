@@ -149,10 +149,10 @@ def main():
         bpy.context.scene.cursor.location = (0, 0, 0)
         return o
 
-    rueda('RuedaDD', 13.0, -1, 6.5, 6.0)
-    rueda('RuedaDI', 13.0, 1, 6.5, 6.0)
-    rueda('RuedaTD', -12.0, -1, 8.0, 8.0)
-    rueda('RuedaTI', -12.0, 1, 8.0, 8.0)
+    rueda('RuedaDD', 13.0, -1, 7.3, 7.5)
+    rueda('RuedaDI', 13.0, 1, 7.3, 7.5)
+    rueda('RuedaTD', -12.0, -1, 9.0, 9.8)
+    rueda('RuedaTI', -12.0, 1, 9.0, 9.8)
 
     salida = bpy.path.abspath('//public/modelos/kart.glb')
     import os

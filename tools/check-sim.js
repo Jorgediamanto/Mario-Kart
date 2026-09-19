@@ -243,13 +243,20 @@ function correrCircuito(sim, index, opts = {}) {
       // que se congela cuando un kart vuela por un atajo (ver «Bugs conocidos» de IDEAS.md)
       const sm = s.state.track.samples[s.state.track.nearest(k.x, k.y).i];
       const conElCircuito = (k.x - antes[i].x) * Math.cos(sm.ang) + (k.y - antes[i].y) * Math.sin(sm.ang);
-      h.push([k.dist - antes[i].dist, Math.hypot(k.x - antes[i].x, k.y - antes[i].y), conElCircuito]);
+      // El cuarto dice si en ese instante estaba pagando algo del juego: trompo, rescate, rayo
+      // (encogido) o caracol. Al que le cae encima media caja de objetos tampoco avanza, y eso
+      // **no** es estar atascado, es la partida; sin esta distinción el aviso salta por mala suerte
+      // y no por un fallo (pasó con el Bot 1 de Chicle: caracol + rayo + dos caparazones en 10 s).
+      const castigado = (k.spinUntil > s.state.simTime || k.rescueUntil > s.state.simTime
+        || k.shrinkUntil > s.state.simTime || k.slowUntil > s.state.simTime) ? 1 : 0;
+      h.push([k.dist - antes[i].dist, Math.hypot(k.x - antes[i].x, k.y - antes[i].y), conElCircuito, castigado]);
       if (h.length > ventana) h.shift();
       if (h.length === ventana && !k.finished) {
         const avance = h.reduce((a, b) => a + b[0], 0);
         const recorrido = h.reduce((a, b) => a + b[1], 0);
         const sentido = h.reduce((a, b) => a + b[2], 0);
-        if (avance < 40 && recorrido < 400) falla(`${k.name}: atascado (${avance.toFixed(0)} muestras y ${recorrido.toFixed(0)} px en 10 s)`);
+        const castigo = h.reduce((a, b) => a + b[3], 0) * DT;     // segundos de trompo, rescate, rayo o caracol
+        if (avance < 40 && recorrido < 400 && castigo < 2) falla(`${k.name}: atascado (${avance.toFixed(0)} muestras y ${recorrido.toFixed(0)} px en 10 s, ${castigo.toFixed(1)} s de castigo)`);
         else if (sentido < -200) falla(`${k.name}: se fue en dirección contraria hacia t=${s.state.simTime.toFixed(0)} s (${sentido.toFixed(0)} px a contramano en 10 s)`);
       }
     });
@@ -868,6 +875,89 @@ const escenarios = [
       const desvio = Math.abs(sim.wrapAngle(k.angle - t.samples[n.i].ang));
       if (antes < 1) return 'la prueba no ha llegado a torcerlo';
       if (desvio > 0.6) return `tras el golpe sigue torcido ${(desvio * 180 / Math.PI).toFixed(0)}º respecto a la carretera`;
+      return null;
+    },
+  },
+  {
+    // El salto tiene que ser un salto: al despegar del filo de una rampa se regala turbo
+    // (RAMPA_TURBO), y con él se vuela lejos en vez de caer donde despegaste.
+    nombre: 'saltar una rampa da turbo y hace volar de verdad',
+    run(sim) {
+      const medir = (conTurbo) => {
+        const s = carrera(sim, { bots: 0, trackIndex: pista('Arcoíris') });
+        const k = humano(s);
+        const t = s.state.track;
+        const rampa = t.ramps.reduce((a, b) => (b.height > a.height ? b : a));
+        const i0 = ((rampa.start - 40) % t.N + t.N) % t.N;
+        const sm = t.samples[i0];
+        k.x = sm.x; k.y = sm.y; k.z = sm.h; k.ground = sm.h; k.vz = 0; k.air = false;
+        k.angle = sm.ang; k.moveAngle = sm.ang; k.speed = 420; k.dist = i0; k.stuckT = 0;
+        if (!conTurbo) k.lastRamp = rampa.start, k.lastRampAt = s.state.simTime;   // como si ya la hubiera cobrado
+        // se mide el vuelo más largo de los 6 s: el kart da botecitos por el relieve y no vale
+        // quedarse con el primero que salga
+        let mejor = { vuelo: 0, alto: 0, alcance: 0 };
+        let vuelo = 0, alto = 0, x0 = null;
+        for (let f = 0; f < 60 * 6; f++) {
+          s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+          s.update(DT);
+          if (k.air) {
+            if (x0 === null) { x0 = { x: k.x, y: k.y }; vuelo = 0; alto = 0; }
+            vuelo += DT;
+            alto = Math.max(alto, k.z - k.ground);
+            const alcance = Math.hypot(k.x - x0.x, k.y - x0.y);
+            if (vuelo > mejor.vuelo) mejor = { vuelo, alto, alcance };
+          } else x0 = null;
+        }
+        return { ...mejor, turbos: s.stats.rampBoosts };
+      };
+      const con = medir(true), sin = medir(false);
+      if (con.turbos !== 1) return `el turbo de salto no ha entrado (${con.turbos} veces)`;
+      if (sin.turbos !== 0) return 'ha cobrado turbo dos veces en la misma rampa';
+      if (con.vuelo < 0.8) return `vuela solo ${con.vuelo.toFixed(2)} s: el salto sigue siendo enano`;
+      if (con.alto < 120) return `sube solo ${con.alto.toFixed(0)} px en el salto`;
+      if (con.alcance < 350) return `salta solo ${con.alcance.toFixed(0)} px`;
+      if (con.alcance < sin.alcance * 1.15) return `con turbo salta ${con.alcance.toFixed(0)} px y sin turbo ${sin.alcance.toFixed(0)}: no se nota`;
+      return null;
+    },
+  },
+  {
+    // Arcoíris tiene cuestas: el circuito sube y baja de verdad, no es una mesa
+    nombre: 'Arcoíris sube y baja (y sin pendientes imposibles)',
+    run(sim) {
+      const s = carrera(sim, { bots: 0, trackIndex: pista('Arcoíris') });
+      const t = s.state.track;
+      const enRampa = new Set();
+      for (const r of t.ramps) for (let j = -2; j < 30; j++) enRampa.add(((r.start + j) % t.N + t.N) % t.N);
+      let min = Infinity, max = -Infinity, peor = 0;
+      for (let i = 0; i < t.N; i++) {
+        min = Math.min(min, t.samples[i].h); max = Math.max(max, t.samples[i].h);
+        if (enRampa.has(i) || enRampa.has((i + 1) % t.N)) continue;
+        peor = Math.max(peor, Math.abs(t.samples[(i + 1) % t.N].h - t.samples[i].h) / 8);
+      }
+      if (max - min < 150) return `apenas hay desnivel (${(max - min).toFixed(0)} px de arriba abajo)`;
+      if (peor > 0.45) return `hay una pendiente del ${(peor * 100).toFixed(0)} %: eso ya no es una cuesta, es un muro`;
+      if (Math.abs(t.samples[0].h - t.samples[t.N - 1].h) > 12) return 'la meta no cierra: hay un escalón al dar la vuelta';
+      return null;
+    },
+  },
+  {
+    // Si ni con el aviso te das la vuelta, te recogen: es la última red para no penar a contramano
+    nombre: 'a quien corre al revés mucho rato lo recogen y lo ponen mirando bien',
+    run(sim) {
+      let recogido = false;
+      const s = carrera(sim, { bots: 1, hooks: { onRescue: () => { recogido = true; } } });
+      const k = humano(s);
+      const t = s.state.track;
+      const m = t.samples[t.nearest(k.x, k.y).i];
+      k.x = m.x; k.y = m.y; k.z = m.h; k.ground = m.h; k.air = false; k.vz = 0;
+      k.angle = m.ang + Math.PI; k.moveAngle = k.angle; k.speed = 300;
+      const t0 = s.state.simTime;
+      for (let f = 0; f < 60 * 12 && !recogido; f++) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
+      if (!recogido) return 'sigue corriendo al revés y nadie lo recoge';
+      const tardanza = s.state.simTime - t0;
+      if (tardanza > 7) return `han tardado ${tardanza.toFixed(1)} s en recogerlo`;
+      const n = t.nearest(k.x, k.y);
+      if (Math.abs(sim.wrapAngle(k.angle - t.samples[n.i].ang)) > 0.2) return 'lo han dejado mirando al revés otra vez';
       return null;
     },
   },

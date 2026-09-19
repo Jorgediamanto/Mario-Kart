@@ -45,9 +45,17 @@ cambió y lo que queda:
 3. **A prueba, pendiente de la opinión del dueño**: el volante responde más fino cerca del centro
    (`CURVA` 0,18 → 0,32 en `public/volante.js`, el tope sigue en 35º). Si dice que va blando, se
    vuelve a 0,18. **No tocar el tope de 35º sin preguntarle.**
-4. **Lo siguiente que pidió, por orden**: seguir haciendo el juego más fácil sin quitar gracia, y
+4. **Segunda tanda del 2026-09-20** (también a mano, con el dueño): Arcoíris tiene **cuestas**
+   (`relieve` en `tracks.js`), los **saltos dan turbo al despegar** (`RAMPA_TURBO`) y vuelan de
+   verdad, las curvas del sector medio están más apretadas (radio mínimo 166), la velocidad base
+   sube a 445, las ruedas del modelo son más gordas y el «¡ÚLTIMA VUELTA!» dura 4 s en vez de toda
+   la vuelta. De rebote: tope al rebote de aterrizaje, el bot ya no se queda marcha atrás, y a
+   quien corre al revés o vaga fuera de la pista se le recoge. El trazado se regenera con
+   `node tools/traza-arcoiris.js`.
+5. **Lo siguiente que pidió, por orden**: seguir haciendo el juego más fácil sin quitar gracia, y
    seguir mejorando los gráficos con el mismo estilo (simple y gracioso). Los otros cuatro
-   circuitos siguen con vueltas de 9-12 s: se pueden rehacer igual que Arcoíris, con el script.
-5. **Ojo**: en `CHANGELOG.md` había marcadores de conflicto de git (`<<<<<<<`) commitados en `main`
+   circuitos siguen con vueltas de 9-12 s y **sin cuestas**: se pueden rehacer igual que Arcoíris,
+   con el script y con su propio `relieve`.
+6. **Ojo**: en `CHANGELOG.md` había marcadores de conflicto de git (`<<<<<<<`) commitados en `main`
    desde un merge anterior; se quitaron conservando los dos bloques de entradas.
 

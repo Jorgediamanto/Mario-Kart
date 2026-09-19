@@ -19,7 +19,7 @@
 export const MAP_W = 1920, MAP_H = 1080;
 export const DT = 1 / 60;
 export const KART_R = 15;
-export const BASE_MAX_SPEED = 420;   // unidades/s (sube o baja este número para karts más rápidos o más lentos)
+export const BASE_MAX_SPEED = 445;   // unidades/s (sube o baja este número para karts más rápidos o más lentos)
 export const ACCEL = 460, BRAKE = 750, COAST = 240;
 export const GRAVITY = 950;          // unidades/s²
 export const SPIN_TIME = 1.0;
@@ -37,6 +37,7 @@ export const RESCUE_SLOW = 40;    // por debajo de esta velocidad se considera p
 // Bots: si el morro apunta a más de este ángulo (radianes) del camino, el bot va de espaldas;
 // suelta el gas y frena hasta encararse, y solo da marcha atrás cuando ya casi está parado.
 export const AI_WRONG_ANGLE = 2.0;
+export const AI_REVERSE_MAX = 150;   // a más marcha atrás que esto, el bot pisa gas para pararla
 // Derrape automático (sin botón): mantener el giro en la misma dirección a buena velocidad entra
 // solo en derrape, y cuanto más se aguante, más turbo al soltar. Los tiempos se cuentan desde que
 // se empieza a girar, así que DRIFT_START es «cuándo empieza a deslizar» y DRIFT_L1..3 «qué nivel
@@ -62,6 +63,14 @@ export const BUMPER_ENDEREZA = 0.6;
 // le endereza el morro hacia el sentido de la marcha, esta fracción de lo que le falta. Con 0,75
 // sales casi encarado pero el golpe se sigue notando; con 1 sería como si no hubiera pasado nada.
 export const GOLPE_ENDEREZA = 0.75;
+// Turbo de salto: al despegar del filo de una rampa se regala este rato de turbo. Es lo que hace
+// que un salto se sienta grande — sin él caes casi donde despegaste, porque en el aire no se
+// acelera. Va con la altura de la rampa: las rampitas dan un empujón corto y el salto gordo, uno
+// largo (`length` de la rampa no cuenta: lo que manda es lo alto que te tira).
+export const RAMPA_TURBO = 0.02;     // segundos de turbo por unidad de altura de la rampa
+export const RAMPA_TURBO_MAX = 2.0;  // tope, por si alguien pone una rampa gigantesca
+export const RAMPA_ESPERA = 2.5;     // segundos antes de volver a cobrar turbo en la misma rampa
+export const REBOTE_MAX = 150;       // lo más que puede rebotar un kart al aterrizar de golpe
 // Progreso: cuando un kart aparece de golpe muy por delante (ha volado por encima de un atajo), su
 // avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
 // clasificación congelada media vuelta.
@@ -73,6 +82,9 @@ export const LIGHTNING_IMMUNITY = 30;   // segundos
 // avisar. Corto marea (basta un coletazo en una curva); largo llega tarde.
 export const WRONG_WAY_TIME = 1.5;      // segundos
 export const WRONG_WAY_SPEED = 60;      // por debajo de esta velocidad no se considera que avanza
+// Si ni con el aviso se da la vuelta, a los tantos segundos se le recoge y se le pone mirando bien
+export const WRONG_WAY_RESCUE = 4.5;    // segundos yendo al revés antes de que lo recojan
+export const OFFROAD_RESCUE = 3.5;      // segundos seguidos fuera de la pista antes de que lo recojan
 /*
  * Caracol 🐌: el objeto raro. Al usarlo **se para la carrera entera**, quien lo usa elige a quién
  * se lo planta y esa persona va a paso de caracol un rato. Parar el juego es fuerte, así que:
@@ -151,6 +163,26 @@ export function buildTrack(def, index, geom) {
   const W = (def.world && def.world.w) || MAP_W, H = (def.world && def.world.h) || MAP_H;
   const ter = terrenoDe(W, H);
   const elev = new Float32Array(N);
+  /*
+   * `relieve`: el sube y baja del circuito entero, como una lista de alturas repartidas por el
+   * recorrido (`[{ at: 0.25, h: 160 }, …]`, `at` en fracción de vuelta y `h` en píxeles). Entre dos
+   * puntos la altura pasa suavemente (nada de rampas de esquí: una transición dura despegaría los
+   * karts), y del último se vuelve al primero, que por eso tienen que valer lo mismo… o casi: la
+   * meta se cierra sola. Las rampas y los lomos (`features`) se suman **encima** de esta cuesta.
+   */
+  if (def.relieve && def.relieve.length > 1) {
+    const pts = def.relieve.slice().sort((a, b) => a.at - b.at);
+    for (let i = 0; i < N; i++) {
+      const u = i / N;
+      let a = pts[pts.length - 1], b = pts[0], ini = a.at - 1, fin = b.at;
+      for (let k = 0; k < pts.length - 1; k++) {
+        if (u >= pts[k].at && u < pts[k + 1].at) { a = pts[k]; b = pts[k + 1]; ini = a.at; fin = b.at; break; }
+      }
+      if (u >= pts[pts.length - 1].at) { a = pts[pts.length - 1]; b = pts[0]; ini = a.at; fin = b.at + 1; }
+      const w = fin > ini ? smoothstep(0, 1, (u - ini) / (fin - ini)) : 0;
+      elev[i] += lerp(a.h, b.h, w);
+    }
+  }
   for (const f of def.features || []) {
     const start = Math.floor(f.at * N);
     const len = Math.max(2, Math.round(f.length / SAMPLE_SPACING));
@@ -304,7 +336,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   };
   // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
   // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
-  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
+  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -328,7 +360,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       x: g.x, y: g.y, z: g.h, vz: 0, air: false, ground: g.h, angle: g.ang, moveAngle: g.ang, speed: 0,
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
-      boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0,
+      boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0, lapAt: 0,
+      lastRamp: -1, lastRampAt: -99, offT: 0,
       enderezaTrasGolpe: false,
       wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
@@ -459,8 +492,15 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const curve = Math.abs(wrapAngle(ahead.ang - t.samples[near.i].ang));
     const brake = curve > 1.5 && k.speed > 340 ? 1 : 0;
 
-    // de espaldas al camino: lo primero es encararse. Con carrerilla, frenar; ya parado, marcha atrás
+    /*
+     * De espaldas al camino, lo primero es encararse: con carrerilla se frena, y ya casi parado se
+     * da marcha atrás girando al revés. Pero la marcha atrás tiene tope: pasado `AI_REVERSE_MAX`
+     * se pisa el gas para pararla. Sin ese tope, un bot que se liaba salía marcha atrás y seguía
+     * acelerando hacia atrás sin fin, porque el freno, con la velocidad ya negativa, es justo lo
+     * que la hace más negativa.
+     */
     const alReves = Math.abs(diff) > AI_WRONG_ANGLE;
+    if (k.speed < -AI_REVERSE_MAX) return { s: steer, g: 1, b: 0, d: 0 };
     const reverse = alReves && k.speed < 60;
     const frena = brake || alReves;
     return { s: reverse ? -steer : steer, g: frena ? 0 : 1, b: frena ? 1 : 0, d: 0 };
@@ -475,7 +515,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     k.wrongT = 0;
     if (k.wrongWay) { k.wrongWay = false; hooks.onWrongWay(k, false); hooks.onFx(k, 'wrong0'); }
     k.boostUntil = 0; k.trick = false; k.trickAngle = 0; k.offroad = false;
-    k.stuckT = 0;
+    k.stuckT = 0; k.offT = 0;
     k.rescueUntil = simTime + RESCUE_TIME;
     k.invUntil = Math.max(k.invUntil, simTime + RESCUE_TIME + 0.5);
     stats.rescues++;
@@ -626,7 +666,25 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (k.vz > 40 && (gNew - gOld) / dt < 40) k.vz = 0;
       k.air = false;
     } else {
-      if (!k.air && k.z - gNew > 2) { k.air = true; if (k.vz > 60) hooks.onSfx('jump', k); }
+      if (!k.air && k.z - gNew > 2) {
+        k.air = true;
+        if (k.vz > 60) hooks.onSfx('jump', k);
+        /*
+         * ¿Ha despegado del filo de una rampa? Entonces, turbo de salto (ver RAMPA_TURBO). Con tres
+         * condiciones, que sin ellas el premio se descontrola: hay que ir **hacia delante**, hay que
+         * **entrar derecho** a la rampa (si llegas de lado, atravesado, no cuenta) y no se puede
+         * cobrar dos veces la misma rampa en poco rato — un kart dando tumbos entraba y salía del
+         * aire encima de la rampa y se pasaba la carrera con turbo.
+         */
+        const rampa = t.ramps.find((r) => t.inRange(near2.i, r.start, (r.end + 4) % t.N));
+        const derecho = Math.abs(wrapAngle(k.moveAngle - t.samples[near2.i].ang)) < 0.6;
+        if (rampa && k.speed > 120 && derecho && (k.lastRamp !== rampa.start || now - k.lastRampAt > RAMPA_ESPERA)) {
+          k.lastRamp = rampa.start; k.lastRampAt = now;
+          boost(k, Math.min(RAMPA_TURBO_MAX, rampa.height * RAMPA_TURBO));
+          stats.rampBoosts++;
+          hooks.onFx(k, 'salto');
+        }
+      }
     }
     k.airT = k.air ? k.airT + dt : 0;
     if (k.air && k.trick) k.trickAngle = Math.min(Math.PI * 2, k.trickAngle + dt * 9);
@@ -640,6 +698,18 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       const perdido = propio.d > t.halfW + RESCUE_FAR;
       const atascado = lento && (g || b);          // pisa el gas y no se mueve: contra un muro
       const abandonado = lento && k.offroad;       // parado fuera de la pista
+      // y el que lleva un buen rato corriendo al revés: con el aviso no ha bastado, se le recoge
+      if (k.wrongT >= WRONG_WAY_RESCUE) { rescatar(k, propio); return; }
+      /*
+       * Y el que lleva mucho rato **fuera de la pista aunque se mueva**: penando por el campo a un
+       * tercio de velocidad, dando botes y sin encontrar la vuelta. Antes solo se recogía a quien
+       * estaba casi parado, así que se podían perder diez segundos ahí. A quien va rápido por fuera
+       * (un atajo, una salida de curva) no le pasa nada: el reloj se le va reiniciando.
+       */
+      // ojo: se mira la distancia a **su** tramo, no la bandera `offroad`, que se apaga en el aire:
+      // un kart dando botes por el campo la encendía y apagaba y el reloj no llegaba a nada
+      k.offT = propio.d > t.halfW + 3 ? k.offT + dt : 0;
+      if (k.offT >= OFFROAD_RESCUE) { rescatar(k, propio); return; }
       if (perdido || atascado || abandonado) k.stuckT += dt; else k.stuckT = 0;
       if (k.stuckT >= RESCUE_AFTER) { rescatar(k, propio); return; }
     }
@@ -652,7 +722,10 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     stats.jumps++;
     hooks.onSquash(k, clamp(impact / 60, 1, 8));
     if (impact > 120) hooks.onParticles(k.x, k.z + 2, k.y, { n: 8, color: ['#ffffff', state.track.def.theme.groundAlt], spread: 120, vy: 60, life: 0.5, size: 4, g: 200 });
-    if (impact > 420) { k.vz = impact * 0.28; k.air = true; }
+    // Un aterrizaje fuerte da un botecito, pero con tope: sin él, al caer de un salto grande se
+    // rebotaba, se volvía a rebotar y el kart se quedaba trotando en el sitio sin poder acelerar
+    // (en el aire no se acelera). Con el tope, el segundo golpe ya no llega al mínimo y se acabó.
+    if (impact > 420) { k.vz = Math.min(impact * 0.22, REBOTE_MAX); k.air = true; }
     if (k.trick) {
       k.trick = false; k.trickAngle = 0;
       if (k.airT >= 0.4) { stats.tricks++; boost(k, 0.9); if (k.isHuman) hooks.onToast(`${k.emoji} ${k.name}: ¡truco! 🤸`, 1.5); }
@@ -696,6 +769,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const lap = Math.floor(k.dist / N);
     if (lap > k.lapCount) {
       k.lapCount = lap;
+      k.lapAt = simTime;              // cuándo empezó esta vuelta (la tele lo usa para sus avisos)
       if (!k.finished && state.phase === 'race') {
         if (lap >= state.laps) finishKart(k);
         else if (lap > 0) {

@@ -24,7 +24,7 @@
        * el circuito se acababa enseguida y el trazado (tres rectas unidas por horquillas de 180º)
        * no parecía un circuito. Aquí la carretera mide 260 (el doble que en los otros), hay
        * **quitamiedos en los dos lados de todo el recorrido** (no te puedes salir rodando: rebotas
-       * y sigues) y el trazado mide 15.728 px en un mundo propio (), mucho más grande.
+       * y sigues) y el trazado mide 15.936 px en un mundo propio (), mucho más grande.
        *
        * Forma: un circuito de carreras de verdad, con curvas de todos los tipos enlazadas —
        * recta de meta larguísima con la meta en mitad, curvón rapidísimo, barrido, dos curvas
@@ -47,16 +47,28 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
       name: 'Arcoíris',
       width: 260,
       gravity: 0.9,            // flota un poco: los saltos son más largos y se caen más suaves
-      world: { w: 6550, h: 4050 },
+      world: { w: 6650, h: 4100 },
       // al ser el más largo necesita más cajas y paneles que los otros
-      boxes: [0.21, 0.28, 0.33, 0.39, 0.45, 0.50, 0.66, 0.75],
-      pads: [0.24, 0.36, 0.47, 0.675, 0.77],
+      boxes: [0.21, 0.28, 0.33, 0.39, 0.46, 0.51, 0.67, 0.76],
+      pads: [0.25, 0.36, 0.44, 0.68, 0.77],
       features: [
-        { type: 'ramp', at: 0.03, height: 42, length: 210 },     // salto de la recta de meta
-        { type: 'hill', at: 0.175, height: 22, length: 280 },    // lomo antes del curvón
-        { type: 'ramp', at: 0.525, height: 50, length: 230 },    // el salto grande, por dentro del aro
-        { type: 'hill', at: 0.70, height: 18, length: 300 },     // lomo de la rápida del final
-        { type: 'ramp', at: 0.805, height: 38, length: 210 },    // último salto antes de la recta de meta
+        // Los saltos son de verdad: lo que manda no es lo alto que sube la rampa, sino lo **empinada**
+        // que es (altura entre longitud) y el turbo de salto que da al despegar (RAMPA_TURBO).
+        { type: 'ramp', at: 0.03, height: 80, length: 150 },     // salto de la recta de meta
+        { type: 'hill', at: 0.165, height: 26, length: 300 },    // lomo antes del curvón
+        { type: 'ramp', at: 0.53, height: 110, length: 170 },    // el salto grande, por dentro del aro
+        { type: 'hill', at: 0.71, height: 22, length: 320 },     // lomo de la rápida del final
+        { type: 'ramp', at: 0.808, height: 85, length: 160 },    // último salto antes de la recta de meta
+      ],
+      /*
+       * El sube y baja del circuito: alturas repartidas por la vuelta, que la simulación une con
+       * transiciones suaves. Las cuestas rondan el 5 % (la de 0,26 a 0,37 llega al 10 %, que es la
+       * subida gorda), y el salto grande cae justo en plena bajada, para volar más.
+       */
+      relieve: [
+        { at: 0.00, h: 0 }, { at: 0.12, h: 110 }, { at: 0.26, h: 40 }, { at: 0.37, h: 210 },
+        { at: 0.48, h: 150 }, { at: 0.56, h: 20 }, { at: 0.68, h: -80 }, { at: 0.80, h: 0 },
+        { at: 0.90, h: 80 },
       ],
       // quitamiedos en los dos lados de todo el circuito: aquí no se sale nadie
       barriers: [{ from: 0, to: 0.999, side: 'both' }],
@@ -71,8 +83,8 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
         ],
         // cosas plantadas sobre la carretera, en su sitio exacto (no al azar como la decoración)
         props: [
-          { kind: 'castillo', at: 0.31 },   // se pasa por debajo, a mitad de circuito
-          { kind: 'aro', at: 0.548 },       // el aro por el que se vuela en el salto grande
+          { kind: 'castillo', at: 0.32 },   // se pasa por debajo, a mitad de circuito
+          { kind: 'aro', at: 0.555 },       // el aro por el que se vuela en el salto grande
         ],
         palette: ['#ff2d95', '#00e5ff', '#ffe600', '#39ff88', '#b14bff', '#ff6a00'],
         clouds: null,
@@ -80,28 +92,29 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
         stars: true,
       },
       points: [
-        { x: 3149, y: 3761 }, { x: 3031, y: 3784 }, { x: 2913, y: 3805 }, { x: 2793, y: 3819 }, { x: 2673, y: 3825 }, { x: 2553, y: 3823 },
-        { x: 2434, y: 3814 }, { x: 2315, y: 3797 }, { x: 2197, y: 3773 }, { x: 2081, y: 3742 }, { x: 1968, y: 3703 }, { x: 1856, y: 3660 },
-        { x: 1743, y: 3618 }, { x: 1631, y: 3575 }, { x: 1519, y: 3532 }, { x: 1407, y: 3489 }, { x: 1295, y: 3447 }, { x: 1183, y: 3402 },
-        { x: 1077, y: 3347 }, { x: 976, y: 3282 }, { x: 881, y: 3207 }, { x: 795, y: 3124 }, { x: 716, y: 3034 }, { x: 647, y: 2935 },
-        { x: 588, y: 2831 }, { x: 539, y: 2722 }, { x: 500, y: 2608 }, { x: 473, y: 2491 }, { x: 456, y: 2372 }, { x: 441, y: 2253 },
-        { x: 410, y: 2138 }, { x: 359, y: 2029 }, { x: 298, y: 1925 }, { x: 250, y: 1816 }, { x: 224, y: 1699 }, { x: 222, y: 1579 },
-        { x: 242, y: 1461 }, { x: 285, y: 1348 }, { x: 348, y: 1247 }, { x: 430, y: 1159 }, { x: 527, y: 1089 }, { x: 636, y: 1039 },
-        { x: 750, y: 1002 }, { x: 865, y: 966 }, { x: 979, y: 930 }, { x: 1094, y: 894 }, { x: 1208, y: 856 }, { x: 1315, y: 802 },
-        { x: 1411, y: 731 }, { x: 1495, y: 645 }, { x: 1578, y: 558 }, { x: 1660, y: 471 }, { x: 1742, y: 383 }, { x: 1836, y: 308 },
-        { x: 1943, y: 255 }, { x: 2059, y: 226 }, { x: 2179, y: 222 }, { x: 2297, y: 243 }, { x: 2408, y: 289 }, { x: 2513, y: 347 },
-        { x: 2618, y: 404 }, { x: 2724, y: 462 }, { x: 2829, y: 519 }, { x: 2934, y: 577 }, { x: 3040, y: 634 }, { x: 3145, y: 692 },
-        { x: 3257, y: 734 }, { x: 3376, y: 729 }, { x: 3490, y: 692 }, { x: 3604, y: 654 }, { x: 3718, y: 616 }, { x: 3832, y: 578 },
-        { x: 3946, y: 539 }, { x: 4059, y: 501 }, { x: 4173, y: 463 }, { x: 4288, y: 428 }, { x: 4407, y: 418 }, { x: 4525, y: 437 },
-        { x: 4635, y: 486 }, { x: 4729, y: 560 }, { x: 4802, y: 655 }, { x: 4849, y: 765 }, { x: 4884, y: 880 }, { x: 4941, y: 985 },
-        { x: 5022, y: 1074 }, { x: 5122, y: 1140 }, { x: 5233, y: 1183 }, { x: 5347, y: 1222 }, { x: 5461, y: 1260 }, { x: 5575, y: 1298 },
-        { x: 5689, y: 1336 }, { x: 5802, y: 1376 }, { x: 5909, y: 1430 }, { x: 6007, y: 1500 }, { x: 6094, y: 1582 }, { x: 6168, y: 1677 },
-        { x: 6227, y: 1781 }, { x: 6270, y: 1893 }, { x: 6296, y: 2010 }, { x: 6306, y: 2130 }, { x: 6297, y: 2249 }, { x: 6274, y: 2367 },
-        { x: 6240, y: 2482 }, { x: 6188, y: 2590 }, { x: 6118, y: 2688 }, { x: 6034, y: 2773 }, { x: 5945, y: 2854 }, { x: 5856, y: 2935 },
-        { x: 5768, y: 3015 }, { x: 5679, y: 3096 }, { x: 5586, y: 3172 }, { x: 5486, y: 3238 }, { x: 5379, y: 3293 }, { x: 5267, y: 3337 },
-        { x: 5152, y: 3369 }, { x: 5034, y: 3392 }, { x: 4916, y: 3415 }, { x: 4798, y: 3439 }, { x: 4680, y: 3462 }, { x: 4563, y: 3485 },
-        { x: 4445, y: 3508 }, { x: 4327, y: 3531 }, { x: 4209, y: 3554 }, { x: 4091, y: 3577 }, { x: 3973, y: 3600 }, { x: 3856, y: 3623 },
-        { x: 3738, y: 3646 }, { x: 3620, y: 3669 }, { x: 3502, y: 3692 }, { x: 3384, y: 3715 }, { x: 3266, y: 3738 },
+        { x: 3249, y: 3795 }, { x: 3132, y: 3818 }, { x: 3014, y: 3839 }, { x: 2895, y: 3853 }, { x: 2775, y: 3859 }, { x: 2655, y: 3858 },
+        { x: 2536, y: 3849 }, { x: 2417, y: 3833 }, { x: 2300, y: 3810 }, { x: 2184, y: 3779 }, { x: 2070, y: 3740 }, { x: 1958, y: 3698 },
+        { x: 1846, y: 3655 }, { x: 1735, y: 3612 }, { x: 1623, y: 3570 }, { x: 1511, y: 3527 }, { x: 1399, y: 3485 }, { x: 1287, y: 3440 },
+        { x: 1180, y: 3386 }, { x: 1079, y: 3322 }, { x: 985, y: 3249 }, { x: 897, y: 3166 }, { x: 819, y: 3076 }, { x: 749, y: 2979 },
+        { x: 688, y: 2875 }, { x: 638, y: 2767 }, { x: 599, y: 2654 }, { x: 570, y: 2537 }, { x: 553, y: 2419 }, { x: 540, y: 2300 },
+        { x: 514, y: 2183 }, { x: 462, y: 2075 }, { x: 401, y: 1972 }, { x: 340, y: 1869 }, { x: 278, y: 1766 }, { x: 233, y: 1655 },
+        { x: 220, y: 1537 }, { x: 240, y: 1419 }, { x: 292, y: 1311 }, { x: 371, y: 1222 }, { x: 472, y: 1158 }, { x: 586, y: 1119 },
+        { x: 700, y: 1083 }, { x: 814, y: 1047 }, { x: 928, y: 1011 }, { x: 1043, y: 975 }, { x: 1157, y: 939 }, { x: 1271, y: 903 },
+        { x: 1383, y: 859 }, { x: 1482, y: 792 }, { x: 1566, y: 707 }, { x: 1648, y: 620 }, { x: 1730, y: 532 }, { x: 1812, y: 445 },
+        { x: 1894, y: 358 }, { x: 1986, y: 282 }, { x: 2096, y: 235 }, { x: 2215, y: 220 }, { x: 2333, y: 240 }, { x: 2441, y: 290 },
+        { x: 2546, y: 347 }, { x: 2651, y: 405 }, { x: 2757, y: 462 }, { x: 2862, y: 520 }, { x: 2967, y: 577 }, { x: 3072, y: 634 },
+        { x: 3177, y: 692 }, { x: 3283, y: 749 }, { x: 3398, y: 776 }, { x: 3515, y: 751 }, { x: 3628, y: 713 }, { x: 3742, y: 675 },
+        { x: 3855, y: 636 }, { x: 3969, y: 598 }, { x: 4083, y: 560 }, { x: 4196, y: 522 }, { x: 4310, y: 484 }, { x: 4423, y: 446 },
+        { x: 4542, y: 429 }, { x: 4660, y: 449 }, { x: 4766, y: 502 }, { x: 4853, y: 584 }, { x: 4911, y: 688 }, { x: 4945, y: 803 },
+        { x: 4978, y: 918 }, { x: 5026, y: 1028 }, { x: 5106, y: 1117 }, { x: 5209, y: 1177 }, { x: 5322, y: 1216 }, { x: 5436, y: 1254 },
+        { x: 5549, y: 1292 }, { x: 5663, y: 1330 }, { x: 5777, y: 1368 }, { x: 5889, y: 1410 }, { x: 5994, y: 1467 }, { x: 6091, y: 1537 },
+        { x: 6177, y: 1621 }, { x: 6250, y: 1715 }, { x: 6310, y: 1819 }, { x: 6354, y: 1931 }, { x: 6382, y: 2047 }, { x: 6394, y: 2166 },
+        { x: 6390, y: 2286 }, { x: 6369, y: 2403 }, { x: 6335, y: 2518 }, { x: 6283, y: 2626 }, { x: 6213, y: 2723 }, { x: 6129, y: 2808 },
+        { x: 6040, y: 2889 }, { x: 5952, y: 2970 }, { x: 5863, y: 3050 }, { x: 5774, y: 3131 }, { x: 5682, y: 3207 }, { x: 5582, y: 3273 },
+        { x: 5475, y: 3328 }, { x: 5364, y: 3372 }, { x: 5248, y: 3403 }, { x: 5131, y: 3427 }, { x: 5013, y: 3450 }, { x: 4896, y: 3473 },
+        { x: 4778, y: 3496 }, { x: 4661, y: 3519 }, { x: 4543, y: 3542 }, { x: 4425, y: 3565 }, { x: 4308, y: 3588 }, { x: 4190, y: 3611 },
+        { x: 4073, y: 3634 }, { x: 3955, y: 3657 }, { x: 3837, y: 3680 }, { x: 3720, y: 3703 }, { x: 3602, y: 3726 }, { x: 3485, y: 3749 },
+        { x: 3367, y: 3772 },
       ],
     },
     {

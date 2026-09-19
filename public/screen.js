@@ -19,6 +19,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   // ===================== Constantes de la tele =====================
   // Las de la simulación (tamaño del mapa, física, personajes, objetos) llegan de sim.mjs.
   const UI_W = 1920, UI_H = 1080;   // lienzo de la interfaz (no es el tamaño del mundo)
+  const AVISO_ULTIMA_VUELTA = 4;    // segundos que se ve el «¡ÚLTIMA VUELTA!» en el marcador
   const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
   const UI_FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
   // Chispas y brillo del derrape por nivel: 0 = deslizando sin carga, 1 azul, 2 naranja, 3 rosa
@@ -1505,7 +1506,11 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     if (k.rescueUntil > state.simTime) return '¡Te devolvemos a la pista!';
     if (k.trick) return '¡TRUCO!';
     if (k.driftLevel > 0) return '★'.repeat(k.driftLevel);
-    if (!k.finished && sim.displayLap(k) === state.laps && state.laps > 1) return '¡ÚLTIMA VUELTA!';
+    // El aviso de la última vuelta salta al cruzar la meta y se va enseguida: antes se quedaba
+    // clavado en el marcador los cuarenta segundos que dura la vuelta y tapaba todo lo demás
+    // (el derrape, el truco, el rescate), que es justo lo que hay que ver mientras conduces.
+    if (!k.finished && sim.displayLap(k) === state.laps && state.laps > 1
+      && state.simTime - k.lapAt < AVISO_ULTIMA_VUELTA) return '¡ÚLTIMA VUELTA!';
     return '';
   }
 

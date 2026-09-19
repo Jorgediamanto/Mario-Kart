@@ -3,6 +3,50 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 — Arcoíris con cuestas, saltos de verdad y un pelín más rápido
+
+Todo lo que pidió el dueño después de probarlo:
+
+- **El circuito sube y baja.** Arcoíris ya no es una mesa: tiene cuestas arriba y abajo a lo largo
+  de toda la vuelta, de −80 a +210 px, con pendientes de alrededor del 5 % (la subida gorda, del
+  10 %). Se define en `tracks.js` con `relieve: [{ at, h }, …]` — alturas repartidas por la vuelta
+  que la simulación une con transiciones suaves; las rampas y los lomos se suman encima. Cualquier
+  circuito puede tener el suyo.
+- **Los saltos son saltos.** Las rampas son más empinadas (la grande, 110 px de alto en 170 de
+  largo) y, sobre todo, **al despegar del filo se regala turbo** (`RAMPA_TURBO`): con él se vuela
+  más de un segundo, se suben 245 px y se cruza el aro por dentro de sobra. Medido en la prueba
+  «saltar una rampa da turbo y hace volar de verdad»: con turbo se llega un 15 % más lejos como
+  mínimo. El turbo solo cuenta si entras **derecho** a la rampa y no se puede cobrar dos veces
+  seguidas en la misma.
+- **Alguna curva más pronunciada.** El sector medio y la cerrada de verdad se han apretado: el radio
+  más cerrado pasa de 199 a 166 px (el mínimo que deja el validador son 140). El trazado se
+  regenera con `node tools/traza-arcoiris.js`, que ahora vive en el repo.
+- **Un pelín más rápido**: la velocidad base pasa de 420 a 445 (+6 %).
+- **Las ruedas, más gorditas** (modelo de Blender: 7,3 delante y 9,0 detrás).
+- **El «¡ÚLTIMA VUELTA!» ya no se queda clavado**: sale al cruzar la meta y se va a los 4 segundos,
+  en vez de tapar el marcador la vuelta entera y esconder el derrape, el truco o el rescate.
+
+Por el camino, cuatro cosas que aparecieron al probar con datos y que también arreglan partidas:
+
+- **Los aterrizajes fuertes ya no dejan botando**: el rebote tiene tope (`REBOTE_MAX`). Sin él, al
+  caer del salto grande se rebotaba una y otra vez y el kart se quedaba trotando en el sitio, sin
+  poder acelerar (en el aire no se acelera).
+- **Un bot ya no se queda marcha atrás para siempre**: pasado `AI_REVERSE_MAX` pisa el gas para
+  pararla. Antes, con el freno y la velocidad ya negativa, solo conseguía ir más rápido hacia atrás.
+- **A quien corre al revés mucho rato (4,5 s) lo recogen**, y también **a quien lleva 3,5 s vagando
+  fuera de la pista** aunque se mueva: antes se podían perder diez segundos penando por el campo a
+  un tercio de velocidad.
+- **`npm test` ya no confunde «le están machacando» con «está atascado»**: si en esos diez segundos
+  el kart estaba de trompo, en rescate, encogido por un rayo o con el caracol, no cuenta como
+  atasco. Saltaba con el Bot 1 de Chicle, que se comió caracol + rayo + dos caparazones seguidos.
+
+- **Cómo probarlo**: `npm start`, circuito Arcoíris (el primero). Mira que la pista suba y baje, y
+  tírate al salto grande: tienes que volar por dentro del aro y caer lejos. `npm test` pasa 182
+  comprobaciones; la vuelta media de los bots queda en 32,8 s (antes 38,6).
+- **Pendiente de probar en fiesta**: si con el turbo de salto los saltos se van de las manos con 8
+  jugadores, si las cuestas marean con la cámara de detrás, y si 445 de velocidad es «un poquito»
+  más rápido o ya demasiado.
+
 ## 2026-09-19 (tarde) — Ya no te quedas clavado en el muro, Arcoíris de verdad y karts con cara
 
 Cuatro cosas, en el orden que las pidió el dueño.
