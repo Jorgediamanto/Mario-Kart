@@ -113,6 +113,7 @@
         break;
       case 'fx':
         if (m.kind === 'hit') { vibrate([120, 40, 120]); flashBody('#a83232'); }
+        if (m.kind === 'rescue') { vibrate([40, 60, 40]); flashBody('#1f6aa8'); showRaceMsg('¡De vuelta a la pista!', 1200); }
         break;
       default: break;
     }
@@ -217,15 +218,25 @@
   fsBtn.addEventListener('click', () => { document.documentElement.requestFullscreen().catch(() => {}); });
 
   // ---- Carrera ----
-  const held = { left: false, right: false, g: false, b: false, d: false };
+  /*
+   * El mando tiene cuatro botones y nada más: ◀ ▶, OBJETO y GAS.
+   *  - girar: uno de los dos botones de la izquierda
+   *  - marcha atrás / freno: los dos botones de girar a la vez (se manda como `b`)
+   *  - derrape: ya no se pulsa, sale solo en las curvas, así que `d` va siempre a 0
+   *  - truco en el aire: tocar un botón de girar mientras se vuela (lo detecta la simulación)
+   */
+  const held = { left: false, right: false, g: false };
   let lastSent = '';
   function sendInput(force) {
+    const ambos = held.left && held.right;
     const m = {
       t: 'i',
-      s: held.right && !held.left ? 1 : held.left && !held.right ? -1 : 0,
-      g: held.g ? 1 : 0, b: held.b ? 1 : 0, d: held.d ? 1 : 0,
+      s: ambos ? 0 : held.right ? 1 : held.left ? -1 : 0,
+      g: held.g ? 1 : 0, b: ambos ? 1 : 0, d: 0,
     };
-    const key = `${m.s}${m.g}${m.b}${m.d}`;
+    const zona = $('turn-zone');
+    if (zona) zona.classList.toggle('reverse', ambos);
+    const key = `${m.s}${m.g}${m.b}`;
     if (!force && key === lastSent) return;
     lastSent = key;
     send(m);
@@ -291,10 +302,19 @@
       nameEl.textContent = 'sin objeto';
     }
   }
-  function showRaceMsg(text) {
+  let raceMsgTimer = null;
+  // con `ms`, el mensaje se borra solo pasado ese tiempo (avisos cortos como el rescate)
+  function showRaceMsg(text, ms) {
     const el = $('race-msg');
     el.textContent = text;
     el.classList.toggle('show', !!text);
+    if (raceMsgTimer) { clearTimeout(raceMsgTimer); raceMsgTimer = null; }
+    if (text && ms) {
+      raceMsgTimer = setTimeout(() => {
+        raceMsgTimer = null;
+        if (el.textContent === text) { el.textContent = ''; el.classList.remove('show'); }
+      }, ms);
+    }
   }
 
   // ---- Resultados ----

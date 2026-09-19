@@ -640,6 +640,11 @@ import {
       onFx: (k, kind) => { if (k.playerId != null) toPlayer(k.playerId, { t: 'fx', kind }); },
       onShake: (n) => { state.shake = Math.max(state.shake, n); },
       onFlash: () => { flashEl.style.opacity = '0.85'; setTimeout(() => { flashEl.style.opacity = '0'; }, 60); },
+      onRescue: (k) => {
+        // nubecita de humo y chispas en el sitio donde lo dejan
+        particles.emit(k.x, k.z + 30, k.y, { n: 18, color: ['#ffffff', '#00e5ff', '#aab0e8'], spread: 150, vy: 120, life: 0.8, size: 5, g: 240 });
+        particles.emit(k.x, k.z + 4, k.y, { n: 10, color: ['#ffffff', '#d5d8ff'], spread: 90, vy: 40, life: 0.6, size: 7, g: 60, flat: true });
+      },
       onSquash: (k, dv) => { if (k.view) k.view.sq.vel -= dv; },
       onStretch: (k, dv) => { if (k.view) k.view.st.vel += dv; },
       onProjectileAdded: (pr) => { pr.view = shellMesh(pr.type); },
@@ -1156,6 +1161,7 @@ import {
       case 'land': tone(120, 0.15, { type: 'triangle', to: 60, vol: 0.12 }); break;
       case 'trick': [660, 880, 1320].forEach((f, i) => tone(f, 0.1, { when: i * 0.06, type: 'square', vol: 0.08 })); break;
       case 'pad': tone(500, 0.2, { type: 'sawtooth', to: 1400, vol: 0.1 }); break;
+      case 'rescue': [880, 660, 990].forEach((f, i) => tone(f, 0.14, { when: i * 0.09, type: 'sine', vol: 0.09 })); break;
       default: break;
     }
   }

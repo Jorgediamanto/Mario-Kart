@@ -295,6 +295,81 @@ const escenarios = [
     },
   },
   {
+    nombre: 'a quien se sale de la pista lo recogen y lo devuelven a la carretera',
+    run(sim) {
+      let recogido = null;
+      const s = carrera(sim, { bots: 2, laps: 2, hooks: { onRescue: (k) => { recogido = k; } } });
+      const k = humano(s);
+      const t = s.state.track;
+      // lo plantamos en el rincón más alejado de la carretera (el circuito da vueltas: no vale
+      // con apartarse en perpendicular, se acaba cayendo al lado de otro tramo)
+      let lejos = null;
+      for (let x = 60; x < 1920; x += 40) for (let y = 60; y < 1080; y += 40) {
+        const d = t.nearest(x, y).d;
+        if (!lejos || d > lejos.d) lejos = { x, y, d };
+      }
+      if (lejos.d < t.halfW + 200) return 'este circuito no tiene ningún sitio lo bastante apartado';
+      k.x = lejos.x; k.y = lejos.y;
+      k.z = t.groundAt(k.x, k.y); k.ground = k.z; k.vz = 0; k.air = false;
+      k.speed = 0; k.angle = 0;
+      const t0 = s.state.simTime;
+      let vueltas = 0;
+      while (!recogido && vueltas++ < 60 * 6) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
+      if (!recogido) return 'nadie lo ha ido a buscar';
+      const tardanza = s.state.simTime - t0;
+      if (tardanza > 4) return `han tardado ${tardanza.toFixed(1)} s en recogerlo (más de 4)`;
+      if (t.nearest(k.x, k.y).d > t.halfW) return 'lo han dejado fuera de la carretera';
+      if (Math.abs(sim.wrapAngle(k.angle - t.samples[t.nearest(k.x, k.y).i].ang)) > 0.2) return 'lo han dejado mirando al revés';
+      // y puede terminar la carrera
+      let guardia = 0;
+      while (s.state.phase === 'race' && guardia++ < 60 * 90) {
+        for (const q of s.state.karts) if (!q.isBot && !q.finished) s.setInput(q, s.aiInput(q));
+        s.update(DT);
+      }
+      return k.finished ? null : 'después del rescate no ha llegado a meta';
+    },
+  },
+  {
+    nombre: 'a quien se queda clavado contra un muro también lo recogen',
+    run(sim) {
+      let recogido = false;
+      const s = carrera(sim, { bots: 2, hooks: { onRescue: () => { recogido = true; } } });
+      const k = humano(s);
+      // acelera pero no avanza (como si estuviera encajado en un bumper)
+      for (let i = 0; i < 60 * 5 && !recogido; i++) {
+        s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+        s.update(DT);
+        k.speed = 0;
+      }
+      return recogido ? null : 'se ha quedado ahí clavado para siempre';
+    },
+  },
+  {
+    nombre: 'quien está parado en la carretera sin tocar nada no molesta a nadie',
+    run(sim) {
+      let recogido = false;
+      const s = carrera(sim, { bots: 2, hooks: { onRescue: () => { recogido = true; } } });
+      const k = humano(s);
+      k.speed = 0;
+      for (let i = 0; i < 60 * 5; i++) { s.setInput(k, { s: 0, g: 0, b: 0, d: 0 }); k.speed = 0; s.update(DT); }
+      return recogido ? 'lo han recogido sin hacer falta (estaba en la pista, parado a propósito)' : null;
+    },
+  },
+  {
+    nombre: 'un toque de giro en el aire hace el truco',
+    run(sim) {
+      const s = carrera(sim);
+      const k = humano(s);
+      // lo lanzamos hacia arriba sin tocar nada
+      k.vz = 600; k.air = true; k.z = k.ground + 40; k.speed = 300;
+      for (let i = 0; i < 12; i++) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
+      if (k.trick) return 'ha hecho el truco sin tocar ningún botón';
+      s.setInput(k, { s: 1, g: 1, b: 0, d: 0 });
+      s.update(DT);
+      return k.trick ? null : 'tocar el giro en el aire no ha hecho el truco';
+    },
+  },
+  {
     nombre: 'los hooks avisan de lo que pasa en la carrera',
     run(sim) {
       const vistos = new Set();
