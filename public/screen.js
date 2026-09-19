@@ -27,7 +27,12 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   const CHASE_HEIGHT = 105;      // altura sobre el kart
   const CHASE_AHEAD = 230;       // a qué distancia por delante del kart mira
   const CHASE_LAG = 7;           // suavizado del seguimiento (más alto = más pegada, menos suave)
-  const CHASE_FOV = 58;          // campo de visión: más abierto que la cámara general, se ve más pista
+  // Campo de visión: se fija el HORIZONTAL y de ahí sale el vertical según la forma del panel. Si
+  // se fijara el vertical, un panel ancho (dos jugadores) saldría con un ojo de pez tremendo y uno
+  // estrecho (ocho jugadores) se quedaría sin ver los lados.
+  const CHASE_HFOV = 70;         // grados, campo de visión horizontal de la cámara de persecución
+  const CHASE_FOV_MIN = 35, CHASE_FOV_MAX = 75;   // límites del vertical, para no marearse
+  const CHASE_FOV_BOOST = 7;     // grados que se abre la cámara en turbo (sensación de velocidad)
 
   // ===================== Utilidades =====================
   // clamp, lerp, smoothstep, mulberry32 y ordinal vienen de sim.mjs.
@@ -56,7 +61,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   const ui = document.getElementById('ui');
   const $ = (id) => document.getElementById(id);
   const lobbyEl = $('lobby'), resultsEl = $('results'), noticeEl = $('notice'), hudEl = $('hud'), bigEl = $('big'), toastsEl = $('toasts'), flashEl = $('flash');
-  const timeChipEl = $('timechip');
+  const timeChipEl = $('timechip'), fpsEl = $('fpsbox');
 
   // ===================== Three.js =====================
   let renderer;
@@ -952,7 +957,12 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   function chaseDe(k) {
     let c = chases.get(k);
     if (!c) {
-      c = { cam: new THREE.PerspectiveCamera(CHASE_FOV, 16 / 9, 12, 9000), x: k.x, y: k.z, z: k.y, ang: k.angle, dist: CHASE_DIST };
+      // arranca ya colocada detrás del kart, para que el primer frame no venga de un salto raro
+      c = {
+        cam: new THREE.PerspectiveCamera(fovVertical(16 / 9), 16 / 9, 12, 9000),
+        x: k.x - Math.cos(k.angle) * CHASE_DIST, y: k.z + CHASE_HEIGHT, z: k.y - Math.sin(k.angle) * CHASE_DIST,
+        ang: k.angle, dist: CHASE_DIST, fovExtra: 0,
+      };
       chases.set(k, c);
     }
     return c;
@@ -973,11 +983,21 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     c.x = THREE.MathUtils.damp(c.x, px, CHASE_LAG, dt);
     c.z = THREE.MathUtils.damp(c.z, pz, CHASE_LAG, dt);
     c.y = THREE.MathUtils.damp(c.y, py, CHASE_LAG, dt);
+    // en turbo la cámara se abre un poco y tiembla: velocidad sin tocar la física
+    const turbo = k.boostUntil > state.simTime || k.starUntil > state.simTime;
+    c.fovExtra = THREE.MathUtils.damp(c.fovExtra, turbo ? CHASE_FOV_BOOST : 0, 6, dt);
     let sx = 0, sy = 0, sz = 0;
-    if (state.shake > 0) { sx = (Math.random() - 0.5) * state.shake; sy = (Math.random() - 0.5) * state.shake; sz = (Math.random() - 0.5) * state.shake; }
+    const meneo = state.shake + (turbo ? 2.5 : 0);
+    if (meneo > 0) { sx = (Math.random() - 0.5) * meneo; sy = (Math.random() - 0.5) * meneo; sz = (Math.random() - 0.5) * meneo; }
     c.cam.position.set(c.x + sx, c.y + sy, c.z + sz);
     c.cam.lookAt(k.x + cosA * CHASE_AHEAD, k.z + 40, k.y + sinA * CHASE_AHEAD);
     return c;
+  }
+  // vertical que hace falta para ver CHASE_HFOV grados a lo ancho en un panel de esta forma
+  function fovVertical(aspect) {
+    const h = THREE.MathUtils.degToRad(CHASE_HFOV);
+    const v = 2 * Math.atan(Math.tan(h / 2) / Math.max(0.01, aspect));
+    return clamp(THREE.MathUtils.radToDeg(v), CHASE_FOV_MIN, CHASE_FOV_MAX);
   }
   function wrapPi(a) { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; }
 
@@ -993,6 +1013,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       if (px.w < 2 || px.h < 2) continue;
       const c = updateChase(k, dt);
       c.cam.aspect = px.w / px.h;
+      c.cam.fov = fovVertical(c.cam.aspect) + c.fovExtra;
       c.cam.updateProjectionMatrix();
       renderer.setViewport(px.x, px.y, px.w, px.h);
       renderer.setScissor(px.x, px.y, px.w, px.h);
@@ -1236,6 +1257,8 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     }
     if (e.repeat) return;
     if (key === 'f' || key === 'F') { toggleFullscreen(); return; }
+    // contador de fps: para comprobar en la fiesta que la pantalla dividida no se atraganta
+    if (key === 'p' || key === 'P') { fpsEl.classList.toggle('hidden'); return; }
     if (state.phase === 'lobby') {
       if (key === 'Enter') startRace();
       else if (key === 'k' || key === 'K') toggleKeyboardPlayer();
@@ -1353,7 +1376,16 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     }
     if (state.phase !== 'lobby') updateHud(dt);
     pintarHudPaneles(dt);
+    contarFps(dt, paneles ? panelesActivos.length : 1);
     requestAnimationFrame(frame);
+  }
+
+  let fpsAcc = 0, fpsCuenta = 0;
+  function contarFps(dt, paneles) {
+    fpsAcc += dt; fpsCuenta++;
+    if (fpsAcc < 0.5) return;
+    if (!fpsEl.classList.contains('hidden')) fpsEl.textContent = `${Math.round(fpsCuenta / fpsAcc)} fps · ${paneles} panel${paneles > 1 ? 'es' : ''}`;
+    fpsAcc = 0; fpsCuenta = 0;
   }
 
   window.KART_DEBUG = {

@@ -81,7 +81,30 @@ mirando hacia donde toca (pierdes un segundo, nada más).
 | `L` | Cambiar el número de vueltas |
 | `B` / `N` | Más / menos bots |
 | `F` | Pantalla completa |
+| `P` | Ver los fps (para comprobar que va fino con la pantalla dividida) |
 | Flechas, `Espacio` (objeto) | Conducir con el jugador de teclado (el derrape también sale solo) |
+
+## La tele durante la carrera: pantalla dividida
+
+Cada persona ve **su kart desde atrás**, en su propio panel de la tele: la cámara va un poco por
+encima del kart, mira hacia donde vas, se aleja cuando corres, se abre y tiembla en los turbos y te
+sigue en los saltos. Los bots no tienen panel.
+
+| Corredores | Cómo se reparte la tele |
+|---|---|
+| 1 | pantalla completa |
+| 2 | dos paneles anchos, uno encima del otro |
+| 3 | dos arriba y uno ancho abajo |
+| 4 | 2 × 2 |
+| 5 | tres arriba y dos abajo |
+| 6 | 3 × 2 |
+| 7 | cuatro arriba y tres abajo |
+| 8 | 4 × 2 |
+
+Cada panel lleva su marcador pequeño: emoji y nombre, posición, vuelta, el objeto que llevas y los
+avisos («¡TRUCO!», «¡ÚLTIMA VUELTA!», las estrellas del derrape). El tiempo de carrera va arriba en
+medio, para todos. La sala, la cuenta atrás y los resultados se siguen viendo con la cámara general
+del circuito, que enseña la pista entera.
 
 ## Cosas del circuito
 

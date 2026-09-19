@@ -25,6 +25,8 @@
     color: #fff; text-shadow: 0 .08em 0 #4a0a5e, 0 0 .5em rgba(255,45,149,.9); }
   #panels .pmsg:empty { display: none; }
   /* con la pantalla dividida, el marcador grande estorba: solo queda el tiempo, arriba en medio */
+  #fpsbox { position: absolute; right: 12px; bottom: 10px; background: rgba(10,0,40,.7); border-radius: 12px;
+    padding: 4px 12px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; color: #9effc8; }
   #timechip { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(10,0,40,.75);
     border-radius: 30px; padding: 6px 26px; font-size: 34px; font-weight: 900; font-variant-numeric: tabular-nums;
     text-shadow: 0 3px 0 #7a2a8a; }
@@ -109,6 +111,7 @@
       <div class="time" id="hud-time">0:00.00</div>
     </div>
     <div id="timechip" class="hidden">0:00.00</div>
+    <div id="fpsbox" class="hidden">— fps</div>
     <div id="toasts"></div>
     <div id="big" class="hidden"></div>
     <div id="flash"></div>
@@ -134,7 +137,7 @@
       <div class="hints">
         El anfitrión 👑 elige el circuito y pulsa <b>EMPEZAR</b> en su móvil. Haz clic una vez en esta pantalla para activar el sonido 🔊<br>
         Mando: <b>◀ ▶</b> girar · <b>GAS</b> · <b>OBJETO</b> · los <b>dos giros a la vez</b> = marcha atrás · toca un giro <b>en el aire</b> para hacer un truco ✨<br>
-        Teclado: <kbd>Intro</kbd> empezar · <kbd>←</kbd><kbd>→</kbd> circuito · <kbd>L</kbd> vueltas · <kbd>B</kbd>/<kbd>N</kbd> más/menos bots · <kbd>K</kbd> jugar con el teclado · <kbd>F</kbd> pantalla completa
+        Teclado: <kbd>Intro</kbd> empezar · <kbd>←</kbd><kbd>→</kbd> circuito · <kbd>L</kbd> vueltas · <kbd>B</kbd>/<kbd>N</kbd> más/menos bots · <kbd>K</kbd> jugar con el teclado · <kbd>F</kbd> pantalla completa · <kbd>P</kbd> ver los fps
       </div>
     </div>
     <div id="results" class="hidden"></div>
