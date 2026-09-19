@@ -15,6 +15,7 @@ const { pathToFileURL } = require('url');
 const ROOT = path.join(__dirname, '..');
 const geom = require(path.join(ROOT, 'public/geom.js'));
 const trackDefs = require(path.join(ROOT, 'public/tracks.js'));
+const volante = require(path.join(ROOT, 'public/volante.js'));
 
 let failed = false;
 const ok = (msg) => console.log('  ✓ ' + msg);
@@ -58,6 +59,9 @@ async function main() {
     check(mismos, 'dos carreras con la misma semilla dan los mismos tiempos');
   }
 
+  console.log('Volante');
+  comprobarVolante();
+
   console.log('Escenarios');
   for (const esc of escenarios) {
     try {
@@ -85,6 +89,94 @@ function comprobarModulo(sim) {
   const faltan = usados.filter((h) => !(h in sim.DEFAULT_HOOKS));
   check(!faltan.length, `los ${usados.length} hooks usados existen en DEFAULT_HOOKS${faltan.length ? ' (faltan: ' + faltan.join(', ') + ')' : ''}`);
   check(typeof sim.createSim === 'function', 'exporta createSim');
+}
+
+// ---------------------------------------------------------------- el volante del móvil
+/*
+ * El mando gira inclinando el móvil. Las cuentas están en public/volante.js y aquí se comprueban
+ * contra situaciones físicas conocidas, sin navegador.
+ *
+ * `deviceorientation` da beta y gamma en grados. La gravedad en coordenadas del móvil sale de
+ * ahí, y girar el móvil como un volante (alrededor del eje que sale de la pantalla) hace girar
+ * ese vector dentro del plano de la pantalla: ese giro es el del volante.
+ */
+function comprobarVolante() {
+  const grados = (r) => (r * 180) / Math.PI;
+  // El camino de vuelta, escrito aparte a propósito: de una gravedad en coordenadas del móvil,
+  // qué beta y gamma la producirían. Sirve para montar poses concretas del móvil.
+  const anglesDe = (g) => ({
+    beta: grados(Math.asin(-g.y)),
+    gamma: grados(Math.atan2(g.x, -g.z)),
+  });
+  // Pose: móvil en horizontal, inclinado `cabeceo` grados hacia atrás, girado `giro` grados
+  // como un volante (positivo = en el sentido de las agujas del reloj = a la derecha).
+  function pose(giroGrados, cabeceoGrados) {
+    const c = (cabeceoGrados * Math.PI) / 180, t = (giroGrados * Math.PI) / 180;
+    // De pie en horizontal la gravedad cae hacia el borde que queda abajo (+x del móvil). Al
+    // girar el móvil a la derecha (agujas del reloj), la gravedad gira al revés dentro de la
+    // pantalla: por eso el seno va con signo positivo.
+    const plano = Math.cos(c), fuera = -Math.sin(c);
+    const g = { x: plano * Math.cos(t), y: plano * Math.sin(t), z: fuera };
+    return anglesDe(g);
+  }
+  const lee = (giro, cabeceo = 0) => {
+    const a = pose(giro, cabeceo);
+    return volante.gravedad(a.beta, a.gamma);
+  };
+
+  // --- la gravedad, contra dos poses que se saben de memoria ---
+  {
+    const dePie = volante.gravedad(90, 0);     // móvil vertical en retrato: la gravedad cae hacia abajo (-y)
+    const tumbado = volante.gravedad(0, 0);    // móvil plano boca arriba: no hay gravedad en el plano
+    const horizontal = volante.gravedad(0, 90); // girado 90º a la derecha: la gravedad cae hacia +x
+    const cerca = (v, x, y) => Math.abs(v.x - x) < 0.001 && Math.abs(v.y - y) < 0.001;
+    check(cerca(dePie, 0, -1) && cerca(tumbado, 0, 0) && cerca(horizontal, 1, 0),
+      'la gravedad en el móvil sale bien (de pie, tumbado y en horizontal)');
+    check(!volante.hayGravedad(tumbado) && volante.hayGravedad(dePie),
+      'con el móvil plano boca arriba avisa de que no puede medir el giro');
+  }
+
+  // --- girar el móvil como un volante da ese mismo ángulo ---
+  {
+    const centro = lee(0, 30);
+    let peor = 0;
+    for (const giro of [-40, -25, -10, 0, 10, 25, 40]) {
+      const medido = grados(volante.angulo(centro, lee(giro, 30)));
+      peor = Math.max(peor, Math.abs(medido - giro));
+    }
+    check(peor < 0.5, `girar el móvil N grados se mide como N grados (el peor falla ${peor.toFixed(2)}º)`);
+  }
+
+  // --- da igual cómo de inclinado lo sujetes ---
+  {
+    let peor = 0;
+    for (const cabeceo of [0, 15, 30, 45, 60, 75]) {
+      const centro = lee(0, cabeceo);
+      for (const giro of [-30, -12, 12, 30]) {
+        peor = Math.max(peor, Math.abs(grados(volante.angulo(centro, lee(giro, cabeceo))) - giro));
+      }
+    }
+    check(peor < 0.5, `el volante mide igual con el móvil de pie o tumbado (el peor falla ${peor.toFixed(2)}º)`);
+  }
+
+  // --- zona muerta, tope y sentido ---
+  {
+    const dir = (grados_) => volante.direccion((grados_ * Math.PI) / 180);
+    const quieto = dir(0) === 0 && dir(4) === 0 && dir(-4) === 0;
+    const tope = dir(40) === 1 && dir(-40) === -1 && dir(90) === 1;
+    const derecha = dir(20) > 0 && dir(-20) < 0;     // a la derecha como un volante de verdad
+    const medio = dir(20);
+    check(quieto && tope && derecha, 'zona muerta de 5º, tope a 35º y girar a la derecha manda a la derecha');
+    check(medio > 0.4 && medio < 0.6, `a mitad de recorrido la dirección va a la mitad (${medio.toFixed(2)})`);
+  }
+
+  // --- el filtro se acerca al valor nuevo sin pasarse ---
+  {
+    let v = 0;
+    for (let i = 0; i < 20; i++) v = volante.suaviza(v, 1);
+    check(v > 0.99 && v <= 1 && volante.suaviza(0, 1) < 0.6,
+      'el filtro quita el temblor pero llega al valor en unas décimas');
+  }
 }
 
 // ---------------------------------------------------------------- una carrera entera
@@ -576,6 +668,52 @@ const escenarios = [
       let delta = n.i - i; if (delta > t.N / 2) delta -= t.N; if (delta < -t.N / 2) delta += t.N;
       if (Math.abs(delta) > t.win) return `lo han dejado en el tramo equivocado (muestra ${n.i}, la suya era la ${i})`;
       return k.dist >= r.base + i - 5 ? null : `al recogerlo ha perdido progreso (${k.dist} < ${r.base + i})`;
+    },
+  },
+  {
+    // el volante del móvil manda un decimal: girar a medias tiene que girar a medias
+    nombre: 'la dirección es analógica: medio volante gira la mitad',
+    run(sim) {
+      const gira = (valor) => {
+        const s = carrera(sim, { bots: 1, seed: 31 });
+        const k = humano(s);
+        for (let i = 0; i < 90; i++) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }  // coge velocidad recta
+        const a0 = k.angle;
+        for (let i = 0; i < 30; i++) { s.setInput(k, { s: valor, g: 1, b: 0, d: 0 }); s.update(DT); }
+        return Math.abs(sim.wrapAngle(k.angle - a0));
+      };
+      const todo = gira(1), medio = gira(0.5), nada = gira(0);
+      if (nada > 0.01) return `sin tocar el volante ha girado ${nada.toFixed(3)} rad`;
+      if (!(todo > 0.2)) return `a tope apenas gira (${todo.toFixed(3)} rad)`;
+      const razon = medio / todo;
+      if (razon < 0.4 || razon > 0.62) return `medio volante gira el ${(razon * 100).toFixed(0)} % en vez de la mitad`;
+      // y un decimal descabellado no puede colarse
+      const s2 = carrera(sim, { bots: 1, seed: 32 });
+      const k2 = humano(s2);
+      s2.setInput(k2, { s: 99, g: 1, b: 0, d: 0 });
+      if (k2.input.s !== 1) return `un s = 99 se ha quedado en ${k2.input.s} (tendría que recortarse a 1)`;
+      s2.setInput(k2, { s: NaN, g: 1, b: 0, d: 0 });
+      return k2.input.s === 0 ? null : `un s = NaN se ha quedado en ${k2.input.s}`;
+    },
+  },
+  {
+    // con el volante no vale rozar el giro: hay que girar con ganas para cargar derrape
+    nombre: 'un volantazo flojo no carga derrape y uno firme sí',
+    run(sim) {
+      const carga = (valor) => {
+        const s = carrera(sim, { bots: 1, seed: 33 });
+        const k = humano(s);
+        let max = 0;
+        for (let i = 0; i < 60 * 4; i++) {
+          s.setInput(k, { s: valor, g: 1, b: 0, d: 0 });
+          s.update(DT);
+          max = Math.max(max, k.driftLevel);
+        }
+        return max;
+      };
+      const flojo = carga(sim.STEER_FIRME - 0.15), firme = carga(1);
+      if (flojo > 0) return `girando flojo (${(sim.STEER_FIRME - 0.15).toFixed(2)}) ha cargado nivel ${flojo}`;
+      return firme >= 1 ? null : 'girando a tope no ha llegado ni al nivel 1';
     },
   },
   {

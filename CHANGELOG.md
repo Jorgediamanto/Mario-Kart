@@ -3,6 +3,43 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 — El móvil es el volante (y solo quedan dos botones)
+
+- **Qué cambió**: se acabó girar con los botones ◀ ▶. Ahora el móvil se pone **en horizontal** y se
+  **gira como un volante**, al estilo del mando de la Wii. El mando se queda con **dos botones**, de
+  media pantalla cada uno: **OBJETO** (morado, izquierda) y **GAS** (verde, derecha). Arriba hay una
+  barra que enseña cuánto estás girando y de qué color va el derrape, y un botón **⊙ centrar**.
+- **La dirección pasa a ser analógica**: antes el mando solo podía decir «izquierda», «nada» o
+  «derecha»; ahora manda un decimal, así que un poco de giro es un poco de curva. El teclado y los
+  bots siguen mandando el giro entero y conducen exactamente igual que antes.
+- **Cómo se mide el volante**: del sensor del móvil se saca hacia dónde tira la gravedad; al centrar
+  se guarda ese vector y a partir de ahí el ángulo girado respecto a él, dentro del plano de la
+  pantalla, es el giro del volante. Así **da igual cómo de inclinado sujetes el móvil**: se centra
+  solo al empezar cada cuenta atrás, con el móvil donde lo tengas. Zona muerta de 5º y tope a 35º.
+- **Sin freno**: no hay marcha atrás (no quedan botones para ella). Si te quedas clavado o te sales,
+  el rescate automático te devuelve a la pista a los 3 segundos, como hasta ahora.
+- **Lo que ha obligado a tocar el servidor**: los navegadores **solo dejan leer el giroscopio en
+  conexiones seguras**, y el juego se servía por `http://192.168.x.x`. Ahora el servidor sirve lo
+  mismo **también por HTTPS** (puerto 3443 por defecto) con un certificado propio que se genera solo
+  con `openssl` la primera vez, y el QR lleva ahí. **Cada móvil verá una vez el aviso de «conexión
+  no privada» y tendrá que continuar**; la tele lo explica en la sala. Si no hay `openssl`, si el
+  puerto falla o si se arranca con `KART_HTTPS=0`, todo sigue funcionando por HTTP como siempre.
+- **Nadie se queda sin jugar**: si el móvil no tiene giroscopio, no da permiso o ha entrado por
+  `http://`, el mando enseña los botones ◀ ▶ de siempre (con los dos a la vez para ir marcha atrás).
+  También se pueden elegir a mano en la sala, con «Prefiero los botones ◀ ▶».
+- **Cómo probarlo**: `npm start`, escanear el QR, aceptar el aviso del navegador y mirar en la sala
+  el recuadro 🎡 («Volante listo»). En la carrera: poner el móvil en horizontal, bloquear la
+  rotación y girar. La barra de arriba tiene que moverse con el móvil y volver al centro al
+  enderezar. **Pendiente de probar en fiesta**: si 35º de tope es mucho o poco, si la zona muerta de
+  5º basta con el coche en marcha, y si se echa de menos la marcha atrás.
+- **Lo que sí está comprobado sin fiesta** (`npm test`, 131 comprobaciones): las cuentas del volante
+  están en `public/volante.js`, aparte, y se prueban contra poses del móvil conocidas — girarlo 40º
+  se mide como 40º con el móvil de pie, tumbado o a 45º, la zona muerta y el tope caen donde deben,
+  y girar a la derecha manda a la derecha. Además: el mando sirve dos botones y los ◀ ▶ solo como
+  respaldo, el servidor reenvía la dirección decimal sin redondearla y recorta la basura, HTTPS
+  sirve el mando, y en la simulación medio volante gira la mitad y un roce de volante no carga
+  derrape.
+
 ## 2026-09-19 — Nadie pierde una vuelta en la horquilla (segunda mitad del bug de los bots)
 
 - **Qué pasaba**: el arreglo de esta madrugada curó la mitad del bug (el bot de espaldas). La otra

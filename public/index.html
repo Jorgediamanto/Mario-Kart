@@ -46,6 +46,8 @@
   #lobby .qrbox { display: inline-block; background: #fff; padding: 18px; border-radius: 28px; box-shadow: 0 0 0 8px var(--pink), 0 0 0 16px var(--cyan), 0 24px 60px rgba(0,0,0,.5); }
   #lobby .qrbox img { width: 440px; height: 440px; display: block; }
   #lobby .url { margin-top: 34px; font-size: 40px; font-weight: 900; color: var(--yellow); letter-spacing: 1px; text-shadow: 0 4px 0 #4a0a5e; }
+  #lobby .aviso-https { margin-top: 14px; max-width: 620px; font-size: 20px; line-height: 1.45; color: #ffd6f2; background: rgba(0,0,0,.28); border-radius: 14px; padding: 10px 16px; }
+  #lobby .aviso-https.hidden { display: none; }
   #lobby .sub { margin-top: 8px; font-size: 24px; color: #ffd6f2; }
   #lobby .right { position: absolute; left: 820px; top: 236px; width: 980px; }
   #lobby .players { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -99,6 +101,8 @@
       <div class="left">
         <div class="qrbox"><img id="qr" src="/qr.svg" alt="Código QR"></div>
         <div class="url" id="url">…</div>
+        <div class="aviso-https hidden" id="aviso-https">El móvil dirá que <b>la conexión no es privada</b>: entra igualmente
+          (Avanzado → Continuar). Es este ordenador, no hay riesgo, y es lo que le da el <b>volante</b> al mando.</div>
         <div class="sub">Misma WiFi que este ordenador</div>
       </div>
       <div class="right">

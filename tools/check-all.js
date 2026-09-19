@@ -8,6 +8,7 @@
  *  5. el protocolo de la fiesta con una pantalla y ocho móviles de mentira
  */
 const { spawnSync, spawn } = require('child_process');
+const https = require('https');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -34,6 +35,7 @@ checkSyntax('server.js', false);
 checkSyntax('public/play.js', false);
 checkSyntax('public/tracks.js', false);
 checkSyntax('public/geom.js', false);
+checkSyntax('public/volante.js', false);
 checkSyntax('tools/check-tracks.js', false);
 checkSyntax('tools/check-sim.js', false);
 checkSyntax('tools/check-protocol.js', false);
@@ -74,6 +76,7 @@ console.log('Servidor');
       ['/play.js', 'text/javascript', 'WebSocket'],
       ['/tracks.js', 'text/javascript', 'KART_TRACKS'],
       ['/geom.js', 'text/javascript', 'KART_GEOM'],
+      ['/volante.js', 'text/javascript', 'KART_VOLANTE'],
       ['/vendor/three.module.js', 'text/javascript', 'three.core.js'],
       ['/vendor/three.core.js', 'text/javascript', 'Vector3'],
     ];
@@ -86,21 +89,44 @@ console.log('Servidor');
         else bad(`GET ${p} → ${r.status} ${ct}${text.includes(needle) ? '' : ' (contenido inesperado)'}`);
       } catch (e) { bad(`GET ${p} → ${e.message}`); }
     }
-    // el mando: exactamente cuatro botones grandes y ni rastro de freno ni de derrape
+    // el mando: dos botones grandes (OBJETO y GAS) y los ◀ ▶ solo como respaldo del volante
     try {
       const html = await (await fetch(base + '/play')).text();
-      const ctl = html.match(/class="ctl[^"]*"/g) || [];
-      const teclas = (html.match(/data-k="([a-z]+)"/g) || []).map((m) => m.slice(8, -1)).sort();
       const js = await (await fetch(base + '/play.js')).text();
       const mandaDerrape = /\bd:\s*1\b/.test(js) || /held\.d\b/.test(js);
-      const bien = ctl.length === 4
-        && JSON.stringify(teclas) === JSON.stringify(['g', 'left', 'right'])
-        && html.includes('id="btn-item"')
-        && !/data-k="[bd]"/.test(html)
-        && !mandaDerrape;
-      if (bien) ok('el mando tiene 4 botones (◀ ▶, objeto, gas) y no manda derrape');
-      else bad(`el mando no cuadra: ${ctl.length} botones .ctl, teclas ${teclas.join(',')}${mandaDerrape ? ', play.js manda derrape' : ''}`);
+      // el bloque de respaldo va marcado con data-respaldo: fuera de él no puede haber ◀ ▶
+      const respaldo = html.match(/<div class="left" id="turn-zone" data-respaldo="1">[\s\S]*?<\/div>/);
+      const fuera = respaldo ? html.replace(respaldo[0], '') : html;
+      const dosBotones = html.includes('id="btn-item"') && /data-k="g"/.test(fuera);
+      const girarSoloEnRespaldo = !!respaldo && !/data-k="(left|right)"/.test(fuera)
+        && /data-k="left"/.test(respaldo[0]) && /data-k="right"/.test(respaldo[0]);
+      if (dosBotones && girarSoloEnRespaldo && !/data-k="[bd]"/.test(html) && !mandaDerrape) {
+        ok('el mando tiene 2 botones (objeto y gas) y los ◀ ▶ solo de respaldo');
+      } else {
+        bad(`el mando no cuadra: ${dosBotones ? '' : 'faltan objeto/gas; '}${girarSoloEnRespaldo ? '' : 'los ◀ ▶ no están solo en el respaldo; '}${mandaDerrape ? 'play.js manda derrape' : ''}`);
+      }
+      // el volante: analógico y con permiso de iPhone
+      const volanteBien = /deviceorientation/.test(js) && /requestPermission/.test(js)
+        && /Math\.round\(volante\.s \* 100\)/.test(js) && /isSecureContext/.test(js);
+      if (volanteBien) ok('play.js lee el giroscopio, pide permiso en iPhone y manda dirección decimal');
+      else bad('play.js no tiene el volante completo (giroscopio, permiso, dirección decimal)');
     } catch (e) { bad('no se puede comprobar el mando: ' + e.message); }
+
+    // HTTPS: sin él los móviles no pueden usar el giroscopio
+    try {
+      const info = await (await fetch(base + '/info')).json();
+      if (!info.seguro) {
+        ok('sin HTTPS (no hay openssl): el juego sigue y el mando usará los botones ◀ ▶');
+      } else {
+        const texto = await new Promise((res, rej) => {
+          const r = https.request({ host: '127.0.0.1', port: info.httpsPort, path: '/play', rejectUnauthorized: false },
+            (resp) => { let d = ''; resp.on('data', (c) => { d += c; }); resp.on('end', () => res(resp.statusCode === 200 ? d : '')); });
+          r.on('error', rej); r.end();
+        });
+        if (texto.includes('Kart Party')) ok(`HTTPS sirve el mando en el puerto ${info.httpsPort} (hace falta para el volante)`);
+        else bad('HTTPS dice estar en marcha pero no sirve el mando');
+      }
+    } catch (e) { bad('no se puede comprobar el HTTPS: ' + e.message); }
 
     try {
       const r = await fetch(base + '/../server.js');

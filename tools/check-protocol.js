@@ -191,6 +191,26 @@ async function recorrido(PORT) {
     const bienFormadas = suyas.every((m) => (m.s === 1 || m.s === -1) && m.g === 1 && m.b === 0 && m.d === 0);
     check(suyas.length === total && suyas.length === entradas.length && bienFormadas,
       `los ${total} botones llegan a la pantalla con el id correcto (${suyas.length} de ${total})`);
+    // ---- volante: la dirección va en decimales y tiene que llegar tal cual ----
+    tele.olvida();
+    const finos = [-1, -0.62, -0.07, 0, 0.33, 0.91, 1];
+    for (const s of finos) { quien.manda({ t: 'i', s, g: 1, b: 0, d: 0 }); await espera(35); }
+    await espera(150);
+    const llegados = tele.recibidos.filter((m) => m.t === 'i' && m.id === quien.id).map((m) => m.s);
+    check(JSON.stringify(llegados) === JSON.stringify(finos),
+      `el servidor reenvía la dirección del volante sin redondearla (${llegados.join(', ')})`);
+    // y un valor imposible no debería colarse ni tumbar nada
+    tele.olvida();
+    quien.manda({ t: 'i', s: 99, g: 1, b: 0, d: 0 });
+    await espera(60);
+    quien.manda({ t: 'i', s: 'hola', g: 1, b: 0, d: 0 });
+    await espera(60);
+    quien.manda({ t: 'i', s: 0.5, g: 1, b: 0, d: 0 });
+    await espera(200);
+    const tras = tele.recibidos.filter((m) => m.t === 'i' && m.id === quien.id).map((m) => m.s);
+    check(JSON.stringify(tras) === JSON.stringify([1, 0, 0.5]),
+      `el servidor recorta la dirección a -1..1 y descarta la basura (${tras.join(', ')})`);
+
     // y el objeto
     tele.olvida();
     quien.manda({ t: 'use' });

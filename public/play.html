@@ -72,6 +72,24 @@
   .left.d1 .ctl.on, .left.d2 .ctl.on, .left.d3 .ctl.on { box-shadow: 0 0 0 4px rgba(255, 255, 255, .35) inset; }
   .left .ctl small.nivel { font-size: 15px; opacity: 1; letter-spacing: 1px; }
   .ctl small { font-size: 12px; font-weight: 700; opacity: .85; margin-top: 2px; }
+
+  /* ---- volante: con giroscopio no hay botones de girar, solo OBJETO y GAS ---- */
+  .pad.con-volante #turn-zone { display: none; }
+  .pad.con-volante .right { grid-template-columns: 1fr 1.6fr; grid-template-rows: 1fr; }
+  .chip { border: 0; border-radius: 999px; background: #2a2f65; color: #d5d8ff; font-size: 13px;
+    font-weight: 800; padding: 7px 12px; white-space: nowrap; }
+  .chip:active { filter: brightness(1.4); }
+  /* barra del volante: la aguja dice cuánto estás girando y de qué color va el derrape */
+  .vbar { position: relative; height: 34px; margin: 6px 10px 0; border-radius: 999px;
+    background: #141834; overflow: hidden; flex: none; display: none; }
+  .vbar.show { display: block; }
+  .vbar .marca { position: absolute; left: 50%; top: 4px; bottom: 4px; width: 2px; margin-left: -1px; background: rgba(255,255,255,.28); }
+  .vbar .aguja { position: absolute; top: 4px; bottom: 4px; width: 46px; margin-left: -23px; left: 50%;
+    border-radius: 999px; background: #dfe9ff; transition: background .12s; }
+  .vbar.d1 .aguja { background: #00e5ff; } .vbar.d2 .aguja { background: #ff9f1c; } .vbar.d3 .aguja { background: #ff2d95; }
+  .vbar .txt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #1b2040; pointer-events: none; letter-spacing: 1px; }
+  .vbar.aviso { background: #6b2d2d; } .vbar.aviso .txt { color: #fff; }
   @media (orientation: portrait) { .pad { max-height: 78vh; margin-top: auto; } .portrait-hint { display: block; } }
   .portrait-hint { display: none; flex: 1; align-items: center; justify-content: center; text-align: center; color: #aab0e8; padding: 20px; font-size: 16px; }
   @media (orientation: portrait) { .portrait-hint { display: flex; } }
@@ -112,23 +130,34 @@
       <button id="btn-fs" class="btn">Pantalla completa</button>
       <button id="btn-leave" class="btn" style="background:#5a2a2a">Salir</button>
     </div>
+    <div id="volante-caja" class="setting" style="flex-direction:column; align-items:stretch; gap:8px; padding:12px">
+      <div style="display:flex; align-items:center; gap:10px">
+        <span style="font-size:26px">🎡</span>
+        <span class="lbl" style="flex:1; padding:0" id="volante-estado">Comprobando el volante…</span>
+      </div>
+      <button id="btn-volante" class="btn hidden" style="background:#9b3bff">Activar el volante 🎡</button>
+      <button id="btn-botones" class="btn hidden">Prefiero los botones ◀ ▶</button>
+    </div>
     <div class="hint" style="margin-top:14px; text-align:left; line-height:1.6">
-      <b style="color:#fff">El mando tiene cuatro botones:</b><br>
-      ◀ ▶ para girar · <b style="color:#16c96a">GAS</b> para acelerar · <b style="color:#9b3bff">OBJETO</b> para usar lo que lleves.<br>
-      <b style="color:#ff3d6e">Marcha atrás</b>: pulsa <b>los dos botones de girar a la vez</b>.<br>
-      <b style="color:#ffd23f">Truco</b>: en las rampas, toca un botón de girar mientras vuelas (turbo al caer).<br>
-      <b style="color:#00e5ff">Derrape automático</b>: aguanta el giro en una curva y el botón se
-      enciende (★ azul, ★★ naranja, ★★★ rosa). Al soltarlo, sales disparado.<br>
-      Si te pierdes o te quedas clavado, te devolvemos a la pista.<br>
-      Consejo: pon el móvil en horizontal.
+      <b style="color:#fff">El móvil es el volante:</b> ponlo <b>en horizontal</b>, sujétalo con las
+      dos manos y <b>gíralo como si fuera un volante</b>. Bloquea el giro de pantalla para que no se
+      te dé la vuelta (en iPhone, desde el centro de control).<br>
+      Solo hay <b>dos botones</b>: <b style="color:#9b3bff">OBJETO</b> a la izquierda y
+      <b style="color:#16c96a">GAS</b> a la derecha, cada uno de media pantalla.<br>
+      <b style="color:#ffd23f">Truco</b>: en las rampas, da un volantazo mientras vuelas (turbo al caer).<br>
+      <b style="color:#00e5ff">Derrape automático</b>: aguanta el volante girado en una curva y la
+      barra se enciende (★ azul, ★★ naranja, ★★★ rosa). Al enderezar, sales disparado.<br>
+      No hay freno: si te pierdes o te quedas clavado, te devolvemos a la pista a los 3 segundos.<br>
+      ¿El volante no va? Pulsa <b>«Prefiero los botones»</b> y juegas con ◀ ▶ como siempre.
     </div>
   </div>
 
   <div class="view" id="v-race">
-    <div class="status"><span class="pos" id="st-pos">—</span><span id="st-lap">—</span><span class="nm" id="st-name"></span></div>
+    <div class="status"><span class="pos" id="st-pos">—</span><span id="st-lap">—</span><span class="nm" id="st-name"></span><button id="btn-centrar" class="chip hidden">⊙ centrar</button></div>
+    <div class="vbar" id="vbar"><div class="marca"></div><div class="aguja" id="vaguja"></div><div class="txt" id="vtxt"></div></div>
     <div class="portrait-hint">Gira el móvil en horizontal para jugar más cómodo 🔄</div>
-    <div class="pad">
-      <div class="left" id="turn-zone">
+    <div class="pad" id="pad">
+      <div class="left" id="turn-zone" data-respaldo="1">
         <button class="ctl" data-k="left">◀<small class="nivel" id="nivel-left"></small></button>
         <button class="ctl" data-k="right">▶<small class="nivel" id="nivel-right"></small></button>
       </div>
@@ -150,6 +179,7 @@
 
   <div id="conn">Conectando con la pantalla…</div>
 </div>
+<script src="/volante.js"></script>
 <script src="/play.js"></script>
 </body>
 </html>

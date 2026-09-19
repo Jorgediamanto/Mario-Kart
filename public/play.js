@@ -96,7 +96,7 @@
       case 'phase':
         phase = m.phase;
         if (phase === 'lobby') { spectating = false; status = null; }
-        if (phase === 'countdown') showRaceMsg('¡Preparados!');
+        if (phase === 'countdown') { showRaceMsg('¡Preparados!'); centrarVolante(); }
         if (phase === 'race') showRaceMsg('');
         setView();
         break;
@@ -217,31 +217,110 @@
   });
   const fsBtn = $('btn-fs');
   if (!document.documentElement.requestFullscreen) fsBtn.classList.add('hidden');
-  fsBtn.addEventListener('click', () => { document.documentElement.requestFullscreen().catch(() => {}); });
+  // Con el volante el móvil se gira mucho: conviene bloquear la pantalla en horizontal para que
+  // no se dé la vuelta sola. Solo funciona a pantalla completa (y en iPhone no existe: allí se
+  // bloquea desde el centro de control).
+  fsBtn.addEventListener('click', () => {
+    document.documentElement.requestFullscreen()
+      .then(() => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (_) { /* no se puede */ } })
+      .catch(() => {});
+  });
+
+  // ---- Volante (giroscopio) ----
+  /*
+   * El móvil se sujeta en horizontal con las dos manos y se gira como un volante, al estilo del
+   * mando de la Wii. Cómo se mide: de `deviceorientation` sacamos hacia dónde tira la gravedad
+   * **en coordenadas del móvil**; al «centrar» guardamos ese vector, y a partir de ahí el ángulo
+   * entre el de ahora y el guardado, medido en el plano de la pantalla, es exactamente cuánto has
+   * girado el volante. Da igual lo inclinado que sujetes el móvil y da igual si la pantalla está
+   * en horizontal o en vertical: solo cuenta el giro alrededor del eje que sale de la pantalla.
+   *
+   * Los navegadores solo dan sensores en «contexto seguro» (https://). Si no los hay, si el
+   * iPhone no da permiso o si el móvil no tiene giroscopio, `volante.va` se queda en false y el
+   * mando enseña los botones ◀ ▶ de siempre: nadie se queda sin jugar.
+   */
+  const V = window.KART_VOLANTE;          // las cuentas del volante viven en /volante.js
+  const volante = { pedido: store.get('volante', '1') === '1', va: false, visto: false, centro: null, ang: 0, s: 0, plano: false };
+
+  function alInclinar(e) {
+    if (e.beta == null || e.gamma == null) return;
+    const g = V.gravedad(e.beta, e.gamma);
+    if (!volante.visto) { volante.visto = true; pintarVolante(); }
+    volante.plano = !V.hayGravedad(g);
+    if (!volante.centro) volante.centro = g;
+    // con el móvil plano mirando al techo no se puede saber hacia dónde giras: nos vamos soltando
+    volante.ang = volante.plano ? volante.ang * 0.85 : V.suaviza(volante.ang, V.angulo(volante.centro, g));
+    volante.s = V.direccion(volante.ang);
+  }
+  function centrarVolante() { volante.centro = null; volante.ang = 0; volante.s = 0; }
+  function hayVolante() { return volante.va && volante.visto; }
+  // ¿puede este móvil, en principio? (hace falta https:// o localhost)
+  function volantePosible() { return typeof DeviceOrientationEvent !== 'undefined' && window.isSecureContext; }
+
+  async function activarVolante(porGesto) {
+    if (!volantePosible()) return false;
+    const pedirPermiso = DeviceOrientationEvent.requestPermission;   // iPhone
+    if (typeof pedirPermiso === 'function') {
+      if (!porGesto) return false;        // en iPhone el permiso solo se puede pedir desde un toque
+      try { if ((await pedirPermiso.call(DeviceOrientationEvent)) !== 'granted') return false; } catch (_) { return false; }
+    }
+    if (!volante.va) window.addEventListener('deviceorientation', alInclinar);
+    volante.va = true; volante.pedido = true;
+    store.set('volante', '1');
+    centrarVolante();
+    pintarVolante();
+    // algunos móviles no tienen giroscopio: si en dos segundos no llega nada, botones y a jugar
+    setTimeout(pintarVolante, 2000);
+    return true;
+  }
+  function apagarVolante() {
+    window.removeEventListener('deviceorientation', alInclinar);
+    volante.va = false; volante.visto = false; volante.pedido = false;
+    store.set('volante', '0');
+    pintarVolante();
+  }
+
+  // Pinta el estado del volante en la sala y coloca los botones de la carrera
+  function pintarVolante() {
+    const con = hayVolante();
+    const pad = $('pad'); if (pad) pad.classList.toggle('con-volante', con);
+    const bar = $('vbar'); if (bar) bar.classList.toggle('show', con);
+    const centrar = $('btn-centrar'); if (centrar) centrar.classList.toggle('hidden', !con);
+    const gas = $('gas-hint');
+    if (gas) gas.textContent = con ? 'gira el móvil para girar' : 'los dos giros a la vez = marcha atrás';
+    const estado = $('volante-estado'), btnV = $('btn-volante'), btnB = $('btn-botones');
+    if (!estado) return;
+    if (con) estado.innerHTML = '<b style="color:#39ff88">Volante listo.</b> Pon el móvil en horizontal y gíralo como un volante.';
+    else if (!volantePosible()) estado.innerHTML = 'Este móvil no puede usar el volante (hace falta entrar por <b>https://</b>). Jugarás con los botones ◀ ▶.';
+    else if (volante.va) estado.innerHTML = 'Esperando al sensor… si no se enciende, este móvil no tiene giroscopio y jugarás con los botones ◀ ▶.';
+    else estado.innerHTML = 'Puedes girar <b>inclinando el móvil</b>, como el mando de la Wii.';
+    if (btnV) btnV.classList.toggle('hidden', con || !volantePosible());
+    if (btnB) btnB.classList.toggle('hidden', !con);
+  }
 
   // ---- Carrera ----
   /*
-   * El mando tiene cuatro botones y nada más: ◀ ▶, OBJETO y GAS.
-   *  - girar: uno de los dos botones de la izquierda
-   *  - marcha atrás / freno: los dos botones de girar a la vez (se manda como `b`)
-   *  - derrape: ya no se pulsa, sale solo en las curvas, así que `d` va siempre a 0
-   *  - truco en el aire: tocar un botón de girar mientras se vuela (lo detecta la simulación)
+   * Con volante hay dos botones y nada más: OBJETO (media pantalla) y GAS (la otra media). Sin
+   * volante salen además los ◀ ▶ de respaldo, y los dos a la vez siguen siendo la marcha atrás.
+   *  - derrape: no se pulsa, sale solo al aguantar el giro (`d` va siempre a 0)
+   *  - truco en el aire: un volantazo (o tocar ◀ ▶) mientras se vuela, lo detecta la simulación
    */
   const held = { left: false, right: false, g: false };
-  let lastSent = '';
+  let lastSent = '', lastS = 0, lastAt = 0;
   function sendInput(force) {
-    const ambos = held.left && held.right;
-    const m = {
-      t: 'i',
-      s: ambos ? 0 : held.right ? 1 : held.left ? -1 : 0,
-      g: held.g ? 1 : 0, b: ambos ? 1 : 0, d: 0,
-    };
+    const con = hayVolante();
+    const ambos = !con && held.left && held.right;
+    // con volante la dirección es analógica: un decimal entre -1 y 1
+    const s = con ? Math.round(volante.s * 100) / 100 : (ambos ? 0 : held.right ? 1 : held.left ? -1 : 0);
+    const g = held.g ? 1 : 0, b = ambos ? 1 : 0;
     const zona = $('turn-zone');
     if (zona) zona.classList.toggle('reverse', ambos);
-    const key = `${m.s}${m.g}${m.b}`;
-    if (!force && key === lastSent) return;
-    lastSent = key;
-    send(m);
+    const key = `${g}${b}${con ? 'v' : 's' + s}`;
+    const ahora = Date.now();
+    if (!force && key === lastSent && Math.abs(s - lastS) < 0.03) return;
+    if (!force && ahora - lastAt < 40) return;      // como mucho 25 mensajes por segundo
+    lastSent = key; lastS = s; lastAt = ahora;
+    send({ t: 'i', s, g, b, d: 0 });
   }
   /* Derrape automático: la pantalla avisa con un `fx` cada vez que sube de nivel (y al soltarlo).
    * Aquí solo se pinta: el botón que se está aguantando se enciende con el color del nivel y
@@ -253,6 +332,8 @@
     nivelDerrape = nivel;
     const zona = $('turn-zone');
     if (zona) { zona.classList.remove('d0', 'd1', 'd2', 'd3'); if (nivel > 0) zona.classList.add('d' + nivel); }
+    const bar = $('vbar');
+    if (bar) { bar.classList.remove('d1', 'd2', 'd3'); if (nivel > 0) bar.classList.add('d' + nivel); }
     const texto = nivel > 0 ? '★'.repeat(nivel) : '';
     for (const id of ['nivel-left', 'nivel-right']) { const el = $(id); if (el) el.textContent = texto; }
     if (subeDeNivel && nivel > 0) vibrate(nivel === 3 ? [30, 40, 30] : [20 + nivel * 10]);
@@ -260,6 +341,8 @@
 
   function releaseAll() {
     pintarDerrape(0);
+    // también el volante: si el móvil se bloquea o se va a otra app, el kart deja de girar
+    volante.ang = 0; volante.s = 0;
     for (const k of Object.keys(held)) held[k] = false;
     document.querySelectorAll('.ctl.on').forEach((el) => el.classList.remove('on'));
     sendInput(true);
@@ -289,6 +372,23 @@
   });
   $('btn-item').addEventListener('contextmenu', (e) => e.preventDefault());
   setInterval(() => { if (currentView === 'race') sendInput(true); }, 250); // por si se pierde un mensaje
+  // Con volante la dirección cambia todo el rato: se mira 30 veces por segundo y solo se manda
+  // cuando de verdad ha cambiado (sendInput se encarga de no pasarse de 25 mensajes por segundo).
+  setInterval(() => {
+    if (!hayVolante()) return;
+    if (currentView === 'race') sendInput(false);
+    const aguja = $('vaguja'), txt = $('vtxt'), bar = $('vbar');
+    if (aguja) aguja.style.left = `calc(50% + ${(volante.s * 42).toFixed(1)}%)`;
+    if (bar) bar.classList.toggle('aviso', volante.plano);
+    if (txt) txt.textContent = volante.plano ? 'levanta un poco el móvil' : '';
+  }, 33);
+  $('btn-centrar').addEventListener('click', (e) => { e.preventDefault(); centrarVolante(); vibrate(20); });
+  $('btn-volante').addEventListener('click', async () => {
+    const ok = await activarVolante(true);
+    if (!ok) { volante.pedido = false; pintarVolante(); $('volante-estado').innerHTML = '<b style="color:#ff6b6b">No se ha podido activar el volante.</b> Jugarás con los botones ◀ ▶.'; }
+    else vibrate(30);
+  });
+  $('btn-botones').addEventListener('click', () => { apagarVolante(); vibrate(20); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); else requestWakeLock(); });
   window.addEventListener('blur', releaseAll);
   document.addEventListener('touchmove', (e) => { if (currentView === 'race') e.preventDefault(); }, { passive: false });
@@ -363,5 +463,8 @@
   if (me.token && me.name && me.char >= 0) wantJoin = true;
   renderChars();
   setView();
+  pintarVolante();
+  // En Android se puede encender el volante sin preguntar; en iPhone hace falta el botón.
+  if (volante.pedido) activarVolante(false).then(pintarVolante);
   connect();
 })();

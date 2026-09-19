@@ -4,16 +4,24 @@
  *  - Sirve los archivos estáticos (pantalla de la tele y mando del móvil)
  *  - Relé WebSocket: los móviles envían sus botones, la pantalla recibe todo
  *  - Genera el código QR con la URL para unirse
+ *  - Sirve lo mismo por HTTPS con un certificado propio, porque el volante del mando necesita
+ *    el giroscopio y los navegadores solo lo dan en «contexto seguro» (ver `certificado()`)
  */
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 const { WebSocketServer, WebSocket } = require('ws');
 const QRCode = require('qrcode');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
+// Puerto de HTTPS (el de siempre + 443). `KART_HTTPS=0` lo apaga del todo.
+const HTTPS_PORT = parseInt(process.env.HTTPS_PORT, 10) || PORT + 443;
+const HTTPS_ON = process.env.KART_HTTPS !== '0';
+const CERT_DIR = path.join(__dirname, '.cert');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const THREE_DIR = path.join(__dirname, 'node_modules', 'three', 'build'); // motor 3D, servido en /vendor/
 const MAX_PLAYERS = 8;
@@ -58,9 +66,51 @@ function localIPs() {
 }
 
 function joinUrl() {
-  const host = process.env.HOST_IP || (localIPs()[0] || {}).address || 'localhost';
-  return `http://${host}:${PORT}/play`;
+  return `${seguroListo ? `https://${hostIP()}:${HTTPS_PORT}` : `http://${hostIP()}:${PORT}`}/play`;
 }
+function hostIP() {
+  return process.env.HOST_IP || (localIPs()[0] || {}).address || 'localhost';
+}
+// La de siempre, sin cifrar: sirve de repuesto si algún móvil no traga el certificado.
+function joinUrlSimple() { return `http://${hostIP()}:${PORT}/play`; }
+
+/*
+ * Certificado propio (autofirmado) para poder servir por HTTPS.
+ *
+ * Por qué hace falta: el mando gira inclinando el móvil, y los navegadores solo dejan leer el
+ * giroscopio en «contexto seguro». `http://192.168.x.x` no lo es, así que sin esto no hay volante
+ * en ningún móvil. Con el certificado, el móvil entra por `https://` y, tras aceptar **una vez**
+ * el aviso del navegador («no es privada» → continuar), ya puede usar los sensores.
+ *
+ * Se genera con `openssl` (viene de serie en macOS y Linux; no añadimos dependencias) y se guarda
+ * en `.cert/`, que no va al repositorio. Se rehace solo si cambian las IPs del equipo (otra WiFi).
+ * Si algo falla —no hay openssl, no se puede escribir— devuelve null y no pasa nada: el juego
+ * sigue funcionando por HTTP y el mando enseña los botones de girar de siempre.
+ */
+function certificado() {
+  const keyFile = path.join(CERT_DIR, 'clave.pem');
+  const certFile = path.join(CERT_DIR, 'certificado.pem');
+  const ipsFile = path.join(CERT_DIR, 'ips.json');
+  const ips = [...new Set([hostIP(), ...localIPs().map((i) => i.address), '127.0.0.1'])];
+  const firma = JSON.stringify(ips);
+  try {
+    if (fs.readFileSync(ipsFile, 'utf8') === firma) {
+      return { key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) };
+    }
+  } catch (_) { /* no existe o ha cambiado la WiFi: lo rehacemos */ }
+  try {
+    fs.mkdirSync(CERT_DIR, { recursive: true });
+    const san = 'subjectAltName=' + [...ips.map((ip) => (/^[\d.]+$/.test(ip) ? 'IP:' + ip : 'DNS:' + ip)), 'DNS:localhost'].join(',');
+    const r = spawnSync('openssl', [
+      'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '3650',
+      '-keyout', keyFile, '-out', certFile, '-subj', '/CN=Kart Party', '-addext', san,
+    ], { encoding: 'utf8', timeout: 25000 });
+    if (r.status !== 0) return null;
+    fs.writeFileSync(ipsFile, firma);
+    return { key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) };
+  } catch (_) { return null; }
+}
+let seguroListo = false;
 
 // ---------- HTTP ----------
 function serveStatic(req, res, urlPath) {
@@ -88,12 +138,12 @@ function serveStatic(req, res, urlPath) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
+async function atiende(req, res) {
   const url = new URL(req.url, 'http://x');
   try {
     if (url.pathname === '/info') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
-      res.end(JSON.stringify({ url: joinUrl(), port: PORT, ips: localIPs() }));
+      res.end(JSON.stringify({ url: joinUrl(), urlSimple: joinUrlSimple(), seguro: seguroListo, port: PORT, httpsPort: HTTPS_PORT, ips: localIPs() }));
       return;
     }
     if (url.pathname === '/qr.svg') {
@@ -121,7 +171,11 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Error: ' + e.message);
   }
-});
+}
+const server = http.createServer(atiende);
+// El mismo juego servido por HTTPS: es la única forma de que el móvil pueda usar el giroscopio.
+const creds = HTTPS_ON ? certificado() : null;
+const serverSeguro = creds ? https.createServer(creds, atiende) : null;
 
 // ---------- Estado de la sala ----------
 /** @type {Map<number, {id:number, token:string, name:string, char:number, ws:WebSocket|null, timer:any}>} */
@@ -200,7 +254,11 @@ function charTaken(char, exceptId) {
 function log(...a) { console.log(new Date().toLocaleTimeString(), ...a); }
 
 // ---------- WebSocket ----------
-const wss = new WebSocketServer({ server, maxPayload: 8 * 1024 });
+// Un solo relé para los dos servidores (los móviles entran por wss:// y la tele por ws://)
+const wss = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 });
+const alUpgrade = (req, socket, head) => wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+server.on('upgrade', alUpgrade);
+if (serverSeguro) serverSeguro.on('upgrade', alUpgrade);
 
 wss.on('connection', (ws) => {
   ws.role = null; // 'screen' | 'player'
@@ -286,7 +344,10 @@ wss.on('connection', (ws) => {
     const id = ws.playerId;
     switch (m.t) {
       case 'i': {
-        const s = m.s === -1 || m.s === 1 ? m.s : 0;
+        // `s` es la dirección, analógica desde que el mando gira con el giroscopio: un decimal
+        // de -1 a 1. Los mandos viejos mandan -1, 0 o 1 y encajan igual.
+        const n = Number(m.s);
+        const s = Number.isFinite(n) ? Math.max(-1, Math.min(1, n)) : 0;
         toScreen({ t: 'i', id, s, g: m.g ? 1 : 0, b: m.b ? 1 : 0, d: m.d ? 1 : 0 });
         break;
       }
@@ -337,20 +398,40 @@ setInterval(() => {
   }
 }, 10000);
 
-server.listen(PORT, '0.0.0.0', () => {
+function arranca() {
   const ips = localIPs();
   console.log('');
   console.log('KART PARTY en marcha');
   console.log('');
   console.log(`   Pantalla (abrir en el ordenador conectado a la tele):  http://localhost:${PORT}`);
   console.log(`   Mandos (los móviles, misma WiFi):                        ${joinUrl()}`);
+  if (seguroListo) {
+    console.log('');
+    console.log('   Los mandos van por HTTPS para que el móvil pueda girar inclinándose (el volante).');
+    console.log('   La primera vez, cada móvil verá un aviso de «conexión no privada»: hay que');
+    console.log('   entrar igualmente (Avanzado → continuar). Es tu propio ordenador, no hay riesgo.');
+    console.log(`   Si algún móvil no pasa del aviso, que use esta otra: ${joinUrlSimple()}`);
+    console.log('   (por ahí se juega igual, pero con los botones ◀ ▶ en vez del volante).');
+  } else {
+    console.log('');
+    console.log('   Sin HTTPS: los móviles jugarán con los botones ◀ ▶ (el volante necesita HTTPS).');
+    if (HTTPS_ON) console.log('   Para tener volante hace falta `openssl` en el PATH.');
+  }
   if (ips.length > 1) {
     console.log('');
     console.log('   Otras IPs de este equipo (si el QR no funciona, prueba con HOST_IP=...):');
     for (const ip of ips.slice(1)) console.log(`     - ${ip.address} (${ip.name})`);
   }
   console.log('');
-});
+}
+
+if (serverSeguro) {
+  // Si el puerto seguro falla, seguimos por HTTP sin más: nadie se queda sin jugar
+  serverSeguro.on('error', (e) => { console.error(`   (HTTPS en el puerto ${HTTPS_PORT} no ha podido arrancar: ${e.message})`); });
+  serverSeguro.listen(HTTPS_PORT, '0.0.0.0', () => { seguroListo = true; });
+}
+// damos un instante al servidor seguro para que diga si ha arrancado, y luego el HTTP
+setTimeout(() => server.listen(PORT, '0.0.0.0', arranca), serverSeguro ? 150 : 0);
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     console.error(`El puerto ${PORT} está ocupado. Prueba con: PORT=3001 npm start`);

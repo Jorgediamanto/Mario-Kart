@@ -665,6 +665,7 @@ import {
   state.kb = null;
   state.replaced = false;
   state.joinUrl = '';
+  state.joinSeguro = false;
   state.shake = 0;
 
   let animT = 0;
@@ -763,7 +764,11 @@ import {
     updateOverlays();
   }
 
-  fetch('/info').then((r) => r.json()).then((info) => { state.joinUrl = info.url; updateOverlays(); }).catch(() => {});
+  fetch('/info').then((r) => r.json()).then((info) => {
+    state.joinUrl = info.url;
+    state.joinSeguro = !!info.seguro;       // el QR lleva a https: hay que avisar del cartel del navegador
+    updateOverlays();
+  }).catch(() => {});
 
   // ===================== Karts =====================
   // Modelo 3D de cada kart: la simulación lo guarda en k.view y nunca lo mira.
@@ -1070,6 +1075,7 @@ import {
 
   function renderLobby() {
     $('url').textContent = state.joinUrl || `http://${location.host}/play`;
+    $('aviso-https').classList.toggle('hidden', !state.joinSeguro);
     const rows = [];
     for (const p of state.players.values()) {
       const ch = CHARS[p.char] || CHARS[0];

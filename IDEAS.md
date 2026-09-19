@@ -210,8 +210,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       paneles es una función pura en `public/layout.mjs` con prueba en `tools/check-sim.js` (para n = 1..8
       devuelve rectángulos dentro de [0,1] que no se solapan, cubren la pantalla y respetan la tabla de arriba); la simulación no cambia (fase 4 idéntica);
         anota en CHANGELOG el coste estimado de render por panel y márcalo «pendiente de probar en fiesta».
-- [ ] **Volante de giroscopio: el móvil se inclina como el mando de la Wii. 🚧 EN CURSO (lo está
-      haciendo el dueño en su sesión el 2026-09-19 por la tarde — no lo toques).** ⭐ Segunda cosa
+- [x] **Volante de giroscopio: el móvil se inclina como el mando de la Wii.** ⭐ Segunda cosa
       que más quiere el dueño. Girar con los botones ◀ ▶ es incómodo: se acabaron. El móvil se pone
       **en horizontal, con el giro de pantalla bloqueado**, se sujeta con las dos manos y se **gira
       como un volante**. Solo quedan **dos botones**: **GAS** (mitad derecha, toda la altura) y
@@ -238,6 +237,16 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         protocolo acepta y reenvía un `s` decimal sin redondearlo; en la simulación, un kart con
         `s = 0,5` gira la mitad que uno con `s = 1`; el servidor sigue sirviendo por HTTP aunque no
         haya certificado, y `npm test` pasa sin `openssl` instalado.
+      - **Hecho el 2026-09-19 por la tarde.** Salió tal cual, con un cambio de sitio que conviene
+        recordar: las cuentas del volante **no están en `play.js`** sino en `public/volante.js`,
+        con el mismo envoltorio que `geom.js` y `tracks.js` (vale como script en el navegador y
+        como `require` en Node). Así se pueden comprobar sin navegador, y la fase «Volante» de
+        `npm test` las mide contra poses del móvil conocidas: girarlo 40º se mide como 40º tanto
+        de pie como tumbado o a 45º. El sentido está fijado ahí: **girar en el sentido de las
+        agujas del reloj manda a la derecha**. Constantes: zona muerta 5º, tope 35º, filtro 0,35,
+        y `STEER_FIRME = 0.55` en `sim.mjs` (cuánto hay que girar para que cuente como «aguantar
+        el giro» y cargue derrape o dispare el truco del aire). El servidor abre HTTPS en
+        `PORT + 443` con `.cert/` (ignorado por git), que se rehace solo si cambian las IPs.
 
 ## Fase 2 — Iterar sobre la versión final
 

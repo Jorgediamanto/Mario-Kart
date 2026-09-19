@@ -45,6 +45,9 @@ export const DRIFT_L2 = 0.9;         // s para el nivel 2 (naranjas)
 export const DRIFT_L3 = 1.4;         // s para el nivel 3 (rosas)
 export const DRIFT_BOOST = [0.6, 1.0, 1.6];  // s de turbo al soltar, por nivel
 export const DRIFT_TURN = 1.4;       // cuánto gira de más mientras derrapa
+// La dirección es analógica (el volante del móvil manda un decimal de -1 a 1). Por debajo de esto
+// se considera que estás corrigiendo, no girando: no carga derrape ni dispara el truco del aire.
+export const STEER_FIRME = 0.55;
 // Progreso: cuando un kart aparece de golpe muy por delante (ha volado por encima de un atajo), su
 // avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
 // clasificación congelada media vuelta.
@@ -280,7 +283,10 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
 
   function setInput(k, input) {
     if (!k || !input) return;
-    k.input.s = input.s || 0; k.input.g = input.g || 0; k.input.b = input.b || 0; k.input.d = input.d || 0;
+    // `s` es analógico (-1 a 1): el volante del móvil manda decimales, el teclado y los bots ±1
+    const s = Number(input.s);
+    k.input.s = Number.isFinite(s) ? clamp(s, -1, 1) : 0;
+    k.input.g = input.g ? 1 : 0; k.input.b = input.b ? 1 : 0; k.input.d = input.d ? 1 : 0;
   }
 
   // Circuito que se ve en la sala (solo antes de empezar)
@@ -453,16 +459,19 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     if (spd > 320) turn *= 1 - 0.3 * clamp((spd - 320) / 250, 0, 1);
     if (k.air) turn *= 0.35;
     // ---- derrape automático: lo dispara mantener el giro, no un botón ----
-    if (s !== 0 && s === k.steerDir) k.steerT += dt;
-    else { k.steerDir = s; k.steerT = s !== 0 ? dt : 0; }
+    // Para el derrape y el truco solo cuenta *hacia qué lado* giras y si lo haces con ganas
+    // (STEER_FIRME): con el volante del móvil `s` es un decimal que no para de moverse.
+    const dir = Math.abs(s) >= STEER_FIRME ? (s < 0 ? -1 : 1) : 0;
+    if (dir !== 0 && dir === k.steerDir) k.steerT += dt;
+    else { k.steerDir = dir; k.steerT = dir !== 0 ? dt : 0; }
     const puedeDerrapar = spd > maxS * DRIFT_MIN_SPEED && !k.offroad && !k.air;
     const seguia = k.driftT > 0;
-    const drifting = seguia ? (puedeDerrapar && s === k.driftDir) : (puedeDerrapar && s !== 0 && k.steerT >= DRIFT_START);
+    const drifting = seguia ? (puedeDerrapar && dir === k.driftDir) : (puedeDerrapar && dir !== 0 && k.steerT >= DRIFT_START);
     if (drifting) {
       turn *= DRIFT_TURN;
       // el reloj del derrape es el del giro: quien lleva 0,8 s girando va por el nivel 1
       k.driftT = seguia ? k.driftT + dt : k.steerT;
-      k.driftDir = s;
+      k.driftDir = dir;
       const nivel = k.driftT >= DRIFT_L3 ? 3 : k.driftT >= DRIFT_L2 ? 2 : k.driftT >= DRIFT_L1 ? 1 : 0;
       if (nivel !== k.driftLevel) {
         k.driftLevel = nivel;
@@ -475,10 +484,10 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       hooks.onDrift(k, -1);
       hooks.onFx(k, 'drift0');
     }
-    // truco en el aire: en un salto de verdad (no en un botecito), tocar un botón de girar
-    const tocaTruco = s !== 0 && k.sPrev === 0;
+    // truco en el aire: en un salto de verdad (no en un botecito), un volantazo (o tocar ◀ ▶)
+    const tocaTruco = dir !== 0 && k.sPrev === 0;
     if (k.air && tocaTruco && !k.trick && k.z - k.ground > 16 && k.airT > 0.12) { k.trick = true; k.trickAngle = 0; hooks.onSfx('trick', k); }
-    k.sPrev = s;
+    k.sPrev = dir;
 
     k.angle += s * turn * dt * (k.speed >= 0 ? 1 : -1);
     const lag = drifting ? 3.2 : k.air ? 2 : 11;

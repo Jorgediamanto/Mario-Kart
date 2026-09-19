@@ -50,26 +50,44 @@ juego, cierra esa ventana de la Terminal.
 
 ## Controles
 
-**En el móvil** (mejor en horizontal):
+**En el móvil: el móvil ES el volante.** Ponlo **en horizontal**, sujétalo con las dos manos y
+**gíralo como si fuera un volante**, igual que el mando de la Wii. Conviene bloquear el giro de
+pantalla para que no se dé la vuelta sola (en iPhone, desde el centro de control; en Android, el
+botón «Pantalla completa» de la sala lo intenta solo).
 
-El mando tiene **cuatro botones grandes** y nada que configurar: la mitad izquierda son ◀ y ▶, y
-la derecha lleva OBJETO arriba y GAS abajo.
+Solo hay **dos botones**, cada uno de media pantalla, imposibles de fallar con el pulgar:
 
-| Botón | Qué hace |
+| Qué haces | Qué pasa |
 |---|---|
-| ◀ ▶ | Girar (ocupan media pantalla cada uno: se puede girar y acelerar a la vez) |
-| GAS | Acelerar |
-| ◀ + ▶ a la vez | Frenar / marcha atrás |
-| Objeto (morado) | Usar el objeto que llevas |
-| ◀ o ▶ **en el aire** | Hacer un **truco** en los saltos: al aterrizar recibes turbo |
+| **Girar el móvil** | Girar. Es analógico: un poco de giro, un poco de curva |
+| **GAS** (verde, derecha) | Acelerar |
+| **OBJETO** (morado, izquierda) | Usar el objeto que llevas |
+| **Volantazo en el aire** | Hacer un **truco** en los saltos: al aterrizar recibes turbo |
+| **⊙ centrar** (arriba) | Volver a poner a cero el volante si te has torcido |
 
-**El derrape sale solo**: si aguantas el giro hacia el mismo lado a buena velocidad, el kart empieza
-a deslizar a los 0,3 s y va cargando turbo. El botón se te enciende con el color del nivel y vibra al
-subir: ★ azul (0,5 s), ★★ naranja (0,9 s) y ★★★ rosa (1,4 s). Al soltar el giro —o cambiar de lado—
-sales disparado: 0,6, 1,0 o 1,6 segundos de turbo según lo que hayas cargado. En las curvas normales
-se llega a uno o dos niveles; el tres es para las curvas largas. Y si te pierdes, te quedas clavado
-contra algo o te sales de la pista, a los 3 segundos te recogen y te dejan otra vez en la carretera
-mirando hacia donde toca (pierdes un segundo, nada más).
+El volante se pone a cero solo al empezar cada cuenta atrás: sujeta el móvil como te resulte
+cómodo y eso pasa a ser el centro. Da igual lo inclinado que lo tengas.
+
+No hay freno ni marcha atrás: si te pierdes, te quedas clavado contra algo o te sales de la pista,
+a los 3 segundos te recogen y te dejan otra vez en la carretera mirando hacia donde toca.
+
+> **Para que el volante funcione hace falta HTTPS.** Los navegadores solo dejan leer el giroscopio
+> en conexiones seguras, así que el juego se sirve también por `https://` con un certificado propio
+> y el QR lleva ahí. La primera vez cada móvil dirá que **«la conexión no es privada»**: hay que
+> entrar igualmente (*Avanzado → Continuar*). Es tu propio ordenador. Si algún móvil no pasa de ahí,
+> que entre por la dirección `http://…` que imprime la terminal: se juega igual, pero con los
+> botones ◀ ▶.
+
+**Si el móvil no tiene volante** (sin HTTPS, permiso denegado o móvil sin giroscopio), el mando
+enseña solo los botones de siempre: ◀ ▶ para girar, los dos a la vez para ir marcha atrás, GAS y
+OBJETO. Nadie se queda sin jugar. También puedes elegirlos a mano en la sala, con «Prefiero los
+botones ◀ ▶».
+
+**El derrape sale solo**: si aguantas el volante girado hacia el mismo lado a buena velocidad, el
+kart empieza a deslizar a los 0,3 s y va cargando turbo. La barra del volante se enciende con el
+color del nivel y el móvil vibra al subir: ★ azul (0,5 s), ★★ naranja (0,9 s) y ★★★ rosa (1,4 s).
+Al enderezar —o cambiar de lado— sales disparado: 0,6, 1,0 o 1,6 segundos de turbo según lo que
+hayas cargado. En las curvas normales se llega a uno o dos niveles; el tres es para las largas.
 
 **En el ordenador** (quien está al lado del teclado también puede jugar):
 
@@ -122,12 +140,22 @@ no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa.
 
 - Velocidad de los karts: `BASE_MAX_SPEED` al principio de `public/sim.mjs`.
   Gravedad general: `GRAVITY` (y por circuito, `gravity` en `tracks.js`).
-- Puerto: `PORT=3001 npm start`.
+- Puerto: `PORT=3001 npm start` (el de HTTPS es ese más 443, o `HTTPS_PORT=...`).
+  Para quitar el HTTPS y jugar solo con botones: `KART_HTTPS=0 npm start`.
 - Si el QR muestra una IP que no es la de tu WiFi (por ejemplo tienes una VPN):
   `HOST_IP=192.168.1.40 npm start` (la IP correcta sale en la lista que imprime la terminal).
 
 ## Si algo no va
 
+- **El móvil avisa de que «la conexión no es privada»**: es normal y hay que continuar. El juego usa
+  un certificado propio para poder servir por HTTPS, que es lo único que deja al navegador leer el
+  giroscopio (el volante). En Chrome: *Avanzado → Continuar*. En Safari: *Mostrar detalles → visitar
+  este sitio web*. Solo la primera vez en cada móvil.
+- **El volante no responde**: mira en la sala del móvil lo que dice el recuadro 🎡. Si pide activarlo,
+  púlsalo (en iPhone hay que dar permiso). Si dice que hace falta `https://`, has entrado por la
+  dirección sin cifrar: usa la del QR. Y si el móvil no tiene giroscopio, juega con los botones ◀ ▶.
+- **El móvil gira la pantalla mientras juego**: bloquea la rotación (iPhone: centro de control;
+  Android: el botón «Pantalla completa» de la sala intenta bloquearla en horizontal).
 - **Los móviles no cargan la página**: comprueba que están en la misma WiFi (no en datos
   móviles ni en una WiFi de invitados), que el firewall permite `node`, y que no tienes VPN
   activa en el ordenador. Algunos routers tienen "aislamiento de clientes" que impide que los
@@ -184,6 +212,8 @@ sesiones (dónde se quedó, qué falta) y `CHANGELOG.md` el diario de lo que cam
 - `public/index.html` + `public/screen.js`: la pantalla de la tele con [three.js](https://threejs.org);
   monta la simulación y le pone mundo 3D, modelos, partículas, cámara, HUD y sonido.
 - `public/play.html` + `public/play.js`: el mando del móvil.
+- `public/volante.js`: las cuentas del volante (de la inclinación del móvil a la dirección). Está
+  aparte para poder comprobarlas sin navegador, con poses del móvil conocidas.
 - `public/tracks.js` y `public/geom.js`: circuitos y geometría (spline Catmull-Rom).
 - `tools/check-tracks.js`: validador de circuitos. `tools/check-sim.js`: carreras de prueba sin navegador.
 - `tools/check-protocol.js`: prueba del protocolo con una pantalla y ocho móviles simulados.
