@@ -258,6 +258,30 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       - Comprobación: `npm run check` en verde; en la simulación todos los bots terminan cada circuito y el
         tiempo medio de vuelta queda entre 25 y 60 s; los atajos se validan con un bot que los toma
         (variante de `aiInput` con carril alternativo) y llega antes que uno que no.
+      - **Primer subpaso hecho el 2026-09-19 (noche 2)**, el que vale para los cuatro circuitos:
+        arcos de aviso cruzando la carretera 200 unidades antes de cada rampa y de cada panel, y
+        bordillos altos por fuera de las curvas. Falta el trazado circuito a circuito.
+      - ⚠️ **Decisión para el dueño antes de rehacer los trazados (medido, no opinado).** La
+        comprobación pide **vueltas de 25-60 s** y hoy son de **9-12 s**: los circuitos miden unos
+        4.000 px de trazado y los karts van a ~380 unidades/s. Para una vuelta de 25 s harían falta
+        **~9.500 px dentro de un mapa de 1920×1080**, y el validador exige 140 px de separación entre
+        tramos y radios de curva de 65 px como mínimo. Cabe, pero solo en forma de **serpiente**
+        (unas 6 pasadas de lado a lado), que se parece más a un laberinto que a un circuito de karts.
+        Las salidas posibles, de menos a más invasiva:
+        1. **Más vueltas** (5-7 en vez de 3): carreras de 60-90 s sin tocar los trazados. Es un
+           cambio de un número en la sala y no rompe nada. *Lo más barato con diferencia.*
+        2. **Mapa más grande** (`MAP_W`/`MAP_H` en `sim.mjs`, p. ej. 2880×1620): trazados de verdad
+           más largos y con sitio para chicanes y atajos. Toca terreno, decoración, cámara general,
+           validador y los cuatro circuitos; es el cambio serio.
+        3. **Trazados en serpiente** dentro del mapa de ahora: cumple el número, pero el circuito
+           pierde gracia y con la cámara de detrás se vuelve mareante.
+        Mientras no haya respuesta, lo que sí se puede hacer sin decidir nada: chicanes y curvas
+        largas para el nivel 3 del derrape reaprovechando la longitud de ahora, y repasar el ancho.
+      - Nota para quien lo haga: **la simulación no sabe de caminos alternativos** (`nearest` + `lat`
+        define la carretera, no hay ramas). Un «atajo con riesgo» se puede hacer con una **rampa que
+        salte por encima de una curva**: si llegas rápido, caes más adelante y el contador de
+        progreso ya lo acepta (`PROGRESS_JUMP_WAIT`); si llegas lento, caes al césped o al agua y
+        pierdes más de lo que ganabas.
 - [ ] **Afinar las habilidades (objetos).** Con la nueva vista y el derrape automático, equilibra: duración y
       potencia de turbo/estrella/rayo, velocidad y homing de los caparazones, distancia de lanzamiento,
       probabilidades por posición (el último debe remontar pero el primero no debe sentirse injusto) y feedback

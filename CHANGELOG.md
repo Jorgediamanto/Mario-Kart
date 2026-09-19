@@ -3,6 +3,23 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 (noche 2) — Lo que viene se ve venir: arcos y bordillos (Fase 2, primer paso)
+
+- **Qué cambió**: con la cámara detrás del kart ya no se ve el circuito entero, así que ahora un
+  **arco de color cruza la carretera** unas 200 unidades (algo más de medio segundo) antes de cada
+  **rampa** (amarillo) y de cada **panel de turbo** (del color del panel), y las **curvas llevan
+  bordillos altos por fuera**, que es la referencia para saber cuánto falta y por dónde se entra.
+- **Sin coste**: todo va en mallas instanciadas (seis dibujados más en total, no uno por arco),
+  porque con la pantalla dividida cada dibujado se multiplica por el número de paneles. La
+  simulación no cambia: la fase 4 de `npm test` da exactamente lo mismo que antes.
+- **Cómo probarlo**: `npm start` y una vuelta mirando si da tiempo a reaccionar a las rampas y a los
+  paneles desde el panel propio. **Pendiente de probar en fiesta**: si 200 unidades de aviso son
+  suficientes (la constante es `ARCO_ANTES`, en `setWorld` de `public/screen.js`).
+- **Queda pendiente** lo gordo de este punto: rehacer los trazados. Antes hay que decidir una cosa
+  que está anotada con números en `IDEAS.md`: la hoja de ruta pide vueltas de 25-60 s y hoy son de
+  9-12 s, y para eso o se juegan más vueltas, o el mapa se hace más grande, o los circuitos se
+  vuelven serpientes. Es una decisión del dueño, no del agente.
+
 ## 2026-09-19 — Nadie pierde una vuelta en la horquilla (segunda mitad del bug de los bots)
 
 - **Qué pasaba**: el arreglo de esta madrugada curó la mitad del bug (el bot de espaldas). La otra
