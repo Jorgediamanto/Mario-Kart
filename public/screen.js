@@ -438,6 +438,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       const obj = hacer();
       obj.position.set(s.x, s.h, s.y);
       obj.rotation.y = -s.ang;
+      ponerContorno(obj, []);      // el castillo y el aro, también con su borde de dibujo animado
       world.add(obj);
     }
 
@@ -500,7 +501,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
           dummy.updateMatrix();
           vigas.setMatrixAt(k, dummy.matrix);
         });
-        world.add(postes, vigas);
+        world.add(postes, vigas, contornoInstanciado(postes), contornoInstanciado(vigas));
       }
       // bordillos altos por fuera de las curvas (el interior se deja libre para pisarlo derrapando)
       const geoBordillo = new THREE.BoxGeometry(22, 7, 15);   // bajito: si lo pisas no parece que lo atravieses
