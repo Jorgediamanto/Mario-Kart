@@ -7,15 +7,23 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 15:05
+- último latido (UTC): 2026-09-19 15:30
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno
-- hecho: pantalla dividida completa (layout, cámaras, HUD por panel, README y CHANGELOG)
-- siguiente paso: Fase 2, «Mejorar los circuitos para la vista en tercera persona» (circuito a
-  circuito, con una entrada de CHANGELOG por cada uno)
+- IDEAS.md: ninguno (tres puntos cerrados y fusionados en `main` esta noche)
+- hecho: pantalla dividida completa y fusionada con lo que el dueño empujó a mediodía
+- siguiente paso: Fase 2, «Mejorar los circuitos para la vista en tercera persona»
 - intentos fallidos en este punto: 0
+
+## ⚠️ Aviso: el dueño está trabajando en paralelo
+- A mediodía (12:58-13:00 hora local) empujó a `main` el arreglo de la horquilla (`nearestNear`) y
+  dos peticiones nuevas en `IDEAS.md`. Todo fusionado y con `npm test` en verde.
+- El punto **«Volante de giroscopio»** lo está haciendo **él**: no tocarlo.
+- **Ojo para él**: esta noche `play.html` y `play.js` han cambiado (los botones de girar muestran el
+  nivel del derrape con color, ★ y vibración, y la sala explica el derrape automático). Si está
+  rehaciendo el mando para el volante, que parta de `main` actualizado; el respaldo con ◀ ▶ debería
+  conservar el pintado del nivel (`pintarDerrape`) y los `fx` `drift0..3`.
 
 ## Última sesión
 - fin (UTC): 2026-09-19 04:03
