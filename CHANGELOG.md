@@ -3,6 +3,20 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 — `npm run race`: ver las carreras por consola (punto 0.2)
+
+- **Qué cambió**: nueva herramienta `npm run race`. Corre carreras de bots sin navegador y saca una
+  tabla por carrera (posición, tiempo, mejor vuelta, objetos usados, golpes dados y recibidos, saltos,
+  trucos, paneles, tiempo fuera de pista y por el aire), con opciones `--track`, `--laps`, `--bots`,
+  `--seed`, `--runs`, `--verbose` (registro de todo lo que pasa, con tiempo y posición),
+  `--stats items|drift|speed` (histogramas) y `--json`. La simulación aprende a decir **quién** ha
+  dado cada golpe (hook `onHit`), que es lo único que le faltaba para estas cuentas.
+- **Qué gana la fiesta**: a partir de ahora los cambios de objetos, derrape o circuitos se pueden
+  equilibrar con números. El primer dato ya dice algo: los bots casi nunca mantienen el derrape lo
+  bastante como para que salte el miniturbo (queda anotado en `IDEAS.md`, punto 0.2).
+- **Cómo probarlo**: `npm run race -- --track all --runs 3`, o `npm run race -- --help`. No cambia
+  nada de lo que se ve en la tele: el juego se juega exactamente igual que ayer.
+
 ## 2026-09-19 — La simulación sale de la pantalla (punto 0.1)
 
 - **Qué cambió**: la física del juego (karts, saltos, bumpers, paneles, objetos, bots, vueltas y

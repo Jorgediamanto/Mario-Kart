@@ -22,7 +22,9 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   `public/geom.js` — spline Catmull-Rom y remuestreo (compartido con Node).
 - `tools/check-tracks.js` — validador de circuitos. `tools/check-sim.js` — carreras de bots sin
   navegador (fase 4 de `npm test`), con una lista de «escenarios» a la que cada punto nuevo suma el
-  suyo. `tools/check-all.js` — comprobación completa (`npm test`).
+  suyo. `tools/sim-race.js` — `npm run race`: carreras por consola con tabla, registro y histogramas,
+  para equilibrar con datos (`npm run race -- --help`). `tools/check-all.js` — comprobación completa
+  (`npm test`).
 - `Abrir Kart Party.command` — lanzador de doble clic para macOS.
 
 Protocolo móvil ↔ servidor ↔ pantalla (JSON por WebSocket): `hello/welcome`, `lobby`, `roster`,
