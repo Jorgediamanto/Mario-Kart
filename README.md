@@ -40,6 +40,13 @@ Mandos (los móviles, misma WiFi):                        http://192.168.1.40:30
 La primera vez, macOS puede preguntar si permites que `node` acepte conexiones de red:
 di que **sí** (si no, los móviles no podrán conectarse).
 
+## Botón de arranque (macOS)
+
+En la carpeta del juego hay una aplicación **`Kart Party.app`** (y un acceso directo con el mismo
+nombre en el Escritorio): doble clic y se abre la Terminal con el servidor y, sola, la pantalla del
+juego en el navegador. Es lo mismo que `Abrir Kart Party.command`, pero con icono. Para apagar el
+juego, cierra esa ventana de la Terminal.
+
 ## Controles
 
 **En el móvil** (mejor en horizontal):

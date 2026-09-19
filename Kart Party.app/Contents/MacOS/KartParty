@@ -1,0 +1,10 @@
+#!/bin/bash
+# Botón de Kart Party: abre la Terminal con el script de arranque del juego.
+APP="$(cd "$(dirname "$0")/../.." && pwd)"
+DIR="$(dirname "$APP")"
+[ -f "$DIR/Abrir Kart Party.command" ] || DIR="$HOME/Desktop/Kart Party"
+if [ ! -f "$DIR/Abrir Kart Party.command" ]; then
+  osascript -e 'display alert "Kart Party" message "No encuentro la carpeta del juego. Deja Kart Party.app dentro de la carpeta «Kart Party» del Escritorio."'
+  exit 1
+fi
+open -a Terminal "$DIR/Abrir Kart Party.command"
