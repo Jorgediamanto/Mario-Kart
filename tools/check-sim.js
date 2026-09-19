@@ -133,14 +133,19 @@ function correrCircuito(sim, index, opts = {}) {
       if (k.finished && !vueltasAlLlegar.has(k)) vueltasAlLlegar.set(k, k.lapCount);
       // en cada ventana de 10 s, quien no ha terminado tiene que avanzar
       const h = historial.get(k);
-      h.push([k.dist - antes[i].dist, Math.hypot(k.x - antes[i].x, k.y - antes[i].y)]);
+      // el tercer número es lo que se ha movido *siguiendo el sentido del circuito* (px): es la
+      // forma honrada de ver si alguien va al revés, sin que la engañe el contador de progreso,
+      // que se congela cuando un kart vuela por un atajo (ver «Bugs conocidos» de IDEAS.md)
+      const sm = s.state.track.samples[s.state.track.nearest(k.x, k.y).i];
+      const conElCircuito = (k.x - antes[i].x) * Math.cos(sm.ang) + (k.y - antes[i].y) * Math.sin(sm.ang);
+      h.push([k.dist - antes[i].dist, Math.hypot(k.x - antes[i].x, k.y - antes[i].y), conElCircuito]);
       if (h.length > ventana) h.shift();
       if (h.length === ventana && !k.finished) {
         const avance = h.reduce((a, b) => a + b[0], 0);
         const recorrido = h.reduce((a, b) => a + b[1], 0);
-        // quieto de verdad (contra un muro) es un fallo; dar media vuelta y tirar al revés, no
+        const sentido = h.reduce((a, b) => a + b[2], 0);
         if (avance < 40 && recorrido < 400) falla(`${k.name}: atascado (${avance.toFixed(0)} muestras y ${recorrido.toFixed(0)} px en 10 s)`);
-        else if (avance < 40) falla(`${k.name}: se fue en dirección contraria hacia t=${s.state.simTime.toFixed(0)} s (${avance.toFixed(0)} muestras en 10 s)`);
+        else if (sentido < -200) falla(`${k.name}: se fue en dirección contraria hacia t=${s.state.simTime.toFixed(0)} s (${sentido.toFixed(0)} px a contramano en 10 s)`);
       }
     });
     lapsPrevias = ks.map((k) => k.lapCount);
@@ -307,24 +312,83 @@ const escenarios = [
     },
   },
   {
-    nombre: 'el derrape mantenido da turbo al soltarlo',
+    nombre: 'aguantar el giro entra en derrape solo, sube de nivel y da turbo al soltar',
     run(sim) {
       const s = carrera(sim);
       const k = humano(s);
-      // la IA lo lleva por la carretera (fuera de ella no se derrapa) con el derrape pulsado
-      let vueltas = 0;
-      while (k.driftT < 0.7 && vueltas++ < 60 * 12) { s.setInput(k, { ...s.aiInput(k), d: 1 }); s.update(DT); }
-      if (k.driftT < 0.7) return `el derrape no acumula (${k.driftT.toFixed(2)} s)`;
+      const t = s.state.track;
+      // lo ponemos lanzado en el centro de la carretera y mantenemos el giro, sin tocar nada más
+      const m = t.samples[t.nearest(k.x, k.y).i];
+      k.x = m.x; k.y = m.y; k.z = m.h; k.ground = m.h; k.air = false; k.vz = 0;
+      k.angle = m.ang; k.moveAngle = m.ang; k.speed = sim.BASE_MAX_SPEED;
+      const avisos = [];
+      let nivelMax = 0, empezoEn = null;
+      for (let i = 0; i < Math.round(60 * (sim.DRIFT_L1 + 0.35)); i++) {
+        s.setInput(k, { s: 1, g: 1, b: 0, d: 0 });
+        s.update(DT);
+        if (empezoEn === null && k.driftT > 0) empezoEn = (i + 1) / 60;
+        nivelMax = Math.max(nivelMax, k.driftLevel);
+      }
+      if (empezoEn === null) return 'aguantando el giro no ha entrado en derrape';
+      if (empezoEn > sim.DRIFT_START + 0.1) return `tarda ${empezoEn.toFixed(2)} s en derrapar (debería ser ${sim.DRIFT_START} s)`;
+      if (nivelMax < 1) return 'el derrape no llega al nivel 1';
+      // al soltar el giro, turbo
       s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
       s.update(DT);
       if (!(k.boostUntil > s.state.simTime)) return 'soltar el derrape no ha dado turbo';
-      // un toque corto de derrape no da nada
+      if (k.driftT !== 0 || k.driftLevel !== 0) return 'el derrape no se ha soltado del todo';
+
+      // un toque corto de giro no derrapa ni da nada
       const s2 = carrera(sim, { seed: 11 });
       const k2 = humano(s2);
-      for (let i = 0; i < 12; i++) { s2.setInput(k2, { ...s2.aiInput(k2), d: 1 }); s2.update(DT); }
+      const m2 = s2.state.track.samples[s2.state.track.nearest(k2.x, k2.y).i];
+      k2.x = m2.x; k2.y = m2.y; k2.z = m2.h; k2.ground = m2.h; k2.air = false;
+      k2.angle = m2.ang; k2.moveAngle = m2.ang; k2.speed = sim.BASE_MAX_SPEED;
+      k2.boostUntil = 0;
+      for (let i = 0; i < 12; i++) { s2.setInput(k2, { s: -1, g: 1, b: 0, d: 0 }); s2.update(DT); }   // 0,2 s
+      if (k2.driftT > 0) return 'un toque de 0,2 s ya derrapa';
       s2.setInput(k2, { s: 0, g: 1, b: 0, d: 0 });
       s2.update(DT);
-      return k2.boostUntil > s2.state.simTime ? 'un derrape de 0,2 s no debería dar turbo' : null;
+      if (k2.boostUntil > s2.state.simTime) return 'un toque de 0,2 s ha dado turbo';
+
+      // el viejo botón de derrape ya no hace nada
+      const s3 = carrera(sim, { seed: 13 });
+      const k3 = humano(s3);
+      for (let i = 0; i < 60; i++) { s3.setInput(k3, { s: 0, g: 1, b: 0, d: 1 }); s3.update(DT); }
+      if (k3.driftT > 0) return 'el botón `d` sigue derrapando';
+      return avisos.length ? avisos.join('; ') : null;
+    },
+  },
+  {
+    nombre: 'los tres niveles de derrape dan turbos cada vez más largos',
+    run(sim) {
+      const turbos = [];
+      for (let nivel = 1; nivel <= 3; nivel++) {
+        const s = carrera(sim, { seed: 20 + nivel });
+        const k = humano(s);
+        const t = s.state.track;
+        const m = t.samples[t.nearest(k.x, k.y).i];
+        k.x = m.x; k.y = m.y; k.z = m.h; k.ground = m.h; k.air = false; k.vz = 0;
+        k.angle = m.ang; k.moveAngle = m.ang; k.speed = sim.BASE_MAX_SPEED;
+        // giro mantenido, pero sin salirse: lo recolocamos en la carretera en cada paso
+        const objetivo = [sim.DRIFT_L1, sim.DRIFT_L2, sim.DRIFT_L3][nivel - 1] + 0.1;
+        for (let i = 0; i < Math.round(60 * objetivo); i++) {
+          s.setInput(k, { s: 1, g: 1, b: 0, d: 0 });
+          s.update(DT);
+          const mm = t.samples[t.nearest(k.x, k.y).i];
+          k.x = mm.x; k.y = mm.y; k.z = mm.h; k.ground = mm.h; k.air = false;   // lo mantenemos en pista
+          k.speed = Math.max(k.speed, sim.BASE_MAX_SPEED * 0.8);
+        }
+        if (k.driftLevel !== nivel) return `aguantando ${objetivo.toFixed(2)} s el nivel es ${k.driftLevel} y no ${nivel}`;
+        const antes = s.state.simTime;
+        s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+        s.update(DT);
+        turbos.push(k.boostUntil - antes);
+      }
+      if (!(turbos[0] < turbos[1] && turbos[1] < turbos[2])) return `los turbos no crecen con el nivel (${turbos.map((t) => t.toFixed(2)).join(', ')})`;
+      const esperado = sim.DRIFT_BOOST;
+      for (let i = 0; i < 3; i++) if (Math.abs(turbos[i] - esperado[i]) > 0.1) return `el turbo del nivel ${i + 1} dura ${turbos[i].toFixed(2)} s y no ${esperado[i]} s`;
+      return null;
     },
   },
   {

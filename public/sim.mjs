@@ -34,6 +34,17 @@ export const RESCUE_SLOW = 40;    // por debajo de esta velocidad se considera p
 // Bots: si el morro apunta a más de este ángulo (radianes) del camino, el bot va de espaldas;
 // suelta el gas y frena hasta encararse, y solo da marcha atrás cuando ya casi está parado.
 export const AI_WRONG_ANGLE = 2.0;
+// Derrape automático (sin botón): mantener el giro en la misma dirección a buena velocidad entra
+// solo en derrape, y cuanto más se aguante, más turbo al soltar. Los tiempos se cuentan desde que
+// se empieza a girar, así que DRIFT_START es «cuándo empieza a deslizar» y DRIFT_L1..3 «qué nivel
+// lleva». Subir estos números hace el derrape más difícil de cargar; bajarlos, más regalado.
+export const DRIFT_START = 0.30;     // s girando igual antes de que el kart empiece a deslizar
+export const DRIFT_MIN_SPEED = 0.55; // fracción de la velocidad máxima por debajo de la cual no se derrapa
+export const DRIFT_L1 = 0.5;         // s para el nivel 1 (chispas azules)
+export const DRIFT_L2 = 0.9;         // s para el nivel 2 (naranjas)
+export const DRIFT_L3 = 1.4;         // s para el nivel 3 (rosas)
+export const DRIFT_BOOST = [0.6, 1.0, 1.6];  // s de turbo al soltar, por nivel
+export const DRIFT_TURN = 1.4;       // cuánto gira de más mientras derrapa
 export const MAX_KARTS = 8;
 export const SAMPLE_SPACING = 8;
 
@@ -194,6 +205,7 @@ export const DEFAULT_HOOKS = {
   onProjectileRemoved() {},     // (proyectil)
   onBananaAdded() {},           // (plátano)
   onBananaRemoved() {},         // (plátano)
+  onDrift() {},                 // (kart, nivel) 1, 2, 3 al subir de nivel; -1 cuando suelta el derrape
   onRescue() {},                // (kart) lo han recogido y devuelto a la pista
   onResults() {},               // (clasificación final)
 };
@@ -242,7 +254,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
-      driftT: 0, driftDir: 0, trick: false, trickAngle: 0, dPrev: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
+      driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, dPrev: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,
@@ -328,7 +340,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     k.spinUntil = now + SPIN_TIME;
     k.invUntil = now + SPIN_TIME + 1.5;
     k.speed *= 0.25;
-    k.driftT = 0; k.boostUntil = 0; k.trick = false;
+    k.driftT = 0; k.driftLevel = 0; k.steerT = 0; k.boostUntil = 0; k.trick = false;
     k.vz = Math.max(k.vz, 230); k.air = true;
     hooks.onParticles(k.x, k.z + 14, k.y, { n: 14, color: ['#ffe600', '#ffffff', '#ff2d95'], spread: 220, vy: 120, life: 0.7, size: 6 });
     hooks.onShake(6, k);
@@ -354,13 +366,12 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const ahead = t.samples[(near.i + 40) % N];
     const curve = Math.abs(wrapAngle(ahead.ang - t.samples[near.i].ang));
     const brake = curve > 1.5 && k.speed > 340 ? 1 : 0;
-    // en el aire, los bots sueltan derrape y lo pulsan de nuevo a mitad de vuelo: truco
-    const drift = k.air ? (k.airT > 0.2 ? 1 : 0) : (curve > 0.8 && k.speed > 260 ? 1 : 0);
+
     // de espaldas al camino: lo primero es encararse. Con carrerilla, frenar; ya parado, marcha atrás
     const alReves = Math.abs(diff) > AI_WRONG_ANGLE;
     const reverse = alReves && k.speed < 60;
     const frena = brake || alReves;
-    return { s: reverse ? -steer : steer, g: frena ? 0 : 1, b: frena ? 1 : 0, d: alReves ? 0 : drift };
+    return { s: reverse ? -steer : steer, g: frena ? 0 : 1, b: frena ? 1 : 0, d: 0 };
   }
 
   // Lo recogen y lo dejan en el punto más cercano de la carretera, mirando en el sentido correcto
@@ -368,7 +379,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const s = state.track.samples[near.i];
     k.x = s.x; k.y = s.y; k.z = s.h; k.ground = s.h; k.vz = 0; k.air = false; k.airT = 0;
     k.angle = s.ang; k.moveAngle = s.ang; k.speed = 0;
-    k.driftT = 0; k.boostUntil = 0; k.trick = false; k.trickAngle = 0; k.offroad = false;
+    k.driftT = 0; k.driftLevel = 0; k.steerT = 0; k.steerDir = 0;
+    k.boostUntil = 0; k.trick = false; k.trickAngle = 0; k.offroad = false;
     k.stuckT = 0;
     k.rescueUntil = simTime + RESCUE_TIME;
     k.invUntil = Math.max(k.invUntil, simTime + RESCUE_TIME + 0.5);
@@ -382,10 +394,12 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   function stepKart(k, inp, dt) {
     const t = state.track, now = simTime;
     // mientras lo recogen se queda quieto: es la penalización por salirse
-    if (k.rescueUntil > now) { k.speed = 0; k.vz = 0; k.air = false; k.driftT = 0; return; }
+    if (k.rescueUntil > now) { k.speed = 0; k.vz = 0; k.air = false; k.driftT = 0; k.driftLevel = 0; return; }
     const spinning = k.spinUntil > now;
     const active = state.phase === 'race' && !spinning;
-    const s = active ? inp.s : 0, g = active ? inp.g : 0, b = active ? inp.b : 0, d = active ? inp.d : 0;
+    // `inp.d` (el viejo botón de derrape) ya no se usa: el derrape sale solo. Se sigue aceptando en
+    // el protocolo para no romper los móviles que lleven la página cargada de antes.
+    const s = active ? inp.s : 0, g = active ? inp.g : 0, b = active ? inp.b : 0;
 
     const near = t.nearest(k.x, k.y);
     const onRoad = near.d <= t.halfW + 3;
@@ -412,18 +426,33 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     let turn = 2.7 * clamp(spd / 140, 0, 1);
     if (spd > 320) turn *= 1 - 0.3 * clamp((spd - 320) / 250, 0, 1);
     if (k.air) turn *= 0.35;
-    const drifting = d && spd > 160 && !k.offroad && !k.air;
+    // ---- derrape automático: lo dispara mantener el giro, no un botón ----
+    if (s !== 0 && s === k.steerDir) k.steerT += dt;
+    else { k.steerDir = s; k.steerT = s !== 0 ? dt : 0; }
+    const puedeDerrapar = spd > maxS * DRIFT_MIN_SPEED && !k.offroad && !k.air;
+    const seguia = k.driftT > 0;
+    const drifting = seguia ? (puedeDerrapar && s === k.driftDir) : (puedeDerrapar && s !== 0 && k.steerT >= DRIFT_START);
     if (drifting) {
-      turn *= 1.6;
-      if (s !== 0) { k.driftT += dt; k.driftDir = s; }
-    } else if (k.driftT > 0 && !k.air) {
-      if (k.driftT >= 0.7) boost(k, k.driftT >= 1.6 ? 1.1 : 0.7);
-      k.driftT = 0;
+      turn *= DRIFT_TURN;
+      // el reloj del derrape es el del giro: quien lleva 0,8 s girando va por el nivel 1
+      k.driftT = seguia ? k.driftT + dt : k.steerT;
+      k.driftDir = s;
+      const nivel = k.driftT >= DRIFT_L3 ? 3 : k.driftT >= DRIFT_L2 ? 2 : k.driftT >= DRIFT_L1 ? 1 : 0;
+      if (nivel !== k.driftLevel) {
+        k.driftLevel = nivel;
+        if (nivel > 0) { hooks.onDrift(k, nivel); hooks.onFx(k, 'drift' + nivel); }
+      }
+    } else if (seguia && !k.air) {
+      // en el aire el derrape se queda en pausa (un salto no te quita la carga)
+      if (k.driftLevel > 0) boost(k, DRIFT_BOOST[k.driftLevel - 1]);
+      k.driftT = 0; k.driftLevel = 0;
+      hooks.onDrift(k, -1);
+      hooks.onFx(k, 'drift0');
     }
-    // truco en el aire: en un salto de verdad (no en un botecito), tocar derrape o un botón de girar
-    const tocaTruco = (d && !k.dPrev) || (s !== 0 && k.sPrev === 0);
+    // truco en el aire: en un salto de verdad (no en un botecito), tocar un botón de girar
+    const tocaTruco = s !== 0 && k.sPrev === 0;
     if (k.air && tocaTruco && !k.trick && k.z - k.ground > 16 && k.airT > 0.12) { k.trick = true; k.trickAngle = 0; hooks.onSfx('trick', k); }
-    k.dPrev = d; k.sPrev = s;
+    k.sPrev = s;
 
     k.angle += s * turn * dt * (k.speed >= 0 ? 1 : -1);
     const lag = drifting ? 3.2 : k.air ? 2 : 11;

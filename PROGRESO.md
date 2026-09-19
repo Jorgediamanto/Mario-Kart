@@ -7,14 +7,16 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 11:12
+- último latido (UTC): 2026-09-19 12:05
 - rama: noche/2026-09-19
 
 ## Punto en curso
 - IDEAS.md: «Derrape automático con 3 niveles» (Fase 1)
-- hecho: bug de los bots cerrado y fusionado; `tools/referencia.json` con los tiempos de vuelta de
-  antes del cambio y la fase 4 comparándolos (falla si empeoran más de un 10 %)
-- siguiente paso: el derrape automático en `sim.mjs` (constantes + niveles + hook `onDrift`)
+- hecho: derrape automático en `sim.mjs` (constantes, 3 niveles, hook `onDrift`, `fx` al móvil),
+  tiempos medidos y afinados (L1 0,5 / L2 0,9 / L3 1,4 s, medidos con la duración real de las
+  curvas), bots dentro del 10 % de la referencia, dos escenarios nuevos en `check-sim.js`
+- siguiente paso: pantalla (chispas por nivel + brillo), móvil (`play.js`/`play.html`), README y
+  la comprobación del `fx` nuevo en `check-protocol.js`
 - intentos fallidos en este punto: 0
 
 ## Última sesión
