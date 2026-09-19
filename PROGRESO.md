@@ -7,13 +7,16 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 15:30
+- último latido (UTC): 2026-09-19 15:55
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: ninguno (tres puntos cerrados y fusionados en `main` esta noche)
-- hecho: pantalla dividida completa y fusionada con lo que el dueño empujó a mediodía
-- siguiente paso: Fase 2, «Mejorar los circuitos para la vista en tercera persona»
+- IDEAS.md: Fase 2, «Mejorar los circuitos para la vista en tercera persona»
+- hecho: primer subpaso, el que vale para los cuatro circuitos: arcos de aviso antes de cada rampa
+  y de cada panel de turbo, y bordillos altos por fuera de las curvas (todo en mallas instanciadas)
+- siguiente paso: el trazado circuito a circuito (chicanes, curva larga para el nivel 3, atajo con
+  riesgo). Ojo: la «Comprobación» pide vueltas de 25-60 s y hoy son de 9-12 s, o sea circuitos
+  entre 2,5 y 5 veces más largos: es una decisión gorda, ver la nota de abajo
 - intentos fallidos en este punto: 0
 
 ## ⚠️ Aviso: el dueño está trabajando en paralelo
