@@ -7,11 +7,12 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 17:05
+- último latido (UTC): 2026-09-19 17:35
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: Fase 2 terminada salvo los trazados (esperan decisión del dueño)
+- IDEAS.md: Fase 3, «Aviso ¡Vas al revés!» — terminado (el «modo fácil» se salta a propósito:
+  toca la sala del móvil, que el dueño está rehaciendo para el volante)
 - hecho: primer subpaso, el que vale para los cuatro circuitos: arcos de aviso antes de cada rampa
   y de cada panel de turbo, y bordillos altos por fuera de las curvas (todo en mallas instanciadas)
 - siguiente paso: el trazado circuito a circuito (chicanes, curva larga para el nivel 3, atajo con

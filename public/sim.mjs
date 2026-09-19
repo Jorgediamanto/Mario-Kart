@@ -55,6 +55,10 @@ export const PROGRESS_JUMP_WAIT = 1.0;   // segundos
 // Rayo: a quien le cae no le puede volver a caer en este rato. Sin esto, dos rayos seguidos dejaban
 // al líder encogido media carrera y sin nada que hacer, que es justo lo que no queremos en la fiesta.
 export const LIGHTNING_IMMUNITY = 30;   // segundos
+// Aviso de «vas al revés»: tanto tiempo seguido avanzando contra el sentido del circuito antes de
+// avisar. Corto marea (basta un coletazo en una curva); largo llega tarde.
+export const WRONG_WAY_TIME = 1.5;      // segundos
+export const WRONG_WAY_SPEED = 60;      // por debajo de esta velocidad no se considera que avanza
 export const MAX_KARTS = 8;
 export const SAMPLE_SPACING = 8;
 
@@ -229,6 +233,7 @@ export const DEFAULT_HOOKS = {
   onBananaAdded() {},           // (plátano)
   onBananaRemoved() {},         // (plátano)
   onDrift() {},                 // (kart, nivel) 1, 2, 3 al subir de nivel; -1 cuando suelta el derrape
+  onWrongWay() {},              // (kart, siVaAlReves) empieza o deja de ir en sentido contrario
   onRescue() {},                // (kart) lo han recogido y devuelto a la pista
   onResults() {},               // (clasificación final)
 };
@@ -279,7 +284,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
-      zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
+      wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,
@@ -415,6 +420,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     k.x = s.x; k.y = s.y; k.z = s.h; k.ground = s.h; k.vz = 0; k.air = false; k.airT = 0;
     k.angle = s.ang; k.moveAngle = s.ang; k.speed = 0;
     k.driftT = 0; k.driftLevel = 0; k.steerT = 0; k.steerDir = 0;
+    k.wrongT = 0;
+    if (k.wrongWay) { k.wrongWay = false; hooks.onWrongWay(k, false); hooks.onFx(k, 'wrong0'); }
     k.boostUntil = 0; k.trick = false; k.trickAngle = 0; k.offroad = false;
     k.stuckT = 0;
     k.rescueUntil = simTime + RESCUE_TIME;
@@ -569,6 +576,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (k.stuckT >= RESCUE_AFTER) { rescatar(k, propio); return; }
     }
 
+    comprobarSentido(k, near2, dt);
     updateProgress(k, near2, dt);
   }
 
@@ -582,6 +590,23 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (k.airT >= 0.4) { stats.tricks++; boost(k, 0.9); if (k.isHuman) hooks.onToast(`${k.emoji} ${k.name}: ¡truco! 🤸`, 1.5); }
     }
     if (impact > 80) hooks.onSfx('land', k);
+  }
+
+  // ¿va en sentido contrario? Se mira si su movimiento apunta contra el trazado de su tramo. No
+  // cuenta mientras da un trompo, mientras lo recogen ni casi parado (ahí cualquiera se lía).
+  function comprobarSentido(k, near, dt) {
+    const s = state.track.samples[near.i];
+    const alReves = state.phase === 'race' && !k.finished && k.spinUntil <= simTime && k.rescueUntil <= simTime
+      && Math.abs(k.speed) > WRONG_WAY_SPEED
+      && Math.cos(k.moveAngle - s.ang) * Math.sign(k.speed) < -0.3;
+    k.wrongT = alReves ? k.wrongT + dt : 0;
+    const aviso = k.wrongT >= WRONG_WAY_TIME;
+    if (aviso !== k.wrongWay) {
+      k.wrongWay = aviso;
+      hooks.onWrongWay(k, aviso);
+      hooks.onFx(k, aviso ? 'wrong' : 'wrong0');
+      if (aviso) hooks.onSfx('wrong', k);
+    }
   }
 
   function updateProgress(k, near, dt) {

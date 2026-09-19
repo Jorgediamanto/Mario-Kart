@@ -370,6 +370,41 @@ const escenarios = [
     },
   },
   {
+    nombre: 'ir al revés más de 1,5 s dispara el aviso, y girarse lo apaga',
+    run(sim) {
+      const avisos = [];
+      const s = carrera(sim, { bots: 1, hooks: { onWrongWay: (k, va) => avisos.push([k.name, va]) } });
+      const k = humano(s);
+      const t = s.state.track;
+      const m = t.samples[t.nearest(k.x, k.y).i];
+      // marcha atrás a conciencia: mirando bien pero moviéndose hacia atrás
+      k.x = m.x; k.y = m.y; k.z = m.h; k.ground = m.h; k.air = false; k.vz = 0;
+      k.angle = m.ang; k.moveAngle = m.ang + Math.PI; k.speed = 200;
+      for (let i = 0; i < 60 * 1.2; i++) {
+        s.setInput(k, { s: 0, g: 0, b: 0, d: 0 });
+        k.moveAngle = t.samples[t.nearest(k.x, k.y).i].ang + Math.PI; k.speed = 200;   // sigue yendo al revés
+        s.update(DT);
+      }
+      if (k.wrongWay) return `avisa a los ${k.wrongT.toFixed(2)} s, antes de ${sim.WRONG_WAY_TIME}`;
+      for (let i = 0; i < 60 * 0.6; i++) {
+        s.setInput(k, { s: 0, g: 0, b: 0, d: 0 });
+        k.moveAngle = t.samples[t.nearest(k.x, k.y).i].ang + Math.PI; k.speed = 200;
+        s.update(DT);
+      }
+      if (!k.wrongWay) return `no avisa ni a los ${k.wrongT.toFixed(2)} s`;
+      if (!avisos.some(([, va]) => va === true)) return 'el hook onWrongWay no ha saltado';
+      // se gira: el aviso se apaga
+      for (let i = 0; i < 60; i++) {
+        const mm = t.samples[t.nearest(k.x, k.y).i];
+        k.moveAngle = mm.ang; k.angle = mm.ang; k.speed = 200;
+        s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+        s.update(DT);
+      }
+      if (k.wrongWay) return 'sigue avisando después de darse la vuelta';
+      return avisos.some(([, va]) => va === false) ? null : 'el hook no avisa de que ya va bien';
+    },
+  },
+  {
     nombre: 'un plátano hace girar al que lo pisa',
     run(sim) {
       const s = carrera(sim);
