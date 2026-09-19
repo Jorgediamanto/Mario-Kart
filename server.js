@@ -266,6 +266,25 @@ function ensureHost() {
   hostId = newId;
   toScreen({ t: 'host', hostId });
 }
+// Echa a todos y deja la sala vacía. Es el último recurso de la fiesta: cuando un móvil que ya
+// nadie tiene delante se ha quedado de anfitrión, desde la tele se vacía y todos vuelven a entrar.
+function vaciarSala() {
+  const ids = [...players.keys()];
+  for (const id of ids) {
+    const p = players.get(id);
+    // `kicked` y no `err`: el móvil tiene que dejar de reconectarse solo, o volvería a entrar
+    // al instante y no habríamos vaciado nada.
+    if (p && p.ws) { try { send(p.ws, { t: 'kicked', msg: 'Se ha vaciado la sala desde la tele. Vuelve a entrar cuando quieras.' }); p.ws.playerId = null; p.ws.close(); } catch (_) { /* ignore */ } }
+    clearTimeout(p && p.timer);
+    players.delete(id);
+    toScreen({ t: 'leave', id });
+  }
+  hostId = null;
+  log(`Sala vaciada desde la tele (${ids.length} jugadores)`);
+  ensureHost();
+  broadcastLobby();
+}
+
 function removePlayer(id, reason) {
   const p = players.get(id);
   if (!p) return;
@@ -333,6 +352,7 @@ wss.on('connection', (ws) => {
         return;
       }
       if (m.t === 'set' && m.settings) { applySettings(m.settings); return; }
+      if (m.t === 'vaciar') { vaciarSala(); return; }
       return;
     }
 
@@ -343,6 +363,17 @@ wss.on('connection', (ws) => {
       let p = null;
       if (typeof m.token === 'string' && m.token.length <= 64) {
         for (const q of players.values()) if (q.token === m.token) { p = q; break; }
+      }
+      /*
+       * Sin token válido, pero pidiendo un personaje que tiene un jugador **desconectado**: es la
+       * misma persona volviendo (ha saltado al volante, que es otra dirección y por tanto otro
+       * almacén del navegador; o ha recargado tras borrar datos). Recupera su sitio en vez de
+       * chocar con un «ese personaje ya está cogido» contra su propio fantasma, que además se
+       * quedaría 90 segundos ocupando plaza y, si era el anfitrión, con la corona.
+       */
+      if (!p && char >= 0) {
+        for (const q of players.values()) if (q.char === char && !isConnected(q)) { p = q; break; }
+        if (p) log(`Vuelve por otra dirección: ${p.name} recupera su sitio`);
       }
       if (p) {
         // Reconexión (o cambio de nombre/personaje)

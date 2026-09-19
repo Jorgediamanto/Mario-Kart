@@ -922,6 +922,28 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
     updateOverlays();
   }
 
+  /*
+   * Vaciar la sala desde la tele. Es el último recurso de la fiesta: si un móvil que ya nadie
+   * tiene delante se queda de anfitrión (una pestaña vieja abierta, alguien que se fue con el
+   * juego puesto), nadie puede empezar la carrera y desde el móvil no hay forma de echarlo.
+   * Se pide dos veces seguidas para no vaciarla sin querer al apoyarse en el teclado.
+   */
+  let vaciarPedidoEn = 0;
+  function vaciarSala() {
+    const ahora = Date.now();
+    if (ahora - vaciarPedidoEn > 4000) {
+      vaciarPedidoEn = ahora;
+      toast('¿Vaciar la sala y que vuelvan a entrar todos? Pulsa V otra vez', 4);
+      return;
+    }
+    vaciarPedidoEn = 0;
+    wsSend({ t: 'vaciar' });
+    state.players.clear();
+    state.hostId = null;
+    toast('Sala vacía: que todos vuelvan a escanear el QR', 5);
+    updateOverlays();
+  }
+
   function toggleKeyboardPlayer() {
     if (state.phase !== 'lobby') return;
     state.kb = state.kb ? null : { input: { s: 0, g: 0, b: 0, d: 0 } };
@@ -1337,6 +1359,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
       else if (key === 'b' || key === 'B') changeSetting('bots', 1);
       else if (key === 'n' || key === 'N') changeSetting('bots', -1);
       else if (key === 'l' || key === 'L') changeSetting('laps', 1);
+      else if (key === 'v' || key === 'V') vaciarSala();
     } else if (state.phase === 'results') {
       if (key === 'Enter') sim.backToLobby();
     }

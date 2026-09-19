@@ -211,6 +211,25 @@ async function recorrido(PORT) {
     check(JSON.stringify(tras) === JSON.stringify([1, 0, 0.5]),
       `el servidor recorta la dirección a -1..1 y descarta la basura (${tras.join(', ')})`);
 
+    // ---- volver por otra dirección (el salto al volante) no crea un jugador fantasma ----
+    {
+      const antes = moviles[3];
+      const suId = antes.id, suChar = 3;      // cada móvil entró con char = su índice
+      antes.close();                          // se va de una dirección…
+      await espera(250);
+      const vuelve = cliente(PORT, 'vuelve'); // …y vuelve por la otra, sin token guardado
+      await vuelve.abierto;
+      vuelve.manda({ t: 'hello', name: 'Vuelve', char: suChar });
+      const bienvenida = await vuelve.espera('welcome');
+      check(bienvenida && bienvenida.id === suId,
+        `al volver por otra dirección recupera su sitio en vez de duplicarse (id ${bienvenida ? bienvenida.id : '?'} = ${suId})`);
+      const sala = await vuelve.espera('lobby');
+      const cuantos = sala ? sala.players.filter((p) => p.char === suChar).length : 0;
+      check(cuantos === 1, `no queda ningún fantasma con su personaje (${cuantos})`);
+      vuelve.close();
+      await espera(150);
+    }
+
     // y el objeto
     tele.olvida();
     quien.manda({ t: 'use' });
@@ -275,6 +294,26 @@ async function recorrido(PORT) {
     quien.manda({ t: 'leave' });
     const leave = await tele.espera((m) => m.t === 'leave' && m.id === quien.id);
     check(!!leave, '`leave` saca al jugador y la pantalla se entera');
+  }
+
+  // ---- vaciar la sala desde la tele: el último recurso de la fiesta ----
+  {
+    tele.olvida();
+    const testigo = moviles.find((m) => m.readyState === 1 && m !== moviles[4]);
+    tele.manda({ t: 'vaciar' });
+    await espera(400);
+    const aviso = testigo ? testigo.recibidos.find((m) => m.t === 'kicked') : null;
+    check(!!aviso, 'al vaciar la sala, a los móviles les llega `kicked` (no un error cualquiera)');
+    // y después la sala está de verdad vacía: entra uno nuevo y es el anfitrión
+    const nuevo = cliente(PORT, 'nuevo');
+    await nuevo.abierto;
+    nuevo.manda({ t: 'hello', name: 'Nuevo', char: 0 });
+    const bien = await nuevo.espera('welcome');
+    const sala = await nuevo.espera('lobby');
+    check(bien && sala && sala.players.length === 1 && sala.hostId === bien.id,
+      `tras vaciar, quien entra se queda solo y de anfitrión (${sala ? sala.players.length : '?'} en la sala)`);
+    nuevo.close();
+    await espera(150);
   }
 
   // ---- abrir la pantalla dos veces: la vieja queda inactiva ----

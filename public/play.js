@@ -80,6 +80,16 @@
         wantJoin = false;
         if (!joined) setView();
         break;
+      case 'kicked':
+        // nos han sacado de la sala desde la tele: hay que soltarlo todo y **dejar de volver
+        // solos**, o al reconectar entraríamos otra vez y la sala nunca quedaría vacía
+        joined = false; wantJoin = false; editing = false; spectating = false;
+        me.id = null; me.token = ''; me.host = false;
+        store.set('token', '');
+        lobby = null; status = null;
+        setView();
+        showErr(m.msg || 'Se ha vaciado la sala. Vuelve a entrar.');
+        break;
       case 'roster':
         takenChars = new Set(m.taken);
         renderChars();
@@ -194,7 +204,7 @@
     $('set-bots').textContent = s.bots;
     $('guest-settings').textContent = me.host ? '' : `Circuito: ${trackName} · ${s.laps} vueltas · ${s.bots} bots`;
     $('lobby-players').innerHTML = lobby
-      ? lobby.players.map((p) => `<li class="${p.connected ? '' : 'off'}">${(CHARS[p.char] || CHARS[0]).emoji} ${esc(p.name)}${p.host ? ' 👑' : ''}</li>`).join('')
+      ? lobby.players.map((p) => `<li class="${p.connected ? '' : 'off'}">${(CHARS[p.char] || CHARS[0]).emoji} ${esc(p.name)}${p.host ? ' 👑' : ''}${p.id === me.id ? ' <b style="color:#39ff88">(tú)</b>' : ''}${p.connected ? '' : ' <span style="opacity:.7">(sin conexión)</span>'}</li>`).join('')
       : '';
   }
   document.querySelectorAll('[data-set]').forEach((b) => {
@@ -296,9 +306,14 @@
    */
   function saltarAlVolante() {
     if (!urlVolante) return;
-    try { send({ t: 'leave' }); } catch (_) { /* da igual, nos vamos */ }
-    const destino = `${urlVolante}#n=${encodeURIComponent(me.name || '')}&c=${me.char >= 0 ? me.char : ''}`;
-    setTimeout(() => { location.href = destino; }, 120);
+    // Nos llevamos también el token: para el navegador la dirección cifrada es otro sitio y no
+    // comparte lo guardado, pero el servidor nos reconoce por el token y seguimos siendo el mismo
+    // jugador, con nuestro personaje y la corona si la teníamos. Sin esto aparecería un segundo
+    // «yo» en la sala y el fantasma se quedaría de anfitrión.
+    const destino = `${urlVolante}#n=${encodeURIComponent(me.name || '')}`
+      + `&c=${me.char >= 0 ? me.char : ''}`
+      + `&t=${encodeURIComponent(me.token || '')}`;
+    location.href = destino;
   }
 
   function apagarVolante() {
@@ -505,8 +520,10 @@
     const p = new URLSearchParams(location.hash.slice(1));
     const n = (p.get('n') || '').trim().slice(0, 12);
     const c = parseInt(p.get('c'), 10);
+    const t = p.get('t') || '';
     if (n) { me.name = n; store.set('name', n); nameInput.value = n; }
     if (c >= 0 && c < CHARS.length) { me.char = c; store.set('char', c); }
+    if (t) { me.token = t; store.set('token', t); }
     if (n && me.char >= 0) wantJoin = true;
     try { history.replaceState(null, '', location.pathname); } catch (_) { location.hash = ''; }
   }

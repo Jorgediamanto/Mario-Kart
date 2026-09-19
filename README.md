@@ -117,6 +117,7 @@ hayas cargado. En las curvas normales se llega a uno o dos niveles; el tres es p
 | `L` | Cambiar el número de vueltas |
 | `B` / `N` | Más / menos bots |
 | `F` | Pantalla completa |
+| `V` | Vaciar la sala (dos veces seguidas): echa a todos y vuelven a entrar |
 | `P` | Ver los fps (para comprobar que va fino con la pantalla dividida) |
 | Flechas, `Espacio` (objeto) | Conducir con el jugador de teclado (el derrape también sale solo) |
 
@@ -207,6 +208,11 @@ no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa.
   Chrome. En teles 4K ayuda poner la resolución del escritorio a 1080p.
 - **No se oye nada en la tele**: haz clic una vez sobre la página del juego (los navegadores
   bloquean el sonido hasta que interactúas).
+- **Dice que hay otra persona de anfitrión y no soy yo**: casi siempre es tu propio móvil, con el
+  juego abierto en otra pestaña o en otra aplicación. En la lista de la sala, tu jugador sale
+  marcado con **(tú)**: si ves tu nombre dos veces, cierra la otra. Si el anfitrión es alguien que
+  ya se fue y nadie puede empezar la carrera, en la tele **pulsa `V` dos veces**: vacía la sala y
+  todos vuelven a entrar escaneando el QR.
 - **A alguien se le bloquea el móvil**: al desbloquearlo la página se reconecta sola y sigue
   con su kart; su sitio se guarda 90 segundos.
 - **Se abrió la pantalla dos veces**: solo la última queda activa; la otra muestra un aviso.

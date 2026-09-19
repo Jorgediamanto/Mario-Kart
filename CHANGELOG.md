@@ -4,6 +4,33 @@ Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del a
 llevan la fecha en que se hicieron.
 
 <<<<<<< HEAD
+## 2026-09-19 — Se acabaron los anfitriones fantasma
+
+- **Qué pasaba**: al entrar, a veces salía que **ya había otra persona de anfitrión** aunque
+  estuvieras solo. Eran fantasmas de uno mismo: el móvil con el juego abierto en otra pestaña o en
+  otra aplicación se reconecta solo y se queda con la corona, y como el sitio de un móvil
+  desconectado se guarda 90 segundos, además te bloqueaba tu propio personaje. Activar el volante
+  lo empeoraba: la dirección cifrada es otro sitio para el navegador, así que llegabas como un
+  jugador nuevo y tu «yo» anterior se quedaba ahí.
+- **Tres arreglos**:
+  1. Al **activar el volante**, el salto se lleva tu identidad: llegas como el mismo jugador, con
+     tu personaje y tu corona. Ya no aparece un segundo «tú».
+  2. Si vuelves **sin identidad** (has borrado datos, o vienes de otra dirección) y pides el
+     personaje de un jugador **desconectado**, recuperas su sitio en vez de chocar con un «ese
+     personaje ya está cogido» contra tu propio fantasma.
+  3. En la tele, **`V` dos veces vacía la sala**: echa a todos y todos vuelven a entrar. Es el
+     último recurso cuando un móvil que ya nadie tiene delante se ha quedado de anfitrión. A los
+     móviles echados les llega un aviso y **dejan de reconectarse solos** (si no, volvían a entrar
+     al instante y no se vaciaba nada).
+- **Y para verlo**: en la lista de la sala del móvil, tu jugador sale marcado con **(tú)** y los
+  desconectados con **(sin conexión)**. Si ves tu nombre dos veces, ya sabes qué pasa.
+- **Cómo probarlo**: entra con el móvil, pulsa «Activar el volante» y mira que en la sala sigues
+  saliendo una sola vez y con tu corona. Y con alguien dentro, pulsa `V` dos veces en la tele: la
+  sala tiene que quedarse vacía y ese móvil volver a su pantalla de entrar.
+- `npm test`: tres comprobaciones nuevas en la prueba del protocolo (recuperar el sitio al volver
+  por otra dirección, que no queda fantasma, y que al vaciar la sala llega `kicked` y quien entra
+  después se queda solo y de anfitrión).
+
 ## 2026-09-19 — Entrar vuelve a ser directo: el aviso del navegador ya no está en la puerta
 
 - **Qué pasaba**: al poner el QR apuntando a la dirección cifrada, lo primero que veía cualquiera
