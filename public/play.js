@@ -220,14 +220,22 @@
   });
   const fsBtn = $('btn-fs');
   if (!document.documentElement.requestFullscreen) fsBtn.classList.add('hidden');
-  // Con el volante el móvil se gira mucho: conviene bloquear la pantalla en horizontal para que
-  // no se dé la vuelta sola. Solo funciona a pantalla completa (y en iPhone no existe: allí se
-  // bloquea desde el centro de control).
-  fsBtn.addEventListener('click', () => {
-    document.documentElement.requestFullscreen()
-      .then(() => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (_) { /* no se puede */ } })
-      .catch(() => {});
-  });
+  /*
+   * Con el volante el móvil se gira mucho, así que la pantalla se daría la vuelta sola a cada
+   * curva. Esto pide pantalla completa y, ya dentro, bloquea el giro en horizontal.
+   * Ojo: tiene que llamarse **dentro** de un toque, y en iPhone no existe ninguna de las dos
+   * cosas (allí se bloquea a mano desde el centro de control, y así lo dice la ayuda).
+   */
+  function pantallaCompletaYHorizontal() {
+    try {
+      const el = document.documentElement;
+      if (!el.requestFullscreen || document.fullscreenElement) return;
+      el.requestFullscreen()
+        .then(() => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (_) { /* no se puede */ } })
+        .catch(() => {});
+    } catch (_) { /* no se puede */ }
+  }
+  fsBtn.addEventListener('click', pantallaCompletaYHorizontal);
 
   // ---- Volante (giroscopio) ----
   /*
@@ -387,6 +395,8 @@
   }, 33);
   $('btn-centrar').addEventListener('click', (e) => { e.preventDefault(); centrarVolante(); vibrate(20); });
   $('btn-volante').addEventListener('click', async () => {
+    // el mismo toque sirve para las dos cosas: pantalla completa en horizontal y permiso del sensor
+    pantallaCompletaYHorizontal();
     const ok = await activarVolante(true);
     if (!ok) { volante.pedido = false; pintarVolante(); $('volante-estado').innerHTML = '<b style="color:#ff6b6b">No se ha podido activar el volante.</b> Jugarás con los botones ◀ ▶.'; }
     else vibrate(30);
