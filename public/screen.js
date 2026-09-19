@@ -743,7 +743,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   state.replaced = false;
   state.joinUrl = '';
   state.joinSeguro = false;
-  state.joinUrlSimple = '';
+  state.joinUrlVolante = '';
   state.shake = 0;
 
   let animT = 0;
@@ -845,7 +845,7 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
   fetch('/info').then((r) => r.json()).then((info) => {
     state.joinUrl = info.url;
     state.joinSeguro = !!info.seguro;       // el QR lleva a https: hay que avisar del cartel del navegador
-    state.joinUrlSimple = info.urlSimple || '';   // la de repuesto, sin cifrar, por si un móvil se atasca
+    state.joinUrlVolante = info.urlVolante || '';  // la cifrada, solo para quien quiera volante
     updateOverlays();
   }).catch(() => {});
 
@@ -1288,8 +1288,8 @@ import { panelLayout, panelEnPixeles } from './layout.mjs';
 
   function renderLobby() {
     $('url').textContent = state.joinUrl || `http://${location.host}/play`;
-    $('aviso-https').classList.toggle('hidden', !state.joinSeguro);
-    $('url-simple').textContent = state.joinUrlSimple;
+    $('aviso-https').classList.toggle('hidden', !state.joinUrlVolante);
+    $('url-volante').textContent = state.joinUrlVolante;
     const rows = [];
     for (const p of state.players.values()) {
       const ch = CHARS[p.char] || CHARS[0];

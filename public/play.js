@@ -251,6 +251,10 @@
    * mando enseña los botones ◀ ▶ de siempre: nadie se queda sin jugar.
    */
   const V = window.KART_VOLANTE;          // las cuentas del volante viven en /volante.js
+  // Dirección cifrada del mando: hace falta para el giroscopio, pero se entra por la normal (ver
+  // `saltarAlVolante`). La pedimos al servidor porque el móvil no sabe el puerto ni la IP.
+  let urlVolante = '';
+  fetch('/info').then((r) => r.json()).then((info) => { urlVolante = info.urlVolante || ''; pintarVolante(); }).catch(() => {});
   const volante = { pedido: store.get('volante', '1') === '1', va: false, visto: false, centro: null, ang: 0, s: 0, plano: false };
 
   function alInclinar(e) {
@@ -284,6 +288,19 @@
     setTimeout(pintarVolante, 2000);
     return true;
   }
+  /*
+   * Saltar a la dirección cifrada para poder usar el giroscopio. Es otro origen para el navegador,
+   * así que allí no hay ni token ni nombre guardados: se los llevamos en la dirección para que al
+   * llegar entre solo, sin tener que escribir nada otra vez. Y soltamos el sitio en la sala antes
+   * de irnos, para no dejar un jugador fantasma ocupando plaza.
+   */
+  function saltarAlVolante() {
+    if (!urlVolante) return;
+    try { send({ t: 'leave' }); } catch (_) { /* da igual, nos vamos */ }
+    const destino = `${urlVolante}#n=${encodeURIComponent(me.name || '')}&c=${me.char >= 0 ? me.char : ''}`;
+    setTimeout(() => { location.href = destino; }, 120);
+  }
+
   function apagarVolante() {
     window.removeEventListener('deviceorientation', alInclinar);
     volante.va = false; volante.visto = false; volante.pedido = false;
@@ -301,11 +318,16 @@
     if (gas) gas.textContent = con ? 'gira el móvil para girar' : 'los dos giros a la vez = marcha atrás';
     const estado = $('volante-estado'), btnV = $('btn-volante'), btnB = $('btn-botones');
     if (!estado) return;
+    const saltar = !volantePosible() && !!urlVolante;   // estamos en la dirección normal y hay otra cifrada
     if (con) estado.innerHTML = '<b style="color:#39ff88">Volante listo.</b> Pon el móvil en horizontal y gíralo como un volante.';
-    else if (!volantePosible()) estado.innerHTML = 'Este móvil no puede usar el volante (hace falta entrar por <b>https://</b>). Jugarás con los botones ◀ ▶.';
+    else if (saltar) estado.innerHTML = '¿Quieres girar <b>inclinando el móvil</b>, como el mando de la Wii? Hace falta una conexión cifrada. Al pulsar, el navegador dirá que <b>«la conexión no es privada»</b>: es normal, es el ordenador de la tele. Dale a <b>Avanzado → Continuar</b>.';
+    else if (!volantePosible()) estado.innerHTML = 'Este móvil jugará con los botones ◀ ▶. (El volante necesita una conexión cifrada y aquí no la hay.)';
     else if (volante.va) estado.innerHTML = 'Esperando al sensor… si no se enciende, este móvil no tiene giroscopio y jugarás con los botones ◀ ▶.';
     else estado.innerHTML = 'Puedes girar <b>inclinando el móvil</b>, como el mando de la Wii.';
-    if (btnV) btnV.classList.toggle('hidden', con || !volantePosible());
+    if (btnV) {
+      btnV.classList.toggle('hidden', con || (!volantePosible() && !saltar));
+      btnV.textContent = saltar ? 'Activar el volante 🎡 (verás un aviso)' : 'Activar el volante 🎡';
+    }
     if (btnB) btnB.classList.toggle('hidden', !con);
   }
 
@@ -395,6 +417,8 @@
   }, 33);
   $('btn-centrar').addEventListener('click', (e) => { e.preventDefault(); centrarVolante(); vibrate(20); });
   $('btn-volante').addEventListener('click', async () => {
+    // desde la dirección normal no hay sensores: lo primero es saltar a la cifrada
+    if (!volantePosible() && urlVolante) { saltarAlVolante(); return; }
     // el mismo toque sirve para las dos cosas: pantalla completa en horizontal y permiso del sensor
     pantallaCompletaYHorizontal();
     const ok = await activarVolante(true);
@@ -470,6 +494,21 @@
     try {
       if (navigator.wakeLock && !wakeLock) navigator.wakeLock.request('screen').then((wl) => { wakeLock = wl; wl.addEventListener('release', () => { wakeLock = null; }); }).catch(() => {});
     } catch (_) { /* no disponible en http */ }
+  }
+
+  /*
+   * ¿Venimos del salto al volante? La dirección cifrada es otro origen, así que aquí no hay nada
+   * guardado: el nombre y el personaje vienen en la propia dirección. Los recogemos, limpiamos la
+   * barra y entramos solos, para que el salto sea un toque y ya está.
+   */
+  if (location.hash.length > 1) {
+    const p = new URLSearchParams(location.hash.slice(1));
+    const n = (p.get('n') || '').trim().slice(0, 12);
+    const c = parseInt(p.get('c'), 10);
+    if (n) { me.name = n; store.set('name', n); nameInput.value = n; }
+    if (c >= 0 && c < CHARS.length) { me.char = c; store.set('char', c); }
+    if (n && me.char >= 0) wantJoin = true;
+    try { history.replaceState(null, '', location.pathname); } catch (_) { location.hash = ''; }
   }
 
   // Arranque: si ya jugamos antes, volvemos a entrar solos

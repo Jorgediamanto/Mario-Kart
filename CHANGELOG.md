@@ -4,6 +4,27 @@ Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del a
 llevan la fecha en que se hicieron.
 
 <<<<<<< HEAD
+## 2026-09-19 — Entrar vuelve a ser directo: el aviso del navegador ya no está en la puerta
+
+- **Qué pasaba**: al poner el QR apuntando a la dirección cifrada, lo primero que veía cualquiera
+  al escanearlo era un aviso de que «podrían estar intentando robarte los datos», y a algunos
+  móviles **no les dejaba pasar de ahí**. Poner eso en la entrada deja gente fuera de la fiesta.
+- **Y encima el certificado estaba mal**: duraba **diez años** y no decía que fuera de un servidor
+  web. Apple rechaza de plano los certificados de más de 825 días o sin `serverAuth`, así que en
+  iPhone no salía ni la opción de continuar. Ahora dura **397 días** y lleva las extensiones que
+  toca, así que el aviso es el normal y se puede continuar.
+- **Cómo funciona ahora**: el QR lleva a la dirección de siempre, sin avisos: todo el mundo entra
+  a la primera y juega con los botones ◀ ▶. En la sala del móvil hay un recuadro 🎡 que explica el
+  volante y, al pulsar, salta a la dirección cifrada **llevándose el nombre y el personaje**, así
+  que al llegar entras solo. La tele explica lo mismo debajo del QR.
+- **Para no ver el aviso nunca más** en tu móvil: `http://…:3000/certificado.crt` se descarga e
+  instala. En iPhone hay que activarlo además en Ajustes → General → Información → Ajustes de
+  confianza de certificados. Se hace una vez; para invitados de una noche no compensa.
+- **Cómo probarlo**: escanea el QR: tiene que entrar directo, sin ningún aviso. Luego, en la sala,
+  «Activar el volante»: ahí sí sale el aviso, se continúa, y vuelves a estar dentro con tu nombre.
+- `npm test` gana dos comprobaciones que habrían cazado esto: que el QR **no** apunta a la
+  dirección cifrada, y que el certificado cumple lo que pide un iPhone (días, `serverAuth`, SAN).
+
 ## 2026-09-19 — El móvil es el volante (y solo quedan dos botones)
 
 - **Qué cambió**: se acabó girar con los botones ◀ ▶. Ahora el móvil se pone **en horizontal** y se

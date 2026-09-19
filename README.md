@@ -48,9 +48,9 @@ nombre en el Escritorio): doble clic y se abre la Terminal con el servidor y, so
 juego en el navegador. Es lo mismo que `Abrir Kart Party.command`, pero con icono. Para apagar el
 juego, cierra esa ventana de la Terminal.
 
-El volante de los móviles funciona igual arrancando así: el certificado de HTTPS se genera solo la
-primera vez con el `openssl` que trae macOS, sin instalar nada. La terminal imprime las dos
-direcciones, la del QR (`https://…`) y la de repuesto (`http://…`).
+El volante de los móviles funciona igual arrancando así: el certificado se genera solo la primera
+vez con el `openssl` que trae macOS, sin instalar nada. La terminal imprime las dos direcciones: la
+del QR, por la que se entra siempre, y la del volante.
 
 ## Controles
 
@@ -75,12 +75,26 @@ cómodo y eso pasa a ser el centro. Da igual lo inclinado que lo tengas.
 No hay freno ni marcha atrás: si te pierdes, te quedas clavado contra algo o te sales de la pista,
 a los 3 segundos te recogen y te dejan otra vez en la carretera mirando hacia donde toca.
 
-> **Para que el volante funcione hace falta HTTPS.** Los navegadores solo dejan leer el giroscopio
-> en conexiones seguras, así que el juego se sirve también por `https://` con un certificado propio
-> y el QR lleva ahí. La primera vez cada móvil dirá que **«la conexión no es privada»**: hay que
-> entrar igualmente (*Avanzado → Continuar*). Es tu propio ordenador. Si algún móvil no pasa de ahí,
-> que entre por la dirección `http://…` que imprime la terminal: se juega igual, pero con los
-> botones ◀ ▶.
+> **Cómo se enciende el volante.** Los navegadores solo dejan leer el giroscopio en conexiones
+> cifradas, y el certificado del juego es suyo propio, así que el navegador enseña un aviso feo.
+> Por eso **el QR lleva a la dirección normal**: se entra siempre a la primera, sin sustos. Ya
+> dentro, en la sala del móvil hay un recuadro 🎡 con el botón **«Activar el volante»**, que salta
+> a la dirección cifrada llevándose tu nombre y tu personaje. Ahí el navegador dirá que
+> **«la conexión no es privada»** o que alguien podría estar robándote los datos: es este
+> ordenador, y hay que **continuar igualmente**.
+>
+> | Navegador | Qué tocar |
+> |---|---|
+> | Chrome / Android | **Configuración avanzada** → *Acceder a 192.168… (no seguro)* |
+> | Safari / iPhone | **Mostrar detalles** → *visitar este sitio web* → **Visitar sitio web** |
+> | Firefox | **Avanzado** → *Aceptar el riesgo y continuar* |
+>
+> Si el móvil abre el QR dentro de otra aplicación (WhatsApp, Instagram, la cámara), esa ventanita
+> a veces no deja continuar: abre la dirección en **Chrome o Safari de verdad** y ya está.
+>
+> ¿Lo quieres sin aviso nunca más en tu móvil? Entra en `http://…:3000/certificado.crt`, instálalo
+> y (en iPhone) actívalo en *Ajustes → General → Información → Ajustes de confianza de
+> certificados*. Se hace una vez. Para invitados de una noche no compensa.
 
 **Si el móvil no tiene volante** (sin HTTPS, permiso denegado o móvil sin giroscopio), el mando
 enseña solo los botones de siempre: ◀ ▶ para girar, los dos a la vez para ir marcha atrás, GAS y
@@ -174,13 +188,14 @@ no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa.
 
 ## Si algo no va
 
-- **El móvil avisa de que «la conexión no es privada»**: es normal y hay que continuar. El juego usa
-  un certificado propio para poder servir por HTTPS, que es lo único que deja al navegador leer el
-  giroscopio (el volante). En Chrome: *Avanzado → Continuar*. En Safari: *Mostrar detalles → visitar
-  este sitio web*. Solo la primera vez en cada móvil.
-- **El volante no responde**: mira en la sala del móvil lo que dice el recuadro 🎡. Si pide activarlo,
-  púlsalo (en iPhone hay que dar permiso). Si dice que hace falta `https://`, has entrado por la
-  dirección sin cifrar: usa la del QR. Y si el móvil no tiene giroscopio, juega con los botones ◀ ▶.
+- **«La conexión no es privada» y no me deja pasar**: eso sale solo al activar el volante, nunca al
+  entrar. Mira la tabla de arriba para saber qué tocar en cada navegador. Si el QR se abrió dentro
+  de otra aplicación (WhatsApp, la cámara), esa ventanita no deja continuar: copia la dirección y
+  ábrela en Chrome o Safari. Y si aun así no hay manera, **no pasa nada**: se juega igual con los
+  botones ◀ ▶, que es lo que sale si no pulsas nada.
+- **El volante no responde**: mira en la sala del móvil lo que dice el recuadro 🎡. Si ofrece
+  activarlo, púlsalo (en iPhone hay que dar permiso al sensor después). Y si el móvil no tiene
+  giroscopio, juega con los botones ◀ ▶.
 - **El móvil gira la pantalla mientras juego**: bloquea la rotación (iPhone: centro de control;
   Android: el botón «Pantalla completa» de la sala intenta bloquearla en horizontal).
 - **Los móviles no cargan la página**: comprueba que están en la misma WiFi (no en datos

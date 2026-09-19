@@ -66,13 +66,19 @@ function localIPs() {
 }
 
 function joinUrl() {
-  return `${seguroListo ? `https://${hostIP()}:${HTTPS_PORT}` : `http://${hostIP()}:${PORT}`}/play`;
+  return `http://${hostIP()}:${PORT}/play`;
 }
 function hostIP() {
   return process.env.HOST_IP || (localIPs()[0] || {}).address || 'localhost';
 }
-// La de siempre, sin cifrar: sirve de repuesto si algún móvil no traga el certificado.
-function joinUrlSimple() { return `http://${hostIP()}:${PORT}/play`; }
+/*
+ * La dirección del volante, cifrada. **El QR no apunta aquí a propósito**: el certificado es
+ * nuestro, así que el navegador enseña un aviso feo («podrían estar robándote los datos») y hay
+ * gente a la que no le deja pasar. Poner eso en la puerta de entrada deja a alguien fuera de la
+ * fiesta. Se entra por la dirección normal y, ya dentro, el mando ofrece saltar aquí para tener
+ * volante, explicando antes lo que va a salir.
+ */
+function joinUrlVolante() { return seguroListo ? `https://${hostIP()}:${HTTPS_PORT}/play` : ''; }
 
 /*
  * Certificado propio (autofirmado) para poder servir por HTTPS.
@@ -92,7 +98,8 @@ function certificado() {
   const certFile = path.join(CERT_DIR, 'certificado.pem');
   const ipsFile = path.join(CERT_DIR, 'ips.json');
   const ips = [...new Set([hostIP(), ...localIPs().map((i) => i.address), '127.0.0.1'])];
-  const firma = JSON.stringify(ips);
+  // La versión va en la firma: si cambian las reglas del certificado, los viejos se rehacen solos.
+  const firma = JSON.stringify({ v: 2, ips });
   try {
     if (fs.readFileSync(ipsFile, 'utf8') === firma) {
       return { key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) };
@@ -101,8 +108,19 @@ function certificado() {
   try {
     fs.mkdirSync(CERT_DIR, { recursive: true });
     const san = 'subjectAltName=' + [...ips.map((ip) => (/^[\d.]+$/.test(ip) ? 'IP:' + ip : 'DNS:' + ip)), 'DNS:localhost'].join(',');
-    const args = ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '3650',
-      '-keyout', keyFile, '-out', certFile, '-subj', '/CN=Kart Party', '-addext', san];
+    /*
+     * Ojo con estos números y extensiones: no son decorativos. Apple **rechaza de plano** los
+     * certificados de servidor que duren más de 825 días o que no digan que son para un servidor
+     * web (`serverAuth`), y entonces el iPhone no ofrece ni la opción de continuar: se queda en
+     * «podrían estar intentando robarte los datos» y no hay manera de entrar. Por eso 397 días
+     * (lo que aceptan todos los navegadores) y las extensiones completas.
+     */
+    const args = ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '397',
+      '-keyout', keyFile, '-out', certFile, '-subj', '/CN=Kart Party',
+      '-addext', san,
+      '-addext', 'extendedKeyUsage=serverAuth',
+      '-addext', 'basicConstraints=critical,CA:true',
+      '-addext', 'keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign'];
     // `/usr/bin/openssl` como repuesto: al abrir el juego con doble clic desde el Finder, la
     // Terminal a veces no trae el PATH completo, y ese siempre está en macOS.
     let r = spawnSync('openssl', args, { encoding: 'utf8', timeout: 25000 });
@@ -145,7 +163,22 @@ async function atiende(req, res) {
   try {
     if (url.pathname === '/info') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
-      res.end(JSON.stringify({ url: joinUrl(), urlSimple: joinUrlSimple(), seguro: seguroListo, port: PORT, httpsPort: HTTPS_PORT, ips: localIPs() }));
+      res.end(JSON.stringify({ url: joinUrl(), urlVolante: joinUrlVolante(), seguro: seguroListo, port: PORT, httpsPort: HTTPS_PORT, ips: localIPs() }));
+      return;
+    }
+    /*
+     * El certificado, para descargarlo e instalarlo en un móvil. Quien lo haga deja de ver el
+     * aviso para siempre en ese móvil (en iPhone hay que ir además a Ajustes → General →
+     * Información → Certificados de confianza y activarlo). Para invitados de una noche es mucho
+     * lío y no hace falta; para el móvil de casa, se hace una vez y ya.
+     */
+    if (url.pathname === '/certificado.crt') {
+      if (!seguroListo) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('No hay certificado (el juego va sin HTTPS)'); return; }
+      fs.readFile(path.join(CERT_DIR, 'certificado.pem'), (err, data) => {
+        if (err) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('No encuentro el certificado'); return; }
+        res.writeHead(200, { 'Content-Type': 'application/x-x509-ca-cert', 'Content-Disposition': 'attachment; filename="Kart Party.crt"', 'Cache-Control': 'no-cache' });
+        res.end(data);
+      });
       return;
     }
     if (url.pathname === '/qr.svg') {
@@ -409,11 +442,12 @@ function arranca() {
   console.log(`   Mandos (los móviles, misma WiFi):                        ${joinUrl()}`);
   if (seguroListo) {
     console.log('');
-    console.log('   Los mandos van por HTTPS para que el móvil pueda girar inclinándose (el volante).');
-    console.log('   La primera vez, cada móvil verá un aviso de «conexión no privada»: hay que');
-    console.log('   entrar igualmente (Avanzado → continuar). Es tu propio ordenador, no hay riesgo.');
-    console.log(`   Si algún móvil no pasa del aviso, que use esta otra: ${joinUrlSimple()}`);
-    console.log('   (por ahí se juega igual, pero con los botones ◀ ▶ en vez del volante).');
+    console.log(`   Volante (opcional):                                      ${joinUrlVolante()}`);
+    console.log('   Se entra siempre por la dirección de arriba, que no da ningún aviso. El volante');
+    console.log('   (girar inclinando el móvil) necesita conexión cifrada, así que el propio mando');
+    console.log('   ofrece saltar a esta otra desde la sala. Al hacerlo, el navegador avisa de que');
+    console.log('   «la conexión no es privada»: hay que continuar igualmente (es este ordenador).');
+    console.log('   Quien no quiera o no pueda, juega con los botones ◀ ▶ y no se pierde nada.');
   } else {
     console.log('');
     console.log('   Sin HTTPS: los móviles jugarán con los botones ◀ ▶ (el volante necesita HTTPS).');

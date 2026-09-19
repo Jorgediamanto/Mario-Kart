@@ -138,6 +138,10 @@ console.log('Servidor');
     // HTTPS: sin él los móviles no pueden usar el giroscopio
     try {
       const info = await (await fetch(base + '/info')).json();
+      // el QR nunca puede llevar a la dirección cifrada: el aviso del navegador dejaría a alguien
+      // fuera de la fiesta. Se entra por la normal y el mando ofrece saltar (ver play.js).
+      if (info.url && info.url.startsWith('http://')) ok('el QR lleva a la dirección normal, sin avisos del navegador');
+      else bad(`el QR lleva a ${info.url}: el aviso del certificado dejaría a gente fuera`);
       if (!info.seguro) {
         ok('sin HTTPS (no hay openssl): el juego sigue y el mando usará los botones ◀ ▶');
       } else {
@@ -148,6 +152,21 @@ console.log('Servidor');
         });
         if (texto.includes('Kart Party')) ok(`HTTPS sirve el mando en el puerto ${info.httpsPort} (hace falta para el volante)`);
         else bad('HTTPS dice estar en marcha pero no sirve el mando');
+        // El certificado tiene que cumplir las reglas de Apple o el iPhone no deja ni continuar:
+        // como mucho 825 días y tiene que decir que es de un servidor web.
+        const crt = await (await fetch(base + '/certificado.crt')).text();
+        const pem = path.join(os.tmpdir(), 'kart-cert-' + process.pid + '.pem');
+        fs.writeFileSync(pem, crt);
+        const texto2 = spawnSync(process.env.OPENSSL || 'openssl', ['x509', '-in', pem, '-noout', '-text'], { encoding: 'utf8' });
+        const salida = texto2.status === 0 ? texto2.stdout : spawnSync('/usr/bin/openssl', ['x509', '-in', pem, '-noout', '-text'], { encoding: 'utf8' }).stdout || '';
+        const fechas = spawnSync('/usr/bin/openssl', ['x509', '-in', pem, '-noout', '-dates'], { encoding: 'utf8' }).stdout || '';
+        fs.unlinkSync(pem);
+        const desde = /notBefore=(.*)/.exec(fechas), hasta = /notAfter=(.*)/.exec(fechas);
+        const dias = desde && hasta ? (Date.parse(hasta[1]) - Date.parse(desde[1])) / 86400000 : 9999;
+        const serverAuth = /TLS Web Server Authentication/.test(salida);
+        const tieneSAN = /Subject Alternative Name/.test(salida);
+        if (dias <= 825 && serverAuth && tieneSAN) ok(`el certificado lo acepta un iPhone (${Math.round(dias)} días, serverAuth, con SAN)`);
+        else bad(`el certificado no vale para iPhone: ${Math.round(dias)} días${serverAuth ? '' : ', sin serverAuth'}${tieneSAN ? '' : ', sin SAN'}`);
       }
     } catch (e) { bad('no se puede comprobar el HTTPS: ' + e.message); }
 
