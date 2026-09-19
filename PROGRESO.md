@@ -7,13 +7,13 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 10:35
+- último latido (UTC): 2026-09-19 10:58
 - rama: noche/2026-09-19
 
 ## Punto en curso
-- IDEAS.md: Bug «un bot golpeado se da la vuelta y corre en dirección contraria»
-- hecho: candado puesto; el push funciona (lo de anoche estaba arreglado)
-- siguiente paso: reproducir el aviso con `node tools/check-sim.js` y arreglar `aiInput`
+- IDEAS.md: ninguno (el bug de los bots está cerrado y fusionado en `main`)
+- hecho: bug «bot en dirección contraria» arreglado, probado y fusionado
+- siguiente paso: «Derrape automático con 3 niveles» (Fase 1)
 - intentos fallidos en este punto: 0
 
 ## Última sesión

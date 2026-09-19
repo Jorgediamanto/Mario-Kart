@@ -21,7 +21,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 
 ## Bugs conocidos
 
-- [ ] **Un bot golpeado se da la vuelta y corre en dirección contraria.** Tras un choque o un
+- [x] **Un bot golpeado se da la vuelta y corre en dirección contraria.** Tras un choque o un
       caparazón, a veces el bot sale mirando hacia atrás y sigue a fondo el sentido contrario varios
       segundos (pierde ~18 s de carrera) antes de girar. Se ve en `npm test` como un aviso ⚠ de la
       fase 4: «Volcán Disco: Bot 4 se fue en dirección contraria hacia t=15 s». Reproducir:
@@ -30,6 +30,11 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       va a menos de 60 de velocidad. Arreglo propuesto: si el ángulo hacia el camino es mayor de
       ~2 rad, soltar el gas (o frenar) hasta estar encarado. Añadir el escenario a `check-sim.js`:
       un kart colocado del revés vuelve a avanzar en menos de 3 s.
+      **Hecho el 2026-09-19 (noche 2).** Arreglado justo así, con la constante `AI_WRONG_ANGLE`
+      (2,0 rad) al principio de `sim.mjs`: de espaldas se suelta el gas y se frena; la marcha atrás
+      se reserva para cuando ya casi está parado. El aviso ⚠ de la fase 4 pasa a ser un fallo de la
+      prueba y hay un escenario nuevo («un kart puesto del revés…», los 4 circuitos, pierde menos de
+      25 muestras y recupera su avance en < 2,5 s). Volcán Disco: vuelta media 13,5 s → 12,1 s.
 
 ## Fase 0 — Cimientos: que el agente pueda comprobar su trabajo
 

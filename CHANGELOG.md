@@ -3,6 +3,25 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 (noche 2) — Los bots ya no corren en dirección contraria (bug)
+
+- **Qué pasaba**: después de un golpe o un caparazón, un bot podía quedarse mirando hacia atrás y
+  seguir **acelerando a fondo en sentido contrario** varios segundos (en Volcán Disco perdía medio
+  circuito) antes de darse la vuelta. La culpa era del piloto automático: mientras estuviera de
+  espaldas seguía apretando el gas y solo daba marcha atrás si iba a menos de 60 de velocidad.
+- **Qué cambió**: ahora, si el morro apunta a más de 2 radianes (unos 115º) del camino, el bot
+  **suelta el gas y frena** hasta encararse, y solo da marcha atrás cuando ya casi está parado.
+  Es una constante con nombre al principio de `sim.mjs` (`AI_WRONG_ANGLE`).
+- **Qué se gana**: en Volcán Disco la vuelta media de los bots baja de 13,5 s a 12,1 s; en los otros
+  tres circuitos los tiempos no se mueven ni una décima. Un kart plantado del revés a 300 de
+  velocidad recupera su avance en 2,0 s (antes, entre 2,7 y 3,8 s, y perdiendo hasta 70 muestras
+  de pista).
+- **Cómo probarlo**: `npm test`. El aviso ⚠ «se fue en dirección contraria» de la fase 4 ya no sale,
+  y ahora es un **fallo** de la prueba, no un aviso: si el bug vuelve, `npm test` se pone rojo. Hay
+  además un escenario nuevo en `tools/check-sim.js` que planta un kart del revés en los 4 circuitos.
+- **En la fiesta**: se nota en que los bots dejan de hacer el tonto tras un choque. **Pendiente de
+  probar en fiesta**: que un bot golpeado se recupere de forma creíble y no parezca que «frena» raro.
+
 ## 2026-09-19 — Mando de cuatro botones y rescate automático (Fase 1)
 
 - **Qué cambió en el móvil**: el mando se queda con **cuatro botones grandes**: la mitad izquierda
