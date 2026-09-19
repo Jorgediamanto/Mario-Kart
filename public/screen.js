@@ -1,69 +1,26 @@
 /* global KART_TRACKS, KART_GEOM */
 /*
  * Kart Party — pantalla 3D (la tele)
- * Toda la simulación vive aquí; los móviles solo mandan botones a través del servidor.
+ * La simulación vive en sim.mjs; aquí solo está lo que se ve y se oye: mundo 3D, modelos de los
+ * karts, partículas, cámara, HUD, audio y la conexión con los móviles a través del servidor.
  * Coordenadas: el plano del circuito es (x, y) en 1920x1080; en 3D, X = x, Z = y, Y = altura.
  */
 import * as THREE from 'three';
+import {
+  createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, CHARS, ITEMS, ITEM_IDS, TER,
+  clamp, lerp, smoothstep, mulberry32, ordinal,
+} from './sim.mjs';
 
 (() => {
   'use strict';
 
-  // ===================== Constantes =====================
-  const MAP_W = 1920, MAP_H = 1080;
-  const DT = 1 / 60;
-  const KART_R = 15;
-  const BASE_MAX_SPEED = 420;   // unidades/s (sube o baja este número para karts más rápidos o más lentos)
-  const ACCEL = 460, BRAKE = 750, COAST = 240;
-  const GRAVITY = 950;          // unidades/s²
-  const SPIN_TIME = 1.0;
-  const ROULETTE_TIME = 1.6;
-  const BOX_RESPAWN = 5;
-  const MAX_KARTS = 8;
-  const SAMPLE_SPACING = 8;
+  // ===================== Constantes de la tele =====================
+  // Las de la simulación (tamaño del mapa, física, personajes, objetos) llegan de sim.mjs.
   const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
   const UI_FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 
-  const CHARS = [
-    { name: 'Rana', emoji: '🐸', color: '#39ff88', accent: '#ff2d95' },
-    { name: 'Zorro', emoji: '🦊', color: '#ff8a00', accent: '#00e5ff' },
-    { name: 'Panda', emoji: '🐼', color: '#ffffff', accent: '#ff2d95' },
-    { name: 'Tigre', emoji: '🐯', color: '#ffe600', accent: '#9b3bff' },
-    { name: 'Unicornio', emoji: '🦄', color: '#ff5ec8', accent: '#00e5ff' },
-    { name: 'Pulpo', emoji: '🐙', color: '#9b3bff', accent: '#ffe600' },
-    { name: 'Pingüino', emoji: '🐧', color: '#00e5ff', accent: '#ffe600' },
-    { name: 'Dino', emoji: '🦖', color: '#ff3d3d', accent: '#39ff88' },
-  ];
-  const ITEMS = {
-    mushroom: { icon: '🍄', name: 'Champiñón' },
-    banana: { icon: '🍌', name: 'Plátano' },
-    green: { icon: '🐢', name: 'Caparazón verde' },
-    red: { icon: '🎯', name: 'Caparazón rojo' },
-    star: { icon: '⭐', name: 'Estrella' },
-    lightning: { icon: '⚡', name: 'Rayo' },
-  };
-  const ITEM_IDS = Object.keys(ITEMS);
-
   // ===================== Utilidades =====================
-  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-  const lerp = (a, b, t) => a + (b - a) * t;
-  function wrapAngle(a) {
-    while (a > Math.PI) a -= 2 * Math.PI;
-    while (a < -Math.PI) a += 2 * Math.PI;
-    return a;
-  }
-  function mulberry32(seed) {
-    return function () {
-      let t = (seed += 0x6D2B79F5);
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  function shuffle(a) {
-    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-    return a;
-  }
+  // clamp, lerp, smoothstep, mulberry32 y ordinal vienen de sim.mjs.
   function esc(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -71,8 +28,6 @@ import * as THREE from 'three';
     const m = Math.floor(s / 60), r = s - m * 60;
     return `${m}:${r.toFixed(2).padStart(5, '0')}`;
   }
-  function ordinal(n) { return `${n}º`; }
-  function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
 
   // Muelle amortiguado: para aplastar/estirar/inclinar los karts con rebote
   class Spring {
@@ -174,96 +129,7 @@ import * as THREE from 'three';
     sprite.scale.set(px * worldPerPx * aspect, px * worldPerPx, 1);
   }
 
-  // ===================== Circuitos =====================
-  function buildTrack(def, index) {
-    const samples = KART_GEOM.buildSamples(def.points, SAMPLE_SPACING);
-    const N = samples.length;
-    const halfW = def.width / 2;
-    const elev = new Float32Array(N);
-    for (const f of def.features || []) {
-      const start = Math.floor(f.at * N);
-      const len = Math.max(2, Math.round(f.length / SAMPLE_SPACING));
-      for (let j = 0; j < len; j++) {
-        const i = (start + j) % N, u = j / len;
-        if (f.type === 'hill') elev[i] += f.height * 0.5 * (1 - Math.cos(u * Math.PI * 2));
-        else if (f.type === 'ramp') elev[i] += f.height * u;
-      }
-    }
-    samples.forEach((s, i) => { s.nx = -Math.sin(s.ang); s.ny = Math.cos(s.ang); s.h = elev[i]; });
-
-    const t = {
-      def, index, name: def.name, samples, N, halfW, width: def.width, gravity: def.gravity || 1,
-      win: Math.floor(N / 8), boxes: [], grid: [], pads: [], barriers: [], ramps: [], world: null,
-      nearest(x, y) {
-        let bi = 0, bd = Infinity;
-        for (let i = 0; i < N; i++) {
-          const dx = samples[i].x - x, dy = samples[i].y - y;
-          const d = dx * dx + dy * dy;
-          if (d < bd) { bd = d; bi = i; }
-        }
-        const s = samples[bi];
-        return { i: bi, d: Math.sqrt(bd), lat: (x - s.x) * s.nx + (y - s.y) * s.ny };
-      },
-      groundAt(x, y) {
-        const near = this.nearest(x, y);
-        if (near.d <= halfW + 14) return samples[near.i].h;
-        return this.terrainAt(x, y);
-      },
-      terrainAt(x, y) {
-        const gx = clamp((x - TER.x0) / TER.cell, 0, TER.cols - 1.001), gy = clamp((y - TER.y0) / TER.cell, 0, TER.rows - 1.001);
-        const ix = Math.floor(gx), iy = Math.floor(gy), fx = gx - ix, fy = gy - iy;
-        const h = this.terrain;
-        const a = h[iy * TER.cols + ix], b = h[iy * TER.cols + ix + 1], c = h[(iy + 1) * TER.cols + ix], d = h[(iy + 1) * TER.cols + ix + 1];
-        return lerp(lerp(a, b, fx), lerp(c, d, fx), fy);
-      },
-      inRange(i, from, to) { return from <= to ? (i >= from && i <= to) : (i >= from || i <= to); },
-    };
-    for (const f of def.boxes) {
-      const i = Math.floor(f * N) % N, s = samples[i];
-      for (const off of [-halfW * 0.6, 0, halfW * 0.6]) t.boxes.push({ x: s.x + s.nx * off, y: s.y + s.ny * off, h: s.h, respawnAt: 0, mesh: null });
-    }
-    for (const f of def.pads || []) t.pads.push(Math.floor(f * N) % N);
-    for (const b of def.barriers || []) {
-      const from = Math.floor(b.from * N) % N, to = Math.floor(b.to * N) % N;
-      let side = 0;
-      if (b.side === 'outer') {
-        let sum = 0;
-        for (let i = from; i !== to; i = (i + 1) % N) sum += wrapAngle(samples[(i + 1) % N].ang - samples[i].ang);
-        side = sum > 0 ? -1 : 1; // el exterior de la curva es el lado contrario al giro
-      }
-      t.barriers.push({ from, to, side });
-    }
-    for (const f of (def.features || []).filter((q) => q.type === 'ramp')) {
-      const start = Math.floor(f.at * N);
-      t.ramps.push({ start, end: (start + Math.round(f.length / SAMPLE_SPACING)) % N, height: f.height });
-    }
-    for (let k = 0; k < MAX_KARTS; k++) {
-      const row = Math.floor(k / 2), col = k % 2;
-      const idx = N - 8 - row * 7 - col * 3;
-      const s = samples[idx];
-      const off = (col === 0 ? -1 : 1) * halfW * 0.45;
-      t.grid.push({ x: s.x + s.nx * off, y: s.y + s.ny * off, h: s.h, ang: s.ang, dist: idx - N });
-    }
-    // relieve del terreno alrededor de la carretera
-    const rnd = mulberry32(77 + index * 31);
-    t.terrain = new Float32Array(TER.cols * TER.rows);
-    for (let iy = 0; iy < TER.rows; iy++) {
-      for (let ix = 0; ix < TER.cols; ix++) {
-        const x = TER.x0 + ix * TER.cell, y = TER.y0 + iy * TER.cell;
-        const near = t.nearest(x, y);
-        const w = 1 - smoothstep(halfW + 40, halfW + 220, near.d);
-        const hills = 12 * (Math.sin(x * 0.0065 + 0.4) * Math.cos(y * 0.0079) + 0.6 * Math.sin(x * 0.013 + 1.7) * Math.sin(y * 0.011 + 0.9));
-        t.terrain[iy * TER.cols + ix] = lerp(hills, samples[near.i].h, w);
-      }
-    }
-    t.rnd = rnd;
-    return t;
-  }
-  const TER = { x0: -700, y0: -600, cell: 24, cols: 0, rows: 0 };
-  TER.cols = Math.ceil((MAP_W + 1400) / TER.cell) + 1;
-  TER.rows = Math.ceil((MAP_H + 1200) / TER.cell) + 1;
-
-  const TRACKS = KART_TRACKS.map(buildTrack);
+  // Los circuitos los construye la simulación (ver más abajo, sección «Estado»).
 
   // ===================== Construcción del mundo 3D =====================
   const animated = []; // objetos con animación ambiental { obj, kind, phase, ... }
@@ -418,7 +284,7 @@ import * as THREE from 'three';
       const q = makeSprite(textTexture('?', { w: 64, h: 64, font: `900 52px ${UI_FONT}`, color: '#fff', stroke: '#000', strokeW: 6 }), 6);
       q.material.depthTest = true; q.scale.set(16, 16, 1);
       m.add(q);
-      box.mesh = m;
+      box.view = m;
       world.add(m);
     }
     // ---- charcos / lava / cráteres ----
@@ -748,20 +614,52 @@ import * as THREE from 'three';
   })();
 
   // ===================== Estado =====================
-  const state = {
-    phase: 'lobby',
-    players: new Map(),
-    hostId: null,
-    settings: { track: 0, laps: 3, bots: 2 },
-    kb: null,
-    track: TRACKS[0],
-    laps: 3,
-    karts: [], projectiles: [], bananas: [], toasts: [],
-    countdownT: 0, cdStep: -1, raceTime: 0, goFlash: 0,
-    firstFinish: 0, finishedCount: 0, endAt: 0, results: null,
-    replaced: false, joinUrl: '', shake: 0,
-  };
-  let simTime = 0, animT = 0;
+  /*
+   * Aquí se monta la simulación (sim.mjs) y se le engancha la tele: cada hook convierte un suceso
+   * de la carrera en algo que se ve, se oye o se manda al móvil. Los hooks se llaman durante la
+   * partida, nunca al construir, así que pueden usar cosas declaradas más abajo.
+   */
+  const sim = createSim({
+    geom: KART_GEOM,
+    trackDefs: KART_TRACKS,
+    hooks: {
+      onPhase: (phase) => {
+        if (phase === 'lobby' || phase === 'countdown') clearToasts();
+        sendPhase();
+        updateOverlays();
+      },
+      onCountdown: (n) => showBig(String(n)),
+      onGo: () => { showBig('¡YA!'); setTimeout(() => hideBig('¡YA!'), 1100); },
+      onTrackChanged: (t) => setWorld(t),
+      onKartAdded: (k) => makeKartModel(k),
+      onKartRemoved: (k) => removeKartModel(k),
+      onSfx: (name) => sfx(name),
+      onParticles: (x, h, z, o) => particles.emit(x, h, z, o),
+      onToast: (text, dur) => toast(text, dur),
+      onStatus: (k) => sendStatus(k),
+      onFx: (k, kind) => { if (k.playerId != null) toPlayer(k.playerId, { t: 'fx', kind }); },
+      onShake: (n) => { state.shake = Math.max(state.shake, n); },
+      onFlash: () => { flashEl.style.opacity = '0.85'; setTimeout(() => { flashEl.style.opacity = '0'; }, 60); },
+      onSquash: (k, dv) => { if (k.view) k.view.sq.vel -= dv; },
+      onStretch: (k, dv) => { if (k.view) k.view.st.vel += dv; },
+      onProjectileAdded: (pr) => { pr.view = shellMesh(pr.type); },
+      onProjectileRemoved: (pr) => { if (pr.view) { scene.remove(pr.view); pr.view = null; } },
+      onBananaAdded: (b) => { b.view = bananaMesh(); },
+      onBananaRemoved: (b) => { if (b.view) { scene.remove(b.view); b.view = null; } },
+    },
+  });
+  const TRACKS = sim.tracks;
+  const state = sim.state;          // fases, circuito, karts, objetos… (lo comparte la simulación)
+  // lo que solo existe en la tele: la simulación no mira nada de esto
+  state.players = new Map();
+  state.hostId = null;
+  state.settings = { track: 0, laps: 3, bots: 2 };
+  state.kb = null;
+  state.replaced = false;
+  state.joinUrl = '';
+  state.shake = 0;
+
+  let animT = 0;
   const kartsGroup = new THREE.Group();
   scene.add(kartsGroup);
 
@@ -812,9 +710,9 @@ import * as THREE from 'three';
       }
       case 'leave': {
         state.players.delete(m.id);
-        const idx = state.karts.findIndex((k) => k.playerId === m.id);
-        if (idx >= 0) { removeKartModel(state.karts[idx]); state.karts.splice(idx, 1); }
-        if ((state.phase === 'race' || state.phase === 'countdown') && !state.karts.some((k) => k.isHuman)) backToLobby();
+        const gone = state.karts.find((k) => k.playerId === m.id);
+        if (gone) sim.removeKart(gone);
+        if ((state.phase === 'race' || state.phase === 'countdown') && !state.karts.some((k) => k.isHuman)) sim.backToLobby();
         updateOverlays();
         break;
       }
@@ -826,9 +724,9 @@ import * as THREE from 'three';
       }
       case 'host': state.hostId = m.hostId; for (const p of state.players.values()) p.host = p.id === m.hostId; updateOverlays(); break;
       case 'i': { const p = state.players.get(m.id); if (p) p.input = { s: m.s, g: m.g, b: m.b, d: m.d }; break; }
-      case 'use': { const k = state.karts.find((q) => q.playerId === m.id); if (k) useItem(k); break; }
+      case 'use': { const k = state.karts.find((q) => q.playerId === m.id); if (k) sim.useItem(k); break; }
       case 'start': startRace(); break;
-      case 'again': if (state.phase === 'results') backToLobby(); break;
+      case 'again': if (state.phase === 'results') sim.backToLobby(); break;
       case 'set': applySettings(m.settings); updateOverlays(); break;
       case 'replaced':
         state.replaced = true;
@@ -844,7 +742,7 @@ import * as THREE from 'three';
     if (Number.isInteger(s.track)) state.settings.track = ((s.track % TRACKS.length) + TRACKS.length) % TRACKS.length;
     if (Number.isInteger(s.laps)) state.settings.laps = clamp(s.laps, 1, 9);
     if (Number.isInteger(s.bots)) state.settings.bots = clamp(s.bots, 0, 7);
-    if (state.phase === 'lobby') { state.track = TRACKS[state.settings.track]; setWorld(state.track); }
+    if (state.phase === 'lobby') sim.setTrack(state.settings.track);
   }
   function changeSetting(key, delta) {
     if (state.phase !== 'lobby') return;
@@ -860,8 +758,7 @@ import * as THREE from 'three';
   fetch('/info').then((r) => r.json()).then((info) => { state.joinUrl = info.url; updateOverlays(); }).catch(() => {});
 
   // ===================== Karts =====================
-  function displayLap(k) { return clamp(k.lapCount + 1, 1, state.laps); }
-
+  // Modelo 3D de cada kart: la simulación lo guarda en k.view y nunca lo mira.
   function makeKartModel(k) {
     const ch = CHARS[k.char];
     const g = new THREE.Group();
@@ -899,36 +796,16 @@ import * as THREE from 'three';
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(21, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2;
     kartsGroup.add(g, shadow);
-    k.model = { g, body, wheels, flames, head, glow, label, item, shadow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
+    k.view = { g, body, wheels, flames, head, glow, label, item, shadow, labelText: '', itemText: '', sq: new Spring(120, 9), st: new Spring(120, 9), roll: new Spring(90, 10), pitch: new Spring(90, 10), blink: 0 };
   }
   function removeKartModel(k) {
-    if (!k.model) return;
-    kartsGroup.remove(k.model.g, k.model.shadow);
-    k.model = null;
+    if (!k.view) return;
+    kartsGroup.remove(k.view.g, k.view.shadow);
+    k.view = null;
   }
 
-  function makeKart(e, g) {
-    const ch = CHARS[e.char];
-    const k = {
-      id: e.playerId != null ? 'p' + e.playerId : e.kb ? 'kb' : 'bot' + e.char,
-      playerId: e.playerId != null ? e.playerId : null,
-      isKb: !!e.kb, isBot: !!e.bot, isHuman: !e.bot,
-      name: e.name, char: e.char, emoji: ch.emoji, color: ch.color,
-      skill: 0.86 + Math.random() * 0.1,
-      lane: (Math.random() * 2 - 1) * state.track.halfW * 0.5,
-      x: g.x, y: g.y, z: g.h, vz: 0, air: false, ground: g.h, angle: g.ang, moveAngle: g.ang, speed: 0,
-      dist: g.dist, lapCount: -1, rank: 1, offroad: false,
-      item: null, rolling: null, itemUseAt: 0,
-      boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
-      driftT: 0, driftDir: 0, trick: false, trickAngle: 0, dPrev: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
-      finished: false, finishTime: 0, finishRank: 0,
-      input: { s: 0, g: 0, b: 0, d: 0 },
-      model: null,
-    };
-    makeKartModel(k);
-    return k;
-  }
 
+  // Monta la parrilla con quien esté conectado (+ bots) y arranca la carrera en la simulación
   function startRace() {
     if (state.phase !== 'lobby') return;
     const humans = [];
@@ -942,46 +819,10 @@ import * as THREE from 'three';
     const nBots = Math.min(state.settings.bots, MAX_KARTS - entries.length);
     for (let i = 0; i < nBots; i++) { const c = freeChar(); entries.push({ playerId: null, bot: true, name: CHARS[c].name + ' (bot)', char: c }); }
 
-    for (const k of state.karts) removeKartModel(k);
-    state.track = TRACKS[state.settings.track];
-    setWorld(state.track);
-    state.laps = state.settings.laps;
-    for (const b of state.track.boxes) b.respawnAt = 0;
-    shuffle(entries);
-    state.karts = entries.map((e, i) => makeKart(e, state.track.grid[i]));
-    state.projectiles = []; state.bananas = [];
-    clearToasts();
-    state.countdownT = 0; state.cdStep = -1; state.raceTime = 0; state.goFlash = 0;
-    state.firstFinish = 0; state.finishedCount = 0; state.endAt = 0; state.results = null;
-    state.phase = 'countdown';
-    updateRanking();
+    if (!sim.startRace({ entries, trackIndex: state.settings.track, laps: state.settings.laps })) return;
     buildHud();
     camStart();
-    sendPhase();
-    for (const k of state.karts) sendStatus(k);
     for (const p of state.players.values()) if (!state.karts.some((k) => k.playerId === p.id)) toPlayer(p.id, { t: 'spectate' });
-    updateOverlays();
-  }
-
-  function showResults() {
-    state.phase = 'results';
-    updateRanking();
-    const sorted = state.karts.slice().sort((a, b) => a.rank - b.rank);
-    state.results = sorted.map((k) => ({ pos: k.rank, name: k.name, emoji: k.emoji, color: k.color, finished: k.finished, time: k.finishTime, lap: displayLap(k) }));
-    sendPhase();
-    for (const k of state.karts) sendStatus(k);
-    sfx('finish');
-    updateOverlays();
-  }
-
-  function backToLobby() {
-    state.phase = 'lobby';
-    for (const k of state.karts) removeKartModel(k);
-    for (const p of state.projectiles) if (p.mesh) scene.remove(p.mesh);
-    for (const b of state.bananas) if (b.mesh) scene.remove(b.mesh);
-    state.karts = []; state.projectiles = []; state.bananas = []; state.results = null;
-    clearToasts();
-    sendPhase();
     updateOverlays();
   }
 
@@ -994,7 +835,7 @@ import * as THREE from 'three';
   function sendStatus(k) {
     if (k.playerId == null) return;
     toPlayer(k.playerId, {
-      t: 'st', pos: k.rank, n: state.karts.length, lap: displayLap(k), laps: state.laps,
+      t: 'st', pos: k.rank, n: state.karts.length, lap: sim.displayLap(k), laps: state.laps,
       item: k.item, rolling: !!k.rolling, fin: k.finished, finPos: k.finished ? k.finishRank : 0, phase: state.phase,
     });
   }
@@ -1008,304 +849,7 @@ import * as THREE from 'three';
   }
   function clearToasts() { toastsEl.innerHTML = ''; }
 
-  // ===================== Física =====================
-  function boost(k, dur) {
-    k.boostUntil = Math.max(k.boostUntil, simTime + dur);
-    if (k.model) k.model.st.vel += 6;
-    sfx('boost');
-  }
-
-  function hitKart(k) {
-    const now = simTime;
-    if (k.starUntil > now || k.invUntil > now || k.spinUntil > now) return false;
-    k.spinUntil = now + SPIN_TIME;
-    k.invUntil = now + SPIN_TIME + 1.5;
-    k.speed *= 0.25;
-    k.driftT = 0; k.boostUntil = 0; k.trick = false;
-    k.vz = Math.max(k.vz, 230); k.air = true;
-    particles.emit(k.x, k.z + 14, k.y, { n: 14, color: ['#ffe600', '#ffffff', '#ff2d95'], spread: 220, vy: 120, life: 0.7, size: 6 });
-    state.shake = Math.max(state.shake, 6);
-    sfx('hit');
-    if (k.playerId != null) toPlayer(k.playerId, { t: 'fx', kind: 'hit' });
-    return true;
-  }
-
-  function aiInput(k) {
-    const t = state.track, N = t.N;
-    const near = t.nearest(k.x, k.y);
-    let target;
-    if (near.d > t.halfW * 1.6) target = t.samples[near.i];
-    else {
-      const s = t.samples[(near.i + 24) % N];
-      target = { x: s.x + s.nx * k.lane, y: s.y + s.ny * k.lane };
-    }
-    const desired = Math.atan2(target.y - k.y, target.x - k.x);
-    const diff = wrapAngle(desired - k.angle);
-    const steer = Math.abs(diff) < 0.05 ? 0 : diff > 0 ? 1 : -1;
-    const ahead = t.samples[(near.i + 40) % N];
-    const curve = Math.abs(wrapAngle(ahead.ang - t.samples[near.i].ang));
-    const brake = curve > 1.5 && k.speed > 340 ? 1 : 0;
-    // en el aire, los bots sueltan derrape y lo pulsan de nuevo a mitad de vuelo: truco
-    const drift = k.air ? (k.airT > 0.2 ? 1 : 0) : (curve > 0.8 && k.speed > 260 ? 1 : 0);
-    const reverse = Math.abs(diff) > 2.6 && k.speed < 60;
-    return { s: reverse ? -steer : steer, g: brake || reverse ? 0 : 1, b: brake || reverse ? 1 : 0, d: drift };
-  }
-
-  function stepKart(k, inp, dt) {
-    const t = state.track, now = simTime;
-    const spinning = k.spinUntil > now;
-    const active = state.phase === 'race' && !spinning;
-    const s = active ? inp.s : 0, g = active ? inp.g : 0, b = active ? inp.b : 0, d = active ? inp.d : 0;
-
-    const near = t.nearest(k.x, k.y);
-    const onRoad = near.d <= t.halfW + 3;
-    k.offroad = !onRoad && !k.air;
-    const boosting = k.boostUntil > now, star = k.starUntil > now, small = k.shrinkUntil > now;
-    let maxS = BASE_MAX_SPEED * (k.isBot ? k.skill : 1);
-    if (boosting) maxS *= 1.5;
-    if (star) maxS *= 1.25;
-    if (small) maxS *= 0.7;
-    if (k.offroad && !boosting && !star) maxS *= 0.45;
-
-    if (!k.air) {
-      if (g) k.speed += ACCEL * dt;
-      else if (b) k.speed -= (k.speed > 0 ? BRAKE : ACCEL * 0.6) * dt;
-      else { const c = COAST * dt; if (Math.abs(k.speed) <= c) k.speed = 0; else k.speed -= Math.sign(k.speed) * c; }
-      if (boosting && k.speed < maxS * 0.85) k.speed = maxS * 0.85;
-      if (k.speed > maxS) k.speed = Math.max(maxS, k.speed - (k.offroad ? 1100 : 700) * dt);
-      const minS = -maxS * 0.35;
-      if (k.speed < minS) k.speed = minS;
-      if (spinning) k.speed *= Math.pow(0.02, dt);
-    } else if (k.speed > maxS * 1.1) k.speed = Math.max(maxS * 1.1, k.speed - 300 * dt);
-
-    const spd = Math.abs(k.speed);
-    let turn = 2.7 * clamp(spd / 140, 0, 1);
-    if (spd > 320) turn *= 1 - 0.3 * clamp((spd - 320) / 250, 0, 1);
-    if (k.air) turn *= 0.35;
-    const drifting = d && spd > 160 && !k.offroad && !k.air;
-    if (drifting) {
-      turn *= 1.6;
-      if (s !== 0) { k.driftT += dt; k.driftDir = s; }
-    } else if (k.driftT > 0 && !k.air) {
-      if (k.driftT >= 0.7) boost(k, k.driftT >= 1.6 ? 1.1 : 0.7);
-      k.driftT = 0;
-    }
-    // truco en el aire: pulsar derrape en un salto de verdad (no en un botecito)
-    if (k.air && d && !k.dPrev && !k.trick && k.z - k.ground > 16 && k.airT > 0.12) { k.trick = true; k.trickAngle = 0; sfx('trick'); }
-    k.dPrev = d;
-
-    k.angle += s * turn * dt * (k.speed >= 0 ? 1 : -1);
-    const lag = drifting ? 3.2 : k.air ? 2 : 11;
-    k.moveAngle = k.angle + wrapAngle(k.moveAngle - k.angle) * Math.exp(-lag * dt);
-    k.x += Math.cos(k.moveAngle) * k.speed * dt;
-    k.y += Math.sin(k.moveAngle) * k.speed * dt;
-
-    if (k.x < KART_R) { k.x = KART_R; k.speed *= 0.5; }
-    if (k.x > MAP_W - KART_R) { k.x = MAP_W - KART_R; k.speed *= 0.5; }
-    if (k.y < KART_R) { k.y = KART_R; k.speed *= 0.5; }
-    if (k.y > MAP_H - KART_R) { k.y = MAP_H - KART_R; k.speed *= 0.5; }
-
-    // bumpers elásticos
-    const near2 = t.nearest(k.x, k.y);
-    for (const br of t.barriers) {
-      if (!t.inRange(near2.i, br.from, br.to)) continue;
-      const sideSign = Math.sign(near2.lat) || 1;
-      if (br.side !== 0 && sideSign !== br.side) continue;
-      const limit = t.halfW + 4;
-      if (Math.abs(near2.lat) > limit && !(k.z - k.ground > 30)) {
-        const sm = t.samples[near2.i];
-        k.x = sm.x + sm.nx * limit * sideSign; k.y = sm.y + sm.ny * limit * sideSign;
-        const vx = Math.cos(k.moveAngle) * k.speed, vy = Math.sin(k.moveAngle) * k.speed;
-        const vn = vx * sm.nx + vy * sm.ny;
-        if (vn * sideSign > 0) {
-          setVel(k, vx - vn * sm.nx * 1.7, vy - vn * sm.ny * 1.7);
-          k.vz = Math.max(k.vz, 90); k.air = true;
-          if (k.model) { k.model.sq.vel -= 5; }
-          particles.emit(k.x, k.z + 8, k.y, { n: 8, color: t.def.theme.bumper, spread: 160, vy: 80, life: 0.5, size: 4 });
-          stats.boings++;
-          if (now - k.lastBoing > 0.25) { sfx('boing'); k.lastBoing = now; }
-          state.shake = Math.max(state.shake, 3);
-        }
-      }
-    }
-    // paneles turbo
-    if (!k.air) {
-      for (const pi of t.pads) {
-        let di = near2.i - pi; if (di > t.N / 2) di -= t.N; if (di < -t.N / 2) di += t.N;
-        if (Math.abs(di) <= 3 && Math.abs(near2.lat) < t.halfW * 0.8 && (k.lastPad !== pi || now - k.lastPadAt > 2)) {
-          k.lastPad = pi; k.lastPadAt = now;
-          boost(k, 1.0);
-          stats.pads++;
-          sfx('pad');
-          particles.emit(k.x, k.z + 6, k.y, { n: 10, color: t.def.theme.pad, spread: 120, vy: 100, life: 0.5, size: 4 });
-        }
-      }
-    }
-
-    // vertical: gravedad, suelo, saltos y aterrizajes
-    const gOld = k.ground;
-    const gNew = t.groundAt(k.x, k.y);
-    k.ground = gNew;
-    const grav = GRAVITY * t.gravity;
-    k.vz -= grav * dt;
-    k.z += k.vz * dt;
-    if (k.z <= gNew) {
-      if (k.air) land(k, -k.vz);
-      k.z = gNew;
-      k.vz = Math.max(k.vz, (gNew - gOld) / dt);
-      if (k.vz > 40 && (gNew - gOld) / dt < 40) k.vz = 0;
-      k.air = false;
-    } else {
-      if (!k.air && k.z - gNew > 2) { k.air = true; if (k.vz > 60) sfx('jump'); }
-    }
-    k.airT = k.air ? k.airT + dt : 0;
-    if (k.air && k.trick) k.trickAngle = Math.min(Math.PI * 2, k.trickAngle + dt * 9);
-    if (k.air) stats.maxAir = Math.max(stats.maxAir, k.z - k.ground);
-    if (k.offroad && spd > 60) { k.dustT += dt; if (k.dustT > 0.06) { k.dustT = 0; particles.emit(k.x, k.z + 3, k.y, { n: 2, color: [t.def.theme.groundAlt, t.def.theme.ground], spread: 40, vy: 50, life: 0.6, size: 6, g: 60 }); } }
-
-    updateProgress(k, near2);
-  }
-
-  const stats = { jumps: 0, tricks: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0 };
-  function land(k, impact) {
-    stats.jumps++;
-    if (k.model) k.model.sq.vel -= clamp(impact / 60, 1, 8);
-    if (impact > 120) particles.emit(k.x, k.z + 2, k.y, { n: 8, color: ['#ffffff', state.track.def.theme.groundAlt], spread: 120, vy: 60, life: 0.5, size: 4, g: 200 });
-    if (impact > 420) { k.vz = impact * 0.28; k.air = true; }
-    if (k.trick) {
-      k.trick = false; k.trickAngle = 0;
-      if (k.airT >= 0.4) { stats.tricks++; boost(k, 0.9); if (k.isHuman) toast(`${k.emoji} ${k.name}: ¡truco! 🤸`, 1.5); }
-    }
-    if (impact > 80) sfx('land');
-  }
-
-  function updateProgress(k, near) {
-    const t = state.track, N = t.N;
-    if (near.d > t.halfW * 2.5) return;
-    const cur = ((k.dist % N) + N) % N;
-    let delta = near.i - cur;
-    if (delta > N / 2) delta -= N; else if (delta < -N / 2) delta += N;
-    if (delta > t.win) return;
-    k.dist += delta;
-    const lap = Math.floor(k.dist / N);
-    if (lap > k.lapCount) {
-      k.lapCount = lap;
-      if (!k.finished && state.phase === 'race') {
-        if (lap >= state.laps) finishKart(k);
-        else if (lap > 0) {
-          sfx('lap');
-          if (k.isHuman && lap === state.laps - 1) toast(`${k.emoji} ${k.name}: ¡última vuelta!`, 2.5);
-        }
-      }
-    }
-  }
-
-  function finishKart(k) {
-    k.finished = true;
-    k.finishTime = state.raceTime;
-    k.finishRank = ++state.finishedCount;
-    k.item = null; k.rolling = null;
-    if (!state.firstFinish) state.firstFinish = state.raceTime;
-    toast(`🏁 ${k.emoji} ${k.name} termina ${ordinal(k.finishRank)}`, 3.5);
-    particles.emit(k.x, k.z + 60, k.y, { n: 40, color: 'rainbow', spread: 260, vy: 160, life: 1.6, size: 5, g: 300, flat: true });
-    sfx('finishKart');
-    sendStatus(k);
-  }
-
-  function setVel(k, vx, vy) {
-    const sp = Math.hypot(vx, vy);
-    if (sp < 1) { k.speed = 0; return; }
-    const ang = Math.atan2(vy, vx);
-    const forward = Math.cos(wrapAngle(ang - k.angle)) >= 0;
-    k.speed = forward ? sp : -sp;
-    k.moveAngle = forward ? ang : ang + Math.PI;
-  }
-
-  function collideKarts() {
-    const ks = state.karts, now = simTime;
-    for (let i = 0; i < ks.length; i++) {
-      for (let j = i + 1; j < ks.length; j++) {
-        const a = ks[i], b = ks[j];
-        if (Math.abs(a.z - b.z) > 24) continue;
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const d2 = dx * dx + dy * dy, minD = KART_R * 2;
-        if (d2 >= minD * minD || d2 === 0) continue;
-        const d = Math.sqrt(d2), nx = dx / d, ny = dy / d, overlap = minD - d;
-        a.x -= nx * overlap / 2; a.y -= ny * overlap / 2;
-        b.x += nx * overlap / 2; b.y += ny * overlap / 2;
-        const avx = Math.cos(a.moveAngle) * a.speed, avy = Math.sin(a.moveAngle) * a.speed;
-        const bvx = Math.cos(b.moveAngle) * b.speed, bvy = Math.sin(b.moveAngle) * b.speed;
-        const rel = (avx - bvx) * nx + (avy - bvy) * ny;
-        if (rel > 0) {
-          const imp = rel * 0.9;
-          setVel(a, avx - imp * nx, avy - imp * ny);
-          setVel(b, bvx + imp * nx, bvy + imp * ny);
-          if (rel > 120) {
-            const hop = clamp(rel * 0.45, 40, 160);
-            a.vz = Math.max(a.vz, hop * 0.6); b.vz = Math.max(b.vz, hop); a.air = b.air = true;
-            if (a.model) a.model.sq.vel -= 3; if (b.model) b.model.sq.vel -= 3;
-            particles.emit((a.x + b.x) / 2, (a.z + b.z) / 2 + 10, (a.y + b.y) / 2, { n: 8, color: ['#ffffff', '#ffe600'], spread: 160, vy: 80, life: 0.4, size: 4 });
-            stats.bumps++;
-            if (now - a.lastBoing > 0.25) { sfx('bump'); a.lastBoing = now; }
-          }
-        }
-        const aStar = a.starUntil > now, bStar = b.starUntil > now;
-        if (aStar && !bStar) hitKart(b);
-        if (bStar && !aStar) hitKart(a);
-      }
-    }
-  }
-
-  // ===================== Objetos =====================
-  function rollItem(rank, n) {
-    const r = n > 1 ? (rank - 1) / (n - 1) : 0.5;
-    const w = [
-      ['mushroom', 2 + 3 * r], ['banana', 3 - 2 * r], ['green', 3 - 1.5 * r],
-      ['red', rank === 1 ? 0 : 1 + 3 * r], ['star', 4 * r * r], ['lightning', n >= 3 ? 3 * r * r * r : 0],
-    ];
-    const total = w.reduce((acc, [, x]) => acc + x, 0);
-    let x = Math.random() * total;
-    for (const [id, wt] of w) { x -= wt; if (x <= 0) return id; }
-    return 'mushroom';
-  }
-
-  function checkBoxes() {
-    const now = simTime;
-    for (const k of state.karts) {
-      if (k.item || k.rolling || k.finished) continue;
-      for (const box of state.track.boxes) {
-        if (box.respawnAt > now) continue;
-        const dx = box.x - k.x, dy = box.y - k.y;
-        if (dx * dx + dy * dy < 26 * 26 && Math.abs(k.z - box.h) < 45) {
-          box.respawnAt = now + BOX_RESPAWN;
-          k.rolling = { until: now + ROULETTE_TIME, result: rollItem(k.rank, state.karts.length) };
-          particles.emit(box.x, box.h + 18, box.y, { n: 16, color: 'rainbow', spread: 200, vy: 120, life: 0.7, size: 5 });
-          sfx('pickup');
-          sendStatus(k);
-          break;
-        }
-      }
-    }
-  }
-
-  function finishRoulettes() {
-    const now = simTime;
-    for (const k of state.karts) {
-      if (k.rolling && now >= k.rolling.until) {
-        k.item = k.rolling.result; k.rolling = null;
-        k.itemUseAt = now + 0.8 + Math.random() * 2.5;
-        sendStatus(k);
-      }
-      if (k.isBot && k.item && now >= k.itemUseAt) {
-        if (k.item === 'banana' && now < k.itemUseAt + 6) {
-          const behind = state.karts.some((o) => o !== k && o.dist < k.dist && k.dist - o.dist < 60);
-          if (!behind) continue;
-        }
-        useItem(k);
-      }
-    }
-  }
-
+  // ===================== Mallas de objetos =====================
   function shellMesh(type) {
     const g = new THREE.Group();
     const s = new THREE.Mesh(new THREE.SphereGeometry(10, 14, 10), toon(type === 'red' ? '#ff3d3d' : '#39ff88'));
@@ -1322,169 +866,6 @@ import * as THREE from 'three';
     m.rotation.set(Math.PI / 2, 0, Math.random() * 6);
     scene.add(m);
     return m;
-  }
-
-  function useItem(k) {
-    const now = simTime;
-    if (!k.item || k.spinUntil > now || k.finished || state.phase !== 'race') return;
-    const it = k.item;
-    k.item = null;
-    const cos = Math.cos(k.angle), sin = Math.sin(k.angle);
-    switch (it) {
-      case 'mushroom': boost(k, 1.2); break;
-      case 'banana':
-        state.bananas.push({ x: k.x - cos * 34, y: k.y - sin * 34, owner: k.id, bornAt: now, mesh: bananaMesh() });
-        if (state.bananas.length > 30) { const old = state.bananas.shift(); scene.remove(old.mesh); }
-        sfx('drop');
-        break;
-      case 'green':
-        state.projectiles.push({ type: 'green', x: k.x + cos * 28, y: k.y + sin * 28, angle: k.angle, speed: 700, owner: k.id, bornAt: now, life: 5, targetId: null, dead: false, mesh: shellMesh('green') });
-        sfx('shell');
-        break;
-      case 'red': {
-        const ahead = state.karts.find((o) => o.rank === k.rank - 1) || null;
-        state.projectiles.push({ type: 'red', x: k.x + cos * 28, y: k.y + sin * 28, angle: k.angle, speed: 660, owner: k.id, bornAt: now, life: 9, targetId: ahead ? ahead.id : null, dead: false, mesh: shellMesh('red') });
-        sfx('shell');
-        break;
-      }
-      case 'star':
-        k.starUntil = now + 7; k.spinUntil = 0;
-        particles.emit(k.x, k.z + 20, k.y, { n: 24, color: 'rainbow', spread: 240, vy: 150, life: 0.9, size: 5 });
-        sfx('star');
-        break;
-      case 'lightning':
-        for (const o of state.karts) {
-          if (o === k || o.starUntil > now) continue;
-          o.shrinkUntil = now + 5;
-          if (o.spinUntil <= now && o.invUntil <= now) { o.spinUntil = now + 0.6; o.speed *= 0.4; o.vz = Math.max(o.vz, 120); o.air = true; }
-          particles.emit(o.x, o.z + 30, o.y, { n: 10, color: ['#ffe600', '#00e5ff'], spread: 100, vy: -200, life: 0.5, size: 4, g: 0 });
-          if (o.playerId != null) toPlayer(o.playerId, { t: 'fx', kind: 'hit' });
-        }
-        flashEl.style.opacity = '0.85';
-        setTimeout(() => { flashEl.style.opacity = '0'; }, 60);
-        state.shake = 10;
-        sfx('lightning');
-        break;
-      default: break;
-    }
-    sendStatus(k);
-  }
-
-  function stepProjectiles(dt) {
-    const t = state.track, now = simTime;
-    for (const p of state.projectiles) {
-      if (p.dead) continue;
-      let homing = false;
-      if (p.type === 'red' && p.targetId) {
-        const tgt = state.karts.find((k) => k.id === p.targetId);
-        if (tgt) {
-          homing = true;
-          const dx = tgt.x - p.x, dy = tgt.y - p.y;
-          let desired;
-          if (Math.hypot(dx, dy) < 260) desired = Math.atan2(dy, dx);
-          else { const near = t.nearest(p.x, p.y); const s = t.samples[(near.i + 16) % t.N]; desired = Math.atan2(s.y - p.y, s.x - p.x); }
-          const diff = wrapAngle(desired - p.angle), maxTurn = 7 * dt;
-          p.angle += clamp(diff, -maxTurn, maxTurn);
-        }
-      }
-      p.x += Math.cos(p.angle) * p.speed * dt;
-      p.y += Math.sin(p.angle) * p.speed * dt;
-      p.z = t.groundAt(p.x, p.y) + 8;
-      const age = now - p.bornAt;
-      if (age > p.life || p.x < 0 || p.x > MAP_W || p.y < 0 || p.y > MAP_H) { p.dead = true; continue; }
-      if (!homing && t.nearest(p.x, p.y).d > t.halfW + 30) { p.dead = true; particles.emit(p.x, p.z, p.y, { n: 8, color: '#ffffff', spread: 120, life: 0.4, size: 4 }); continue; }
-      for (const k of state.karts) {
-        if (k.id === p.owner && (p.type === 'red' || age < 0.5)) continue;
-        if (k.z - p.z > 22) continue; // saltando por encima
-        const dx = k.x - p.x, dy = k.y - p.y;
-        if (dx * dx + dy * dy < (KART_R + 10) * (KART_R + 10)) {
-          if (k.starUntil > now) { p.dead = true; particles.emit(p.x, p.z, p.y, { n: 8, color: '#ffffff', spread: 120, life: 0.4, size: 4 }); }
-          else if (hitKart(k)) p.dead = true;
-          break;
-        }
-      }
-      if (p.dead) continue;
-      for (let i = state.bananas.length - 1; i >= 0; i--) {
-        const bn = state.bananas[i];
-        const dx = bn.x - p.x, dy = bn.y - p.y;
-        if (dx * dx + dy * dy < 22 * 22) { scene.remove(bn.mesh); state.bananas.splice(i, 1); p.dead = true; particles.emit(p.x, p.z, p.y, { n: 8, color: '#ffe600', spread: 140, life: 0.5, size: 4 }); break; }
-      }
-    }
-    for (const p of state.projectiles) if (p.dead && p.mesh) scene.remove(p.mesh);
-    state.projectiles = state.projectiles.filter((p) => !p.dead);
-  }
-
-  function checkBananas() {
-    const now = simTime;
-    for (let i = state.bananas.length - 1; i >= 0; i--) {
-      const bn = state.bananas[i];
-      for (const k of state.karts) {
-        if (bn.owner === k.id && now < bn.bornAt + 0.7) continue;
-        if (k.z - k.ground > 22) continue;
-        const dx = bn.x - k.x, dy = bn.y - k.y;
-        if (dx * dx + dy * dy < (KART_R + 10) * (KART_R + 10)) {
-          if (k.starUntil > now || hitKart(k)) { scene.remove(bn.mesh); state.bananas.splice(i, 1); particles.emit(bn.x, k.z + 6, bn.y, { n: 8, color: '#ffe600', spread: 140, life: 0.5, size: 4 }); break; }
-        }
-      }
-    }
-  }
-
-  // ===================== Simulación =====================
-  function updateRanking() {
-    const arr = state.karts.slice().sort((a, b) => {
-      if (a.finished && b.finished) return a.finishTime - b.finishTime;
-      if (a.finished) return -1;
-      if (b.finished) return 1;
-      return b.dist - a.dist;
-    });
-    arr.forEach((k, i) => { k.rank = i + 1; });
-  }
-
-  let statusTimer = 0;
-  function update(dt) {
-    simTime += dt;
-    if (state.phase === 'countdown') {
-      state.countdownT += dt;
-      const step = Math.floor(state.countdownT);
-      if (step !== state.cdStep) {
-        state.cdStep = step;
-        if (step < 3) { sfx('beep'); showBig(String(3 - step)); }
-      }
-      if (state.countdownT >= 3) {
-        state.phase = 'race'; state.raceTime = 0; state.goFlash = 1.2;
-        showBig('¡YA!'); setTimeout(() => hideBig('¡YA!'), 1100);
-        sfx('go');
-        sendPhase();
-      }
-      return;
-    }
-    if (state.phase !== 'race') return;
-
-    state.raceTime += dt;
-    for (const k of state.karts) {
-      let inp;
-      if (k.isBot || k.finished) inp = aiInput(k);
-      else if (k.isKb) inp = state.kb ? state.kb.input : k.input;
-      else { const p = state.players.get(k.playerId); inp = p ? p.input : k.input; }
-      stepKart(k, inp, dt);
-    }
-    collideKarts();
-    stepProjectiles(dt);
-    checkBananas();
-    checkBoxes();
-    finishRoulettes();
-    updateRanking();
-
-    statusTimer += dt;
-    if (statusTimer >= 0.3) { statusTimer = 0; for (const k of state.karts) sendStatus(k); }
-
-    const humans = state.karts.filter((k) => k.isHuman);
-    if (!state.endAt) {
-      if (humans.length && humans.every((k) => k.finished)) state.endAt = simTime + 2.5;
-      else if (state.firstFinish && state.raceTime - state.firstFinish > 60) state.endAt = simTime;
-      else if (state.raceTime > 60 * 8) state.endAt = simTime;
-    }
-    if (state.endAt && simTime >= state.endAt) showResults();
   }
 
   // ===================== Cámara =====================
@@ -1534,7 +915,7 @@ import * as THREE from 'three';
   const _hsl = new THREE.Color();
   function updateVisuals(dt) {
     animT += dt;
-    const now = simTime;
+    const now = state.simTime;
     // ambiente
     if (currentWorld) {
       for (const a of currentWorld.userData.animated) {
@@ -1549,7 +930,7 @@ import * as THREE from 'three';
     }
     // cajas
     for (const box of state.track.boxes) {
-      const m = box.mesh; if (!m) continue;
+      const m = box.view; if (!m) continue;
       const active = box.respawnAt <= now;
       const target = active ? 1 : 0;
       const s = lerp(m.scale.x, target, 1 - Math.exp(-8 * dt));
@@ -1561,11 +942,11 @@ import * as THREE from 'three';
       m.material.color.copy(_hsl);
     }
     // proyectiles y plátanos
-    for (const p of state.projectiles) { p.mesh.position.set(p.x, p.z, p.y); p.mesh.rotation.y += dt * 14; }
-    for (const b of state.bananas) { if (b.z == null) b.z = state.track.groundAt(b.x, b.y) + 4; b.mesh.position.set(b.x, b.z, b.y); b.mesh.rotation.z += dt * 2; }
+    for (const p of state.projectiles) { if (p.view) { p.view.position.set(p.x, p.z, p.y); p.view.rotation.y += dt * 14; } }
+    for (const b of state.bananas) { if (!b.view) continue; if (b.z == null) b.z = state.track.groundAt(b.x, b.y) + 4; b.view.position.set(b.x, b.z, b.y); b.view.rotation.z += dt * 2; }
     // karts
     for (const k of state.karts) {
-      const M = k.model; if (!M) continue;
+      const M = k.view; if (!M) continue;
       const boosting = k.boostUntil > now, star = k.starUntil > now, small = k.shrinkUntil > now, spinning = k.spinUntil > now;
       M.g.position.set(k.x, k.z, k.y);
       let yaw = -k.angle;
@@ -1574,7 +955,7 @@ import * as THREE from 'three';
       const sc = lerp(M.g.scale.x, small ? 0.62 : 1, 1 - Math.exp(-6 * dt));
       M.g.scale.set(sc, sc, sc);
       // inclinación exagerada
-      const inp = k.isBot || k.finished ? null : (k.isKb ? (state.kb && state.kb.input) : (state.players.get(k.playerId) || {}).input);
+      const inp = k.isBot || k.finished ? null : k.input;
       const s = inp ? inp.s : 0, g = inp ? inp.g : (k.isBot ? 1 : 0), b = inp ? inp.b : 0;
       const drifting = k.driftT > 0;
       const rollT = drifting ? k.driftDir * 0.5 : s * 0.22;
@@ -1645,7 +1026,7 @@ import * as THREE from 'three';
       const el = hudEntries.get(k); if (!el) continue;
       el.style.order = k.rank;
       el.querySelector('.rk').textContent = ordinal(k.rank);
-      el.querySelector('.sub').textContent = k.finished ? `¡Meta! ${fmtTime(k.finishTime)}` : `Vuelta ${displayLap(k)}/${state.laps}` + (k.item ? '  ' + ITEMS[k.item].icon : '');
+      el.querySelector('.sub').textContent = k.finished ? `¡Meta! ${fmtTime(k.finishTime)}` : `Vuelta ${sim.displayLap(k)}/${state.laps}` + (k.item ? '  ' + ITEMS[k.item].icon : '');
       el.classList.toggle('fin', k.finished);
     }
   }
@@ -1701,7 +1082,7 @@ import * as THREE from 'three';
         if (key === 'ArrowLeft') inp.s = -1;
         if (key === 'ArrowRight') inp.s = 1;
         if (key === 'Shift') inp.d = 1;
-        if (key === ' ' && !e.repeat) { const k = state.karts.find((q) => q.isKb); if (k) useItem(k); }
+        if (key === ' ' && !e.repeat) { const k = state.karts.find((q) => q.isKb); if (k) sim.useItem(k); }
       }
     }
     if (e.repeat) return;
@@ -1715,7 +1096,7 @@ import * as THREE from 'three';
       else if (key === 'n' || key === 'N') changeSetting('bots', -1);
       else if (key === 'l' || key === 'L') changeSetting('laps', 1);
     } else if (state.phase === 'results') {
-      if (key === 'Enter') backToLobby();
+      if (key === 'Enter') sim.backToLobby();
     }
   });
   window.addEventListener('keyup', (e) => {
@@ -1780,13 +1161,23 @@ import * as THREE from 'three';
   }
 
   // ===================== Bucle principal =====================
+  // Lo último que mandó cada móvil (o el teclado) entra en la simulación antes de cada frame
+  function pushInputs() {
+    for (const k of state.karts) {
+      if (k.isBot || k.finished) continue;
+      const inp = k.isKb ? (state.kb ? state.kb.input : null) : (state.players.get(k.playerId) || {}).input;
+      if (inp) sim.setInput(k, inp);
+    }
+  }
+
   let last = performance.now(), acc = 0;
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     acc += dt;
     let n = 0;
-    while (acc >= DT && n < 6) { update(DT); acc -= DT; n++; }
+    pushInputs();
+    while (acc >= DT && n < 6) { sim.update(DT); acc -= DT; n++; }
     if (n === 6) acc = 0;
     updateVisuals(dt);
     updateCamera(dt);
@@ -1795,7 +1186,10 @@ import * as THREE from 'three';
     requestAnimationFrame(frame);
   }
 
-  window.KART_DEBUG = { state, TRACKS, aiInput, startRace, backToLobby, useItem, hitKart, scene, camera, stats };
+  window.KART_DEBUG = {
+    sim, state, stats: sim.stats, TRACKS, aiInput: sim.aiInput, startRace,
+    backToLobby: sim.backToLobby, useItem: sim.useItem, hitKart: sim.hitKart, scene, camera,
+  };
 
   if (window.matchMedia('(pointer: coarse)').matches && Math.min(window.innerWidth, window.innerHeight) < 900 && !location.search.includes('screen')) {
     location.replace('/play');

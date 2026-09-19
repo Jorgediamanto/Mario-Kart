@@ -8,14 +8,21 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
 
 - `server.js` — servidor Node (http + `ws`): sirve `public/`, genera el QR (`qrcode`), sirve three.js
   y hace de **relé WebSocket** entre móviles y pantalla. No contiene lógica de juego.
-- `public/index.html` + `public/screen.js` — la pantalla de la tele (módulo ES, three.js). Aquí vive
-  **toda la simulación**: física (saltos, gravedad, bumpers, paneles turbo), objetos, bots, vueltas,
-  clasificación, cámara, partículas, HUD y audio sintetizado. La sala y los resultados son HTML encima
-  del canvas.
+- `public/sim.mjs` — **toda la simulación** (módulo ES, sin navegador): física (saltos, gravedad,
+  bumpers, paneles turbo), objetos, bots, vueltas y clasificación. `createSim({ geom, trackDefs,
+  hooks, random })` devuelve la carrera; cada efecto visible o audible sale por un hook de
+  `DEFAULT_HOOKS` y las mallas de three.js viven en la ranura `view` de cada objeto, que la
+  simulación nunca lee. Todo su azar pasa por `random`, así que con una semilla las carreras se
+  repiten clavadas.
+- `public/index.html` + `public/screen.js` — la pantalla de la tele (módulo ES, three.js). Monta la
+  simulación y le pone lo que se ve y se oye: mundo 3D, modelos de kart, partículas, cámara, HUD,
+  audio sintetizado y la conexión con los móviles. La sala y los resultados son HTML encima del canvas.
 - `public/play.html` + `public/play.js` — el mando del móvil: botones táctiles, sala, estado de carrera.
 - `public/tracks.js` — circuitos (puntos de control + relieve, cajas, paneles, bumpers, tema de colores).
   `public/geom.js` — spline Catmull-Rom y remuestreo (compartido con Node).
-- `tools/check-tracks.js` — validador de circuitos. `tools/check-all.js` — comprobación completa (`npm test`).
+- `tools/check-tracks.js` — validador de circuitos. `tools/check-sim.js` — carreras de bots sin
+  navegador (fase 4 de `npm test`), con una lista de «escenarios» a la que cada punto nuevo suma el
+  suyo. `tools/check-all.js` — comprobación completa (`npm test`).
 - `Abrir Kart Party.command` — lanzador de doble clic para macOS.
 
 Protocolo móvil ↔ servidor ↔ pantalla (JSON por WebSocket): `hello/welcome`, `lobby`, `roster`,
@@ -30,10 +37,10 @@ npm ci
 npm test        # sintaxis de todos los archivos + validador de circuitos + arranque real del servidor
 ```
 
-`npm test` tiene que pasar antes de subir nada a `main`. No hay tests de navegador (la Fase 0 de
-`IDEAS.md` añade `public/sim.mjs`, una simulación sin navegador que corre carreras de bots dentro de
-`npm test`, y `npm run race` para ver carreras por consola): cuando
-toques `screen.js`, revisa con cuidado que el código sea válido como módulo ES y que no uses APIs de
+`npm test` tiene que pasar antes de subir nada a `main`. La física se puede comprobar a ciegas: la
+fase 4 corre carreras de bots dentro de `public/sim.mjs` y cada cambio de juego debería añadir su
+escenario a `tools/check-sim.js`. Lo que sigue sin prueba automática es el navegador: cuando toques
+`screen.js`, revisa con cuidado que el código sea válido como módulo ES y que no uses APIs de
 three.js que no existan en la versión instalada (`node_modules/three/package.json`).
 
 ## Reglas

@@ -4,6 +4,7 @@
  *  1. sintaxis de todos los archivos JS (screen.js es un módulo ES)
  *  2. validador de circuitos
  *  3. arranque real del servidor y petición de cada página/recurso
+ *  4. carrera de bots sin navegador dentro de public/sim.mjs
  */
 const { spawnSync, spawn } = require('child_process');
 const fs = require('fs');
@@ -34,6 +35,7 @@ checkSyntax('public/tracks.js', false);
 checkSyntax('public/geom.js', false);
 checkSyntax('tools/check-tracks.js', false);
 checkSyntax('public/screen.js', true);
+checkSyntax('public/sim.mjs', false);   // ya es un módulo: node --check lo entiende tal cual
 
 console.log('Circuitos');
 {
@@ -64,6 +66,7 @@ console.log('Servidor');
       ['/info', 'application/json', '"url"'],
       ['/qr.svg', 'image/svg+xml', '<svg'],
       ['/screen.js', 'text/javascript', "from 'three'"],
+      ['/sim.mjs', 'text/javascript', 'createSim'],
       ['/play.js', 'text/javascript', 'WebSocket'],
       ['/tracks.js', 'text/javascript', 'KART_TRACKS'],
       ['/geom.js', 'text/javascript', 'KART_GEOM'],
@@ -86,6 +89,15 @@ console.log('Servidor');
   }
   child.kill();
   await new Promise((res) => setTimeout(res, 200));
+
+  console.log('Carrera sin pantalla');
+  {
+    const r = spawnSync(process.execPath, [path.join(ROOT, 'tools/check-sim.js')], { encoding: 'utf8' });
+    process.stdout.write(r.stdout.split('\n').map((l) => (l ? '    ' + l : l)).join('\n'));
+    if (r.stderr) process.stdout.write(r.stderr);
+    if (r.status === 0) ok('simulación de carreras'); else bad('simulación de carreras');
+  }
+
   console.log(failed ? '\nHAY FALLOS' : '\nTodo correcto');
   process.exit(failed ? 1 : 0);
 })();

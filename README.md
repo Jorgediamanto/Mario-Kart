@@ -101,7 +101,7 @@ no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa.
 
 ## Ajustes rápidos
 
-- Velocidad de los karts: `BASE_MAX_SPEED` al principio de `public/screen.js`.
+- Velocidad de los karts: `BASE_MAX_SPEED` al principio de `public/sim.mjs`.
   Gravedad general: `GRAVITY` (y por circuito, `gravity` en `tracks.js`).
 - Puerto: `PORT=3001 npm start`.
 - Si el QR muestra una IP que no es la de tu WiFi (por ejemplo tienes una VPN):
@@ -125,8 +125,15 @@ no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa.
 ## Comprobaciones y desarrollo nocturno
 
 ```bash
-npm test        # sintaxis + validador de circuitos + arranca el servidor y pide cada página
+npm test        # sintaxis + circuitos + arranca el servidor y pide cada página + carreras de bots
 ```
+
+La última fase de `npm test` (`tools/check-sim.js`) corre carreras enteras **sin navegador**: usa la
+simulación de `public/sim.mjs` con ocho bots en los cuatro circuitos y comprueba que todos terminan,
+que nadie se sale del mapa ni se queda atascado, que el orden de llegada cuadra con los tiempos y que
+con la misma semilla sale exactamente la misma carrera. Debajo hay una lista de «escenarios» (el
+plátano hace girar, la estrella protege, el derrape da turbo…) a la que conviene sumar uno nuevo cada
+vez que se toca el juego. Con esto, un cambio de física se puede comprobar sin encender la tele.
 
 Un agente de Claude en la nube trabaja en el repositorio **dos veces cada noche** (02:30 y 05:30)
 siguiendo el protocolo de `CLAUDE.md`: avanza en orden por la hoja de ruta de `IDEAS.md` (edítala
@@ -138,8 +145,11 @@ sesiones (dónde se quedó, qué falta) y `CHANGELOG.md` el diario de lo que cam
 
 - `server.js`: servidor Node (sin frameworks) que sirve las páginas, genera el QR, sirve
   three.js desde `node_modules` y hace de relé WebSocket entre los móviles y la pantalla.
+- `public/sim.mjs`: la simulación del juego (física, saltos, objetos, bots, vueltas, clasificación).
+  No sabe nada del navegador: todo lo que se ve o se oye sale por un «hook», así que corre igual en la
+  tele que en las pruebas.
 - `public/index.html` + `public/screen.js`: la pantalla de la tele con [three.js](https://threejs.org);
-  aquí corre toda la simulación (física, saltos, objetos, bots, clasificación) y el render 3D.
+  monta la simulación y le pone mundo 3D, modelos, partículas, cámara, HUD y sonido.
 - `public/play.html` + `public/play.js`: el mando del móvil.
 - `public/tracks.js` y `public/geom.js`: circuitos y geometría (spline Catmull-Rom).
-- `tools/check-tracks.js`: validador de circuitos.
+- `tools/check-tracks.js`: validador de circuitos. `tools/check-sim.js`: carreras de prueba sin navegador.

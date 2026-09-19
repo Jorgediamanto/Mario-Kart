@@ -21,11 +21,19 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 
 ## Bugs conocidos
 
-- [ ] (ninguno anotado; si ves uno, escríbelo aquí con cómo reproducirlo)
+- [ ] **Un bot golpeado se da la vuelta y corre en dirección contraria.** Tras un choque o un
+      caparazón, a veces el bot sale mirando hacia atrás y sigue a fondo el sentido contrario varios
+      segundos (pierde ~18 s de carrera) antes de girar. Se ve en `npm test` como un aviso ⚠ de la
+      fase 4: «Volcán Disco: Bot 4 se fue en dirección contraria hacia t=15 s». Reproducir:
+      `node tools/check-sim.js` (circuito 3, semilla 1002, 8 bots). La culpa es de `aiInput` en
+      `public/sim.mjs`: mientras está de espaldas sigue acelerando (`g: 1`) y solo da marcha atrás si
+      va a menos de 60 de velocidad. Arreglo propuesto: si el ángulo hacia el camino es mayor de
+      ~2 rad, soltar el gas (o frenar) hasta estar encarado. Añadir el escenario a `check-sim.js`:
+      un kart colocado del revés vuelve a avanzar en menos de 3 s.
 
 ## Fase 0 — Cimientos: que el agente pueda comprobar su trabajo
 
-- [ ] **0.1 Simulación sin navegador (el «crash-test»): `public/sim.mjs` + carrera de bots en `npm test`.**
+- [x] **0.1 Simulación sin navegador (el «crash-test»): `public/sim.mjs` + carrera de bots en `npm test`.**
       - Qué: mover a `public/sim.mjs` (módulo ES; **`.mjs` y no `.js`**, porque `package.json` no tiene
         `"type": "module"` y Node 18/20 trataría un `.js` como CommonJS al importarlo desde las pruebas; en
         el navegador funciona igual) todo lo que hoy es simulación en `screen.js`: constantes, `CHARS`,
@@ -69,6 +77,13 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         frase «No hay tests de navegador» de `CLAUDE.md` y `README.md`, y el aserto de `check-all.js` que
         busca `from 'three'` en `/screen.js` si deja de cumplirse. En CHANGELOG: «primera fiesta tras este
         cambio: jugar con atención».
+      - **Hecho el 2026-09-19.** Dos detalles que se resolvieron sobre la marcha, por si hace falta
+        revisarlos: (1) la carrera de la fase 4 se corre **dos veces** por circuito — una con 8 bots,
+        que es la que comprueba que los 8 terminan (con una persona en la parrilla la carrera acaba
+        2,5 s después de que ella cruce, así que los bots no llegan), y otra con 7 bots y el
+        pseudo-humano, que comprueba justo ese final; (2) `sim.mjs` menciona `Math.random` una sola
+        vez, como valor por defecto del parámetro `random` que pide el propio enunciado, y la prueba
+        comprueba que no hay ninguna llamada directa.
 - [ ] **0.2 `npm run race`: carreras por consola con estadísticas (los ojos del agente).**
       `tools/sim-race.js` con `--track n|all`, `--laps`, `--bots`, `--seed`, `--runs k`, `--verbose`
       (registro por evento: vuelta, objeto cogido/usado, golpe, salto, truco, panel, con tiempo y posición),
