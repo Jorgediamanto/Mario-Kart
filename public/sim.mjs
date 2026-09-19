@@ -31,6 +31,9 @@ export const RESCUE_AFTER = 3;    // segundos perdido o atascado antes de que lo
 export const RESCUE_TIME = 1.2;   // lo que tarda la maniobra (el kart no se mueve)
 export const RESCUE_FAR = 140;    // a esta distancia del borde de la carretera ya está «perdido»
 export const RESCUE_SLOW = 40;    // por debajo de esta velocidad se considera parado
+// Bots: si el morro apunta a más de este ángulo (radianes) del camino, el bot va de espaldas;
+// suelta el gas y frena hasta encararse, y solo da marcha atrás cuando ya casi está parado.
+export const AI_WRONG_ANGLE = 2.0;
 export const MAX_KARTS = 8;
 export const SAMPLE_SPACING = 8;
 
@@ -353,8 +356,11 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const brake = curve > 1.5 && k.speed > 340 ? 1 : 0;
     // en el aire, los bots sueltan derrape y lo pulsan de nuevo a mitad de vuelo: truco
     const drift = k.air ? (k.airT > 0.2 ? 1 : 0) : (curve > 0.8 && k.speed > 260 ? 1 : 0);
-    const reverse = Math.abs(diff) > 2.6 && k.speed < 60;
-    return { s: reverse ? -steer : steer, g: brake || reverse ? 0 : 1, b: brake || reverse ? 1 : 0, d: drift };
+    // de espaldas al camino: lo primero es encararse. Con carrerilla, frenar; ya parado, marcha atrás
+    const alReves = Math.abs(diff) > AI_WRONG_ANGLE;
+    const reverse = alReves && k.speed < 60;
+    const frena = brake || alReves;
+    return { s: reverse ? -steer : steer, g: frena ? 0 : 1, b: frena ? 1 : 0, d: alReves ? 0 : drift };
   }
 
   // Lo recogen y lo dejan en el punto más cercano de la carretera, mirando en el sentido correcto

@@ -112,7 +112,6 @@ function correrCircuito(sim, index, opts = {}) {
   const vueltasAlLlegar = new Map();               // vueltas que llevaba cada uno al cruzar la meta
   let lapsPrevias = s.state.karts.map((k) => k.lapCount);
   let problema = null;
-  let despistado = null;
   const falla = (msg) => { if (!problema) problema = msg; };
   const inicio = Date.now();
 
@@ -139,7 +138,7 @@ function correrCircuito(sim, index, opts = {}) {
         const recorrido = h.reduce((a, b) => a + b[1], 0);
         // quieto de verdad (contra un muro) es un fallo; dar media vuelta y tirar al revés, no
         if (avance < 40 && recorrido < 400) falla(`${k.name}: atascado (${avance.toFixed(0)} muestras y ${recorrido.toFixed(0)} px en 10 s)`);
-        else if (avance < 40 && !despistado) despistado = `${k.name} se fue en dirección contraria hacia t=${s.state.simTime.toFixed(0)} s (${avance.toFixed(0)} muestras en 10 s)`;
+        else if (avance < 40) falla(`${k.name}: se fue en dirección contraria hacia t=${s.state.simTime.toFixed(0)} s (${avance.toFixed(0)} muestras en 10 s)`);
       }
     });
     lapsPrevias = ks.map((k) => k.lapCount);
@@ -163,7 +162,6 @@ function correrCircuito(sim, index, opts = {}) {
   check(vueltasBien, `${titulo}: todos acaban con ${laps} vueltas`);
   check(rankBien, `${titulo}: el orden de llegada coincide con los tiempos`);
   check(!problema, `${titulo}: la simulación se porta${problema ? ' → ' + problema : ''}`);
-  if (despistado) console.log('  ⚠ ' + titulo + ': ' + despistado + ' (bug conocido de los bots, ver IDEAS.md)');
   check(st.jumps >= 1 && st.pads >= 1, `${titulo}: saltos ${st.jumps}, paneles ${st.pads}`);
   check(st.pickups >= 8 && st.itemsUsed >= 8, `${titulo}: objetos cogidos ${st.pickups}, usados ${st.itemsUsed}`);
   check(dur < 5, `${titulo}: vuelta media ${vueltaMedia.toFixed(1)} s · simulada en ${dur.toFixed(1)} s`);
@@ -209,6 +207,35 @@ const escenarios = [
       if (Math.hypot(k.x - x0, k.y - y0) > 0.001) return 'el kart se ha movido durante la cuenta atrás';
       for (let i = 0; i < 20; i++) s.update(DT);
       return s.state.phase === 'race' ? null : 'la carrera no arranca a los 3 s';
+    },
+  },
+  {
+    // el bug de los bots que salían disparados en dirección contraria tras un golpe: el que va de
+    // espaldas tiene que frenar y encararse, no acelerar hacia atrás perdiendo medio circuito
+    nombre: 'un kart puesto del revés se encara y recupera su avance en menos de 2,5 s',
+    run(sim) {
+      for (let pista = 0; pista < 4; pista++) {
+        const s = carrera(sim, { bots: 1, trackIndex: pista });
+        const k = humano(s);
+        const t = s.state.track;
+        // lo plantamos en mitad de la carretera, a buena velocidad y mirando justo al revés
+        const m = t.samples[t.nearest(k.x, k.y).i];
+        k.x = m.x; k.y = m.y; k.z = m.h; k.ground = m.h; k.air = false; k.vz = 0;
+        k.angle = m.ang + Math.PI; k.moveAngle = k.angle; k.speed = 300;
+        k.stuckT = 0; k.rescueUntil = 0;
+        const avance0 = k.dist;
+        let peor = 0, recupera = null;
+        for (let i = 0; i < 60 * 4; i++) {
+          s.setInput(k, s.aiInput(k));
+          s.update(DT);
+          peor = Math.min(peor, k.dist - avance0);
+          if (recupera === null && k.dist >= avance0) recupera = (i + 1) / 60;
+        }
+        if (k.rescueUntil > s.state.simTime) return `pista ${pista}: ha tenido que venir el rescate a recogerlo`;
+        if (peor < -25) return `pista ${pista}: pierde ${peor.toFixed(0)} muestras yendo al revés`;
+        if (recupera === null || recupera > 2.5) return `pista ${pista}: tarda ${recupera === null ? 'más de 4' : recupera.toFixed(2)} s en recuperar su avance`;
+      }
+      return null;
     },
   },
   {
