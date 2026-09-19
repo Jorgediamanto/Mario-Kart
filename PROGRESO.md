@@ -7,15 +7,16 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-19 10:32
-- último latido (UTC): 2026-09-19 13:40
+- último latido (UTC): 2026-09-19 14:25
 - rama: noche/2026-09-19
 
 ## Punto en curso
 - IDEAS.md: «Vista en tercera persona por jugador (pantalla dividida)» (Fase 1)
 - hecho: `public/layout.mjs` (función pura del reparto de paneles) con su prueba en `check-sim.js`
   (n = 1..8: dentro de la pantalla, sin solapes, cubriendo el 100 %) y servido por el servidor
-- siguiente paso: en `screen.js`, una cámara por persona detrás de su kart y el bucle de render con
-  `setScissorTest`/`setScissor`/`setViewport`; después el mini-HUD por panel
+- hecho también: cámaras de persecución por persona, render por paneles con scissor/viewport,
+  mini-HUD HTML por panel, tiempo en una chapa arriba y comprobación nueva de nombres de three.js
+- siguiente paso: repasar el código con calma (no hay pruebas de navegador), README y CHANGELOG
 - intentos fallidos en este punto: 0
 
 ## Última sesión
