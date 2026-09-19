@@ -4,6 +4,21 @@ Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del a
 llevan la fecha en que se hicieron.
 
 <<<<<<< HEAD
+## 2026-09-19 — Retoques pedidos: volante como antes, habilidad abajo a la izquierda
+
+- **El volante vuelve a ser el de siempre.** Me pasé de frenada al suavizarlo: el tope había subido
+  de 35º a 55º con mucha curva y el kart parecía que no giraba. Vuelve el tope de **35º** y queda
+  solo un pelín de curva (`CURVA = 0.18`), lo justo para que el temblor de la mano cerca del centro
+  no dé un volantazo. A mitad de recorrido gira un 43 % (antes de todo esto, un 50 %).
+- **La habilidad, abajo a la izquierda** de cada panel y con su propio recuadro oscuro, que es
+  donde se mira en carrera. La posición se va abajo a la derecha.
+- **Los nombres, diminutos y siempre del mismo tamaño**, esté el kart cerca o lejos: 11 píxeles,
+  los mismos en todos los paneles. Para conseguirlo sin el fallo de los nombres gigantes, el tamaño
+  se calcula **panel a panel** (en `carteles()`, con la cámara y el alto de ese panel) en vez de una
+  vez por frame con la cámara del primero.
+- **Cómo probarlo**: una carrera con varios móviles. Los nombres tienen que verse igual de pequeños
+  te acerques o te alejes, y la habilidad en la esquina de abajo a la izquierda.
+
 ## 2026-09-19 — Con pantalla dividida ya se ve la carretera
 
 - **Qué pasaba**: con varias personas, los nombres flotando sobre los karts tapaban media pantalla.

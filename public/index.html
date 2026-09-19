@@ -18,9 +18,12 @@
   #panels .pinfo { position: absolute; left: .5em; top: .35em; display: flex; align-items: center; gap: .3em;
     background: rgba(10,0,40,.6); border-radius: 1em; padding: .1em .6em .1em .3em; border-left: .35em solid #fff; }
   #panels .pem { font-size: 1.15em; } #panels .pnm { font-weight: 900; font-size: .8em; max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #panels .ppos { position: absolute; left: .5em; bottom: .3em; font-size: 1.9em; font-weight: 900; color: var(--yellow); text-shadow: 0 .06em 0 #4a0a5e, 0 0 .4em rgba(0,0,0,.6); }
+  #panels .ppos { position: absolute; right: .55em; bottom: .3em; font-size: 1.9em; font-weight: 900; color: var(--yellow); text-shadow: 0 .06em 0 #4a0a5e, 0 0 .4em rgba(0,0,0,.6); }
   #panels .plap { position: absolute; right: .6em; top: .45em; font-weight: 800; font-size: .8em; color: #ffe9b0; text-shadow: 0 .08em .2em #000; }
-  #panels .pitem { position: absolute; right: .5em; bottom: .3em; font-size: 1.6em; filter: drop-shadow(0 .06em .1em #000); }
+  /* la habilidad, abajo a la izquierda y con su recuadro: es lo que más se mira en carrera */
+  #panels .pitem { position: absolute; left: .5em; bottom: .35em; font-size: 1.7em; line-height: 1;
+    filter: drop-shadow(0 .06em .1em #000); background: rgba(10,8,28,.55); border-radius: .3em; padding: .08em .18em; }
+  #panels .pitem:empty { display: none; }
   #panels .pmsg { position: absolute; left: 0; right: 0; top: 38%; text-align: center; font-size: 1.4em; font-weight: 900;
     color: #fff; text-shadow: 0 .08em 0 #4a0a5e, 0 0 .5em rgba(255,45,149,.9); }
   #panels .pmsg:empty { display: none; }

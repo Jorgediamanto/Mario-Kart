@@ -22,18 +22,20 @@
   else root.KART_VOLANTE = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   /*
-   * Cuánto hay que girar el móvil y con qué finura. Con 35º de tope y respuesta recta el kart se
-   * iba de lado al menor movimiento: al sujetar el móvil la mano nunca está quieta, y 5º de más
-   * ya eran un 15 % de volante. Ahora hay que girar bastante más (TOPE) y, sobre todo, la
-   * respuesta es **progresiva** (CURVA): al principio del recorrido el kart casi no se inmuta, y
-   * el giro fuerte se reserva para cuando de verdad tuerces el móvil. Es lo que hacen los mandos
-   * de coches: cerca del centro, fino; en los extremos, bruto.
+   * Cuánto hay que girar el móvil y con qué finura.
+   *
+   * Historia, para no volver a pasarse: primero el tope estaba en 35º con respuesta recta y al
+   * dueño le pareció brusco; se subió a 55º con respuesta muy progresiva y entonces le pareció
+   * que el kart no giraba («¿te has tomado demasiado en serio lo de girar menos?»). Así que
+   * vuelve el tope de 35º de siempre y queda solo un pelín de curva, lo justo para que el
+   * temblor de la mano cerca del centro no dé un volantazo. Si hay que retocarlo otra vez, es
+   * aquí y en un solo número: `TOPE` para cuánto hay que girar, `CURVA` para la finura.
    */
-  const MUERTA = 6 * Math.PI / 180;    // zona muerta: por debajo de esto no cuenta como girar
-  const TOPE = 55 * Math.PI / 180;     // a partir de aquí, volante a tope
-  const CURVA = 0.62;                  // cuánta parte de la respuesta es progresiva (0 = recta)
+  const MUERTA = 5 * Math.PI / 180;    // zona muerta: por debajo de esto no cuenta como girar
+  const TOPE = 35 * Math.PI / 180;     // a partir de aquí, volante a tope
+  const CURVA = 0.18;                  // cuánta parte de la respuesta es progresiva (0 = recta)
   const PLANO = 0.3;                   // con el móvil más plano que esto no se puede medir el giro
-  const FILTRO = 0.28;                 // suavizado del temblor de la mano (0 = nada, 1 = sin filtrar)
+  const FILTRO = 0.35;                 // suavizado del temblor de la mano (0 = nada, 1 = sin filtrar)
 
   // Hacia dónde tira la gravedad, en coordenadas del móvil, solo el plano de la pantalla.
   // (beta y gamma en grados, tal como los da `deviceorientation`.)

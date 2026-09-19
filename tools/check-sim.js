@@ -171,14 +171,15 @@ function comprobarVolante() {
     const derecha = dir(20) > 0 && dir(-20) < 0;     // a la derecha como un volante de verdad
     check(quieto && aTope && derecha, `zona muerta de ${muerta.toFixed(0)}º, tope a ${tope.toFixed(0)}º y girar a la derecha manda a la derecha`);
     /*
-     * Progresiva, no recta: con respuesta recta el kart se iba de lado al menor temblor de la
-     * mano. A mitad del recorrido del volante tiene que salir bastante menos de medio giro, y aun
-     * así no puede haber saltos: cuanto más giras, más gira, siempre.
+     * Un pelín progresiva, no del todo recta: cerca del centro el temblor de la mano no puede dar
+     * un volantazo. Pero tampoco pasarse, que con mucha curva el dueño sintió que el kart no
+     * giraba. A mitad de recorrido tiene que salir algo menos de medio giro, no mucho menos. Y
+     * nunca puede haber saltos: cuanto más giras, más gira, siempre.
      */
     const mitad = dir((muerta + tope) / 2);
     let crece = true, previo = -1;
     for (let g = 0; g <= tope + 5; g += 1) { const d = dir(g); if (d < previo - 1e-9) crece = false; previo = d; }
-    check(mitad > 0.12 && mitad < 0.4, `a mitad de recorrido el kart apenas gira (${mitad.toFixed(2)}, antes era 0,50)`);
+    check(mitad > 0.33 && mitad < 0.48, `a mitad de recorrido gira casi la mitad (${mitad.toFixed(2)}: ni brusco ni blando)`);
     check(crece, 'la respuesta sube siempre: más volante, más giro');
   }
 

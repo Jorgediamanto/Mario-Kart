@@ -282,6 +282,10 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 - [x] **Los nombres tapaban la pantalla dividida.** Pedido por el dueño el 2026-09-19: «los nombres
       de la gente cubren toda la pantalla cuando somos más personas, que sea mucho más pequeño y
       que nos hagan grandes; que la visibilidad del jugador sea mucho más clara».
+      - **Segundo repaso, el mismo día**, pedido por el dueño: los nombres van **siempre al mismo
+        tamaño** (11 px, no cambian con la distancia) y la habilidad al **ángulo de abajo a la
+        izquierda** de cada panel. Y el volante, que se había suavizado de más, vuelve al tope de
+        35º de siempre.
       - **Hecho el 2026-09-19. La trampa, para que no se repita:** `screenScale()` mide los sprites
         en píxeles usando `camActiva`, que con paneles es **la cámara del primer panel**. Como la
         escena se dibuja una vez por panel pero el sprite tiene un solo tamaño, un kart lejos de esa
