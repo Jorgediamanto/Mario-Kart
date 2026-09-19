@@ -45,6 +45,10 @@ export const DRIFT_L2 = 0.9;         // s para el nivel 2 (naranjas)
 export const DRIFT_L3 = 1.4;         // s para el nivel 3 (rosas)
 export const DRIFT_BOOST = [0.6, 1.0, 1.6];  // s de turbo al soltar, por nivel
 export const DRIFT_TURN = 1.4;       // cuánto gira de más mientras derrapa
+// Progreso: cuando un kart aparece de golpe muy por delante (ha volado por encima de un atajo), su
+// avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
+// clasificación congelada media vuelta.
+export const PROGRESS_JUMP_WAIT = 1.0;   // segundos
 export const MAX_KARTS = 8;
 export const SAMPLE_SPACING = 8;
 
@@ -254,7 +258,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       dist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0,
-      driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
+      aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,
@@ -533,7 +537,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (k.stuckT >= RESCUE_AFTER) { rescatar(k, near2); return; }
     }
 
-    updateProgress(k, near2);
+    updateProgress(k, near2, dt);
   }
 
   function land(k, impact) {
@@ -548,13 +552,21 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     if (impact > 80) hooks.onSfx('land', k);
   }
 
-  function updateProgress(k, near) {
+  function updateProgress(k, near, dt) {
     const t = state.track, N = t.N;
     if (near.d > t.halfW * 2.5) return;
     const cur = ((k.dist % N) + N) % N;
     let delta = near.i - cur;
     if (delta > N / 2) delta -= N; else if (delta < -N / 2) delta += N;
-    if (delta > t.win) return;
+    // Un salto adelante grande suele ser un vuelo por encima de un trozo de pista, y no cuenta: si
+    // no, cortar el circuito saldría gratis. Pero si el kart sigue ahí un rato, es que de verdad
+    // está ahí, y congelarle el progreso una vuelta entera (y mentir en la clasificación) es mucho
+    // peor que el atajo: a los PROGRESS_JUMP_WAIT segundos se le acepta el salto.
+    if (Math.abs(delta) > t.win) {
+      k.aheadT += dt;
+      if (k.aheadT < PROGRESS_JUMP_WAIT) return;
+    }
+    k.aheadT = 0;
     k.dist += delta;
     const lap = Math.floor(k.dist / N);
     if (lap > k.lapCount) {

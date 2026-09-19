@@ -3,6 +3,20 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-19 (noche 2) — La clasificación deja de mentir tras un vuelo (bug)
+
+- **Qué pasaba**: si un kart aterrizaba muy por delante de donde iba (saliendo disparado de una rampa
+  o de un bumper), el contador de progreso **dejaba de contarle** hasta que daba la vuelta entera al
+  circuito, y entonces le restaba media vuelta de golpe. Durante unos diez segundos su posición en la
+  clasificación era falsa: podía ir tercero y aparecer último. Pasaba igual con los empujones hacia
+  atrás. El guardia existía para que cortar el circuito no saliera gratis, pero no sabía volver atrás.
+- **Qué cambió**: el salto grande sigue sin contar **al momento**, pero si el kart sigue ahí pasado
+  `PROGRESS_JUMP_WAIT` (1 segundo), se acepta: si de verdad está ahí, mentir en la clasificación es
+  mucho peor que el atajo. Vale para saltos adelante y atrás.
+- **Cómo probarlo**: `npm test` (escenario «volar por encima de un atajo no congela la clasificación»).
+  En la fiesta: tirarse por la rampa larga de Volcán Disco y mirar que la posición en la tele se
+  actualiza al caer en vez de quedarse clavada. Los tiempos de los bots no se mueven.
+
 ## 2026-09-19 (noche 2) — Derrape automático con tres niveles (Fase 1)
 
 - **Qué cambió**: se acabó el botón de derrape. Si aguantas el giro hacia el mismo lado a buena

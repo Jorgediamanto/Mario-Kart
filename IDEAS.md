@@ -36,6 +36,19 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       prueba y hay un escenario nuevo («un kart puesto del revés…», los 4 circuitos, pierde menos de
       25 muestras y recupera su avance en < 2,5 s). Volcán Disco: vuelta media 13,5 s → 12,1 s.
 
+- [x] **El contador de progreso se congela cuando un kart vuela por encima de un atajo.** Si un kart
+      aterriza más de `win` muestras por delante de donde iba (por ejemplo, saliendo disparado de una
+      rampa en Volcán Disco), `updateProgress` en `public/sim.mjs` deja de contarle avance hasta que
+      vuelve a dar la vuelta entera, y entonces le resta media vuelta de golpe: durante ~10 s su
+      posición en la clasificación es mentira. Se ve con el banco de pruebas: el kart recorre 4.000 px
+      siguiendo el trazado mientras su `dist` no se mueve. Reproducir: `node tools/check-sim.js`
+      (Volcán Disco, semilla 1002, Bot 1 hacia t=21 s). Arreglo propuesto: si el kart está en la
+      carretera y el salto de progreso viene de un vuelo (o lleva más de ~1 s congelado), aceptar el
+      salto en vez de ignorarlo, y comprobarlo con un escenario nuevo en `check-sim.js`.
+      **Hecho el 2026-09-19 (noche 2).** Así, con `PROGRESS_JUMP_WAIT` (1 s) al principio de
+      `sim.mjs` y valiendo para saltos en los dos sentidos; escenario «volar por encima de un atajo
+      no congela la clasificación» en `check-sim.js`. Los tiempos de los bots no se mueven.
+
 ## Fase 0 — Cimientos: que el agente pueda comprobar su trabajo
 
 - [x] **0.1 Simulación sin navegador (el «crash-test»): `public/sim.mjs` + carrera de bots en `npm test`.**
@@ -169,17 +182,6 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         `DRIFT_*` al principio de `sim.mjs`, hook `onDrift(kart, nivel)`, `fx` nuevos al móvil
         (`drift0..3`) y `tools/referencia.json` como vara de medir de la fase 4.
 
-## Bugs conocidos (nuevos)
-
-- [ ] **El contador de progreso se congela cuando un kart vuela por encima de un atajo.** Si un kart
-      aterriza más de `win` muestras por delante de donde iba (por ejemplo, saliendo disparado de una
-      rampa en Volcán Disco), `updateProgress` en `public/sim.mjs` deja de contarle avance hasta que
-      vuelve a dar la vuelta entera, y entonces le resta media vuelta de golpe: durante ~10 s su
-      posición en la clasificación es mentira. Se ve con el banco de pruebas: el kart recorre 4.000 px
-      siguiendo el trazado mientras su `dist` no se mueve. Reproducir: `node tools/check-sim.js`
-      (Volcán Disco, semilla 1002, Bot 1 hacia t=21 s). Arreglo propuesto: si el kart está en la
-      carretera y el salto de progreso viene de un vuelo (o lleva más de ~1 s congelado), aceptar el
-      salto en vez de ignorarlo, y comprobarlo con un escenario nuevo en `check-sim.js`.
 - [ ] **Vista en tercera persona por jugador (pantalla dividida).** En vez de la cámara general del circuito,
       cada persona ve **su kart desde atrás y un poco arriba**, cámara que sigue al kart con suavidad (mira
       algo por delante, se aleja un poco con la velocidad, se agita ligeramente en turbos y golpes, y sigue al
