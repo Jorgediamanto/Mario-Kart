@@ -41,6 +41,25 @@ llevan la fecha en que se hicieron.
 
 - **Cómo probarlo**: `npm start`, abre el mando en el móvil y mira la pantalla de entrar: siete
   caras, las cogidas apagadas. Elige una y entra: la misma cara sale arriba, en la tele y en tu kart.
+## 2026-09-20 (noche) — Música: un tema para la sala y otro con prisa para la carrera
+
+Sin un solo archivo de audio: son notas generadas al vuelo, como el resto del sonido del juego.
+
+- **Tema tranquilo en la sala** (y en el calentamiento), para que se oiga entrar a la gente, y
+  **tema con prisa en la carrera**.
+- **En la última vuelta la música corre un 18 % más** y la melodía sube una octava: se nota que
+  queda poco sin tener que mirar el marcador.
+- Va **bajita a propósito**: por encima tienen que oírse los motores y los golpes. Y se calla con la
+  misma tecla **`M`** que todo lo demás.
+- Por dentro: un secuenciador de corcheas que deja las notas programadas un cuarto de segundo por
+  delante en el reloj de audio, así la música no se salta un latido aunque la tele vaya justa de
+  fps. La fanfarria de meta ya existía y se ha quedado como estaba.
+
+- **Cómo probarlo en la fiesta**: `npm start`, clic en la pantalla y escucha la sala; empieza una
+  carrera y fíjate en el cambio, y otra vez al entrar en la última vuelta.
+  **Pendiente de probar en fiesta**: **tampoco se ha podido escuchar**. Si cansa, `MUSICA_VOL` a 0
+  en `public/screen.js` la quita sin tocar nada más.
+
 ## 2026-09-20 (noche) — Cada kart con su motor, y por fin se puede callar el juego
 
 - **Tecla `M`**: calla y enciende todo el sonido de la tele. Hasta hoy no se podía, y en una fiesta
