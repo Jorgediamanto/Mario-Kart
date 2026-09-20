@@ -63,6 +63,23 @@ console.log('Pantalla');
   const partido = ['setScissorTest', 'setScissor', 'setViewport'].filter((n) => !screenSrc.includes(n));
   if (partido.length) bad(`la pantalla dividida ha perdido ${partido.join(', ')}`);
   else ok('la pantalla dividida usa setScissorTest, setScissor y setViewport');
+  /*
+   * Audio: no se puede escuchar desde aquí, pero sí comprobar lo que pide la hoja de ruta. Que
+   * todo el sonido pase por el bus con compresor (y no suelto a `destination`, que es como estaba
+   * antes y por lo que no había manera de callar el juego), que la tecla `M` siga existiendo y que
+   * los motores se apaguen al quitar un kart, que es la fuga fácil: un oscilador no para solo.
+   */
+  const suelto = /\.connect\(\s*ac\.destination\s*\)/g;
+  const conexiones = [...screenSrc.matchAll(suelto)].length;
+  if (conexiones > 1) bad(`hay ${conexiones} sonidos conectados directos a la salida: tienen que pasar por el bus con compresor`);
+  else ok('todo el sonido pasa por el bus con compresor');
+  const audio = [
+    ["la tecla `M` calla el sonido", /key === 'm' \|\| key === 'M'/],
+    ["hay un compresor en la salida", /createDynamicsCompressor/],
+    ["cada kart tiene su motor", /function actualizarMotores/],
+    ["al quitar un kart se le para el motor", /pararMotor\(k\)/],
+  ];
+  for (const [que, re] of audio) (re.test(screenSrc) ? ok : bad)(que);
 }
 
 console.log('Circuitos');

@@ -84,6 +84,17 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   const MARCA_VIDA = 1.5;       // lo que tarda en borrarse una marca
   const ESTELA_CADA = 0.045;    // segundos entre rayas de la estela de turbo
   const HUMO_CAIDA = 420;       // velocidad de caída a partir de la cual el aterrizaje echa humo
+  /*
+   * Motor de cada kart: un oscilador por kart, con el tono subiendo con la velocidad. Todo el audio
+   * del juego pasa ahora por un **bus** con un compresor al final, que es lo que evita que ocho
+   * motores más los golpes suenen a sartén. El volumen de cada motor es bajísimo a propósito y los
+   * bots suenan a un tercio: el motor que importa es el tuyo. Con la tecla `M` se calla todo.
+   */
+  const MOTOR_VOL = 0.05;       // volumen de un motor (el de una persona; los bots, un tercio)
+  const MOTOR_BOT = 0.34;       // cuánto del volumen le toca a un bot
+  const MOTOR_HZ_MIN = 42;      // tono parado
+  const MOTOR_HZ_MAX = 190;     // tono a tope de velocidad
+  const MOTOR_TURBO = 1.28;     // cuánto sube el tono con turbo o estrella
 
   // ===================== Utilidades =====================
   // clamp, lerp, smoothstep, mulberry32 y ordinal vienen de sim.mjs.
@@ -937,7 +948,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       onGo: () => { showBig('¡YA!'); setTimeout(() => hideBig('¡YA!'), 1100); },
       onTrackChanged: (t) => setWorld(t),
       onKartAdded: (k) => makeKartModel(k),
-      onKartRemoved: (k) => { removeKartModel(k); chases.delete(k); },
+      onKartRemoved: (k) => { removeKartModel(k); chases.delete(k); pararMotor(k); },
       onSfx: (name) => sfx(name),
       onDrift: (k, nivel) => { if (nivel > 0) sfx('drift' + nivel); },
       onParticles: (x, h, z, o) => particles.emit(x, h, z, o),
@@ -2035,6 +2046,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     }
     if (e.repeat) return;
     if (key === 'f' || key === 'F') { toggleFullscreen(); return; }
+    if (key === 'm' || key === 'M') { silenciar(); return; }
     // caracol: si quien elige es el jugador de teclado, se elige con los números
     if (eligiendoAhora && eligiendoAhora.kart.isKb && key >= '1' && key <= '8') {
       const elegido = eligiendoAhora.candidatos[Number(key) - 1];
@@ -2073,15 +2085,34 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   }
 
   // ===================== Audio (sintetizado) =====================
-  let ac = null;
+  /*
+   * Todo el sonido sale por el mismo sitio: `bus` (el volumen general, que la tecla `M` pone a
+   * cero) y detrás un compresor, para que ocho motores sonando a la vez más un rayo no revienten
+   * los altavoces de la tele. Antes cada tono iba directo a la salida y no había manera de callar
+   * el juego ni de meter nada continuo sin que saturara.
+   */
+  let ac = null, bus = null, silencio = false;
   function ensureAudio() {
     try {
-      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (!ac) {
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        bus = ac.createGain();
+        bus.gain.value = silencio ? 0 : 1;
+        const comp = ac.createDynamicsCompressor();
+        comp.threshold.value = -18; comp.knee.value = 24; comp.ratio.value = 8;
+        comp.attack.value = 0.004; comp.release.value = 0.22;
+        bus.connect(comp).connect(ac.destination);
+      }
       if (ac.state === 'suspended') ac.resume();
-    } catch (_) { ac = null; }
+    } catch (_) { ac = null; bus = null; }
+  }
+  function silenciar() {
+    silencio = !silencio;
+    if (bus) bus.gain.setTargetAtTime(silencio ? 0 : 1, ac.currentTime, 0.02);
+    toast(silencio ? '🔇 Sonido apagado (M)' : '🔊 Sonido encendido (M)', 1.6);
   }
   function tone(freq, dur, opts = {}) {
-    if (!ac || ac.state !== 'running') return;
+    if (!ac || ac.state !== 'running' || !bus) return;
     const o = ac.createOscillator(), g = ac.createGain();
     const t0 = ac.currentTime + (opts.when || 0);
     o.type = opts.type || 'square';
@@ -2089,8 +2120,54 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     if (opts.to) o.frequency.exponentialRampToValueAtTime(opts.to, t0 + dur);
     g.gain.setValueAtTime(opts.vol || 0.12, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g).connect(ac.destination);
+    o.connect(g).connect(bus);
     o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+
+  /*
+   * Un motor por kart: un oscilador de sierra que no para, con el tono siguiendo la velocidad. Se
+   * enciende cuando aparece el kart y se apaga cuando desaparece, así que no quedan osciladores
+   * sueltos sonando cuando acaba la carrera.
+   */
+  const motores = new Map();    // kart -> { osc, gain }
+  function motorDe(k) {
+    if (!ac || ac.state !== 'running' || !bus) return null;
+    let m = motores.get(k);
+    if (!m) {
+      const osc = ac.createOscillator(), gain = ac.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = MOTOR_HZ_MIN;
+      gain.gain.value = 0;
+      osc.connect(gain).connect(bus);
+      osc.start();
+      m = { osc, gain };
+      motores.set(k, m);
+    }
+    return m;
+  }
+  function pararMotor(k) {
+    const m = motores.get(k);
+    if (!m) return;
+    try { m.gain.gain.cancelScheduledValues(ac.currentTime); m.gain.gain.value = 0; m.osc.stop(ac.currentTime + 0.05); } catch (_) { /* ya parado */ }
+    motores.delete(k);
+  }
+  function actualizarMotores() {
+    if (!ac || ac.state !== 'running') return;
+    const corriendo = state.phase === 'race' || state.phase === 'countdown' || state.phase === 'warmup';
+    for (const k of [...motores.keys()]) if (!corriendo || !state.karts.includes(k)) pararMotor(k);
+    if (!corriendo) return;
+    const ahora = ac.currentTime;
+    for (const k of state.karts) {
+      const m = motorDe(k);
+      if (!m) return;
+      const v = Math.min(1, Math.abs(k.speed) / BASE_MAX_SPEED);
+      const turbo = k.boostUntil > state.simTime || k.starUntil > state.simTime;
+      const hz = (MOTOR_HZ_MIN + (MOTOR_HZ_MAX - MOTOR_HZ_MIN) * v) * (turbo ? MOTOR_TURBO : 1);
+      // el volumen sube con el gas pero nunca llega a tapar los efectos, y los bots suenan flojito
+      const vol = MOTOR_VOL * (0.35 + 0.65 * v) * (k.isHuman ? 1 : MOTOR_BOT) * (k.finished ? 0.3 : 1);
+      m.osc.frequency.setTargetAtTime(hz, ahora, 0.08);
+      m.gain.gain.setTargetAtTime(vol, ahora, 0.1);
+    }
   }
   function sfx(name) {
     switch (name) {
@@ -2167,6 +2244,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     camActiva = paneles ? (chases.get(personasEnCarrera()[0]) || {}).cam || camera : camera;
     altoActivo = paneles ? viewH / panelLayout(personasEnCarrera().length).length : viewH;
     updateVisuals(dt);
+    actualizarMotores();
     moverEscaparate(dt);
     if (paneles) {
       renderPaneles(dt);
