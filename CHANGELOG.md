@@ -3,6 +3,28 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (noche) — Luna Loca, rehecha: un tercio de la carrera por el aire
+
+Cuarto y último de los circuitos cortos. Con esto **los cinco circuitos tienen vueltas de 25-60 s**,
+que es lo que pedía la hoja de ruta desde que se juega viendo desde detrás del kart.
+
+- **Luna Loca** pasa de 4.080 px a **13.152 px**, en un mundo propio de **5450x3650**. La vuelta de
+  los bots pasa de **10,9 s a 28,3 s**.
+- **Es el circuito de volar**: con la gravedad a 0,55 se cae despacio, así que las curvas son
+  abiertas a propósito (radio mínimo 325, el más generoso de los cinco) y hay **tres rampas**
+  grandes. En la simulación los bots pasan **un tercio de la carrera en el aire** (25 s de 79) y
+  hacen el doble de trucos que en cualquier otro circuito.
+- **Carretera de 220**, la más ancha después de Arcoíris, y los mares de la luna como sube y baja.
+- **9 cajas y 5 paneles** (antes 3 y 3) y más cráteres, rocas y banderas.
+- **Nuevo en `npm test`**: la fase 4 comprueba ahora que **la vuelta media de cada circuito está
+  entre 25 y 60 s**. No cuesta tiempo (se mide sobre las carreras que ya se corren) y evita que un
+  circuito nuevo —o un retoque de uno de ahora— vuelva a dejar vueltas de bolsillo.
+- `tools/referencia.json` rehecho a propósito (Luna Loca: 10,86 s → 28,28 s).
+
+- **Cómo probarlo en la fiesta**: `npm start`, elige Luna Loca y salta. **Pendiente de probar en
+  fiesta**: si tanto tiempo en el aire se hace incómodo con la cámara de detrás, se baja la altura
+  de las rampas (`features`) antes que tocar la gravedad, que es lo que le da la gracia.
+
 ## 2026-09-20 (noche) — Volcán Disco, rehecho: el técnico de los cinco
 
 Tercero de los cuatro. Mismo molde (mundo propio, trazado por script, validado antes de pegarlo),

@@ -83,7 +83,7 @@ const CIRCUITOS = {
    * salto. Las curvas son abiertas a propósito, porque ahí arriba se cae despacio.
    */
   'Luna Loca': {
-    ancho: 220, esc: 1.25, ey: 0.58,
+    ancho: 220, esc: 1.38, ey: 0.58,
     spec: [
       { f:  44, r: 2150, R: 1300, nombre: 'salida del cráter grande' },
       { f: 100, r: 2200, R: 1900, nombre: 'curvón de la Tierra' },

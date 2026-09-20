@@ -50,6 +50,7 @@ async function main() {
   check(total < 20, `las ${trackDefs.length} carreras tardan ${total.toFixed(1)} s (< 20 s)`);
 
   compararConLaReferencia(tiempos);
+  comprobarDuracionDeVuelta(tiempos);
 
   console.log('Determinismo');
   {
@@ -329,6 +330,26 @@ function compararConLaReferencia(tiempos) {
     const dif = ((medido - antes) / antes) * 100;
     check(medido <= antes * MARGEN,
       `${nombre}: vuelta media ${medido.toFixed(2)} s (referencia ${antes.toFixed(2)} s, ${dif >= 0 ? '+' : ''}${dif.toFixed(1)} %)`);
+  }
+}
+
+/*
+ * Una vuelta tiene que durar entre 25 y 60 s (IDEAS.md, «Mejorar los circuitos para la vista en
+ * tercera persona»). Los cinco circuitos se rehicieron por esto: con vueltas de 9-12 s el circuito
+ * se acababa antes de aprendértelo, y con la cámara de detrás no daba tiempo ni a mirar el paisaje.
+ *
+ * Esto no es lo mismo que la referencia de arriba: la referencia vigila que la física no empeore
+ * (un 10 % de margen sobre lo medido), y esto vigila que un circuito nuevo —o un retoque de uno de
+ * ahora— no vuelva a dejar vueltas de bolsillo. Se mide sobre los tiempos que ya se han corrido,
+ * así que no cuesta ni un segundo más.
+ */
+const VUELTA_MIN = 25, VUELTA_MAX = 60;
+
+function comprobarDuracionDeVuelta(tiempos) {
+  console.log('Duración de la vuelta');
+  for (const t of tiempos) {
+    check(t.vueltaMedia >= VUELTA_MIN && t.vueltaMedia <= VUELTA_MAX,
+      `${t.nombre}: vuelta media ${t.vueltaMedia.toFixed(1)} s (tiene que estar entre ${VUELTA_MIN} y ${VUELTA_MAX} s)`);
   }
 }
 

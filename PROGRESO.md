@@ -7,19 +7,19 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 01:08
+- último latido (UTC): 2026-09-20 01:12
 - rama: noche/2026-09-20
 
 ## Punto en curso
 - IDEAS.md: Fase 2 — «Mejorar los circuitos para la vista en tercera persona» (los cuatro circuitos
   que siguen en 9-12 s de vuelta: Costa, Volcán, Bosque, Ciudad… el que toque según `tracks.js`).
-- hecho: motor `tools/traza.js`; decoración junto a la carretera; **Chicle** (29,2 s), **Playa Neón**
-  (30,6 s) y **Volcán Disco** (30,4 s) rehechos, cada uno con su entrada en CHANGELOG. Las dos
-  pruebas que dependían de la horquilla de Volcán llevan ahora su propia pista dentro de
-  `check-sim.js` (el trazado viejo), así que ya no se rompen al cambiar un circuito. `npm test` verde.
-- siguiente paso: **Luna Loca** (el último; gravedad 0,55, vértices ya en `traza-circuitos.js`).
-  Después: escenario en `check-sim.js` que exija vuelta de 25-60 s en todos los circuitos, marcar
-  el punto en IDEAS.md y fusionar a main.
+- hecho: **los cinco circuitos con vuelta de 25-60 s**: Chicle 29,2 · Playa Neón 30,6 · Volcán Disco
+  30,4 · Luna Loca 28,3 · Arcoíris 33,5. Motor `tools/traza.js`, decoración junto a la carretera,
+  pista de pruebas propia para los escenarios de la horquilla y comprobación nueva de duración de
+  vuelta en `npm test`. Una entrada de CHANGELOG por circuito. `npm test` en verde.
+- siguiente paso: falta **lo único que queda de la «Comprobación» del punto**: un «atajo con
+  riesgo» (una rampa que salte por encima de una curva) validado con un bot que lo toma y llega
+  antes. Si sale, se marca [x] y se fusiona a main; si no, se anota y se cierra lo demás.
 - intentos fallidos en este punto: 0
 
 ## Última sesión

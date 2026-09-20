@@ -330,37 +330,72 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
       ],
     },
     {
+      /*
+       * Luna Loca — el de la gravedad baja (0,55): aquí se cae despacio, así que los saltos son
+       * larguísimos y las curvas son abiertas a propósito (el radio más pequeño es 325, el más
+       * generoso de los cinco). Es el circuito de volar, no el de trazar.
+       *
+       * Rehecho con el molde de Arcoíris: de 4.080 px (vuelta de 10 s) a 13.152 px en un mundo
+       * propio de 5450x3650, con la carretera a 220, la más ancha después de Arcoíris.
+       * `node tools/traza-circuitos.js "Luna Loca" --escribir`.
+       */
       name: 'Luna Loca',
-      width: 110,
+      width: 220,
       gravity: 0.55,
-      boxes: [0.16, 0.5, 0.8],
-      pads: [0.06, 0.42, 0.72],
+      world: { w: 5450, h: 3650 },
+      boxes: [0.03, 0.25, 0.31, 0.35, 0.52, 0.56, 0.75, 0.84],
+      pads: [0.24, 0.34, 0.55, 0.73, 0.86],
       features: [
-        { type: 'ramp', at: 0.2, height: 26, length: 180 },
-        { type: 'hill', at: 0.34, height: 18, length: 220 },
-        { type: 'ramp', at: 0.56, height: 28, length: 190 },
-        { type: 'hill', at: 0.86, height: 14, length: 200 },
+        { type: 'ramp', at: 0.08, height: 60, length: 190 },    // el salto de la recta de meta
+        { type: 'hill', at: 0.20, height: 20, length: 300 },
+        { type: 'ramp', at: 0.38, height: 64, length: 200 },    // el más alto: con esta gravedad, medio circuito volando
+        { type: 'hill', at: 0.47, height: 22, length: 280 },
+        { type: 'ramp', at: 0.60, height: 58, length: 190 },
+        { type: 'hill', at: 0.89, height: 18, length: 240 },
       ],
-      barriers: [{ from: 0.26, to: 0.34, side: 'both' }, { from: 0.62, to: 0.7, side: 'both' }],
+      // los mares de la luna: subidas y bajadas largas, que con gravedad 0,55 se notan el doble
+      relieve: [
+        { at: 0.00, h: 0 }, { at: 0.13, h: 90 }, { at: 0.27, h: 180 }, { at: 0.42, h: 60 },
+        { at: 0.55, h: -60 }, { at: 0.68, h: 40 }, { at: 0.80, h: 160 }, { at: 0.91, h: 60 },
+      ],
+      barriers: [
+        { from: 0.28, to: 0.35, side: 'both' }, { from: 0.50, to: 0.545, side: 'outer' },
+        { from: 0.64, to: 0.70, side: 'both' }, { from: 0.80, to: 0.87, side: 'outer' },
+      ],
       theme: {
         sky: ['#03001c', '#1b1464'], fog: '#2a1a6e',
         ground: '#5a7dff', groundAlt: '#3a55d6',
         road: '#eaf6ff', curb: ['#00ffff', '#ff00ff'], bumper: ['#39ff88', '#ffe600'], pad: '#ff2d95',
-        pools: { kind: 'crater', color: '#2c3fa8', count: 9, minR: 35, maxR: 90 },
+        pools: { kind: 'crater', color: '#2c3fa8', count: 14, minR: 35, maxR: 90 },
         decor: [
-          { kind: 'moonRock', n: 24 }, { kind: 'crystal', n: 20 }, { kind: 'planet', n: 6 },
-          { kind: 'flag', n: 6 }, { kind: 'rocket', n: 3 },
+          { kind: 'moonRock', n: 36 }, { kind: 'crystal', n: 30 }, { kind: 'planet', n: 9 },
+          { kind: 'flag', n: 9 }, { kind: 'rocket', n: 5 },
         ],
         palette: ['#00ffff', '#ff00ff', '#ffe600', '#39ff88', '#ff6a00', '#ffffff'],
         clouds: null,
-        sun: { color: '#8ee3ff', pos: [1500, 820, -1200], r: 150, ring: true },
+        sun: { color: '#8ee3ff', pos: [4200, 900, -1800], r: 160, ring: true },
         stars: true,
       },
       points: [
-        { x: 400, y: 230 }, { x: 800, y: 215 }, { x: 1200, y: 215 }, { x: 1600, y: 260 },
-        { x: 1780, y: 470 }, { x: 1720, y: 700 }, { x: 1500, y: 860 }, { x: 1200, y: 930 },
-        { x: 900, y: 880 }, { x: 650, y: 940 }, { x: 350, y: 900 }, { x: 170, y: 720 },
-        { x: 150, y: 460 }, { x: 240, y: 300 },
+        { x: 2522, y: 3371 }, { x: 2403, y: 3385 }, { x: 2284, y: 3392 }, { x: 2164, y: 3391 }, { x: 2045, y: 3383 }, { x: 1926, y: 3367 },
+        { x: 1809, y: 3344 }, { x: 1693, y: 3313 }, { x: 1580, y: 3275 }, { x: 1469, y: 3230 }, { x: 1361, y: 3180 }, { x: 1252, y: 3130 },
+        { x: 1143, y: 3080 }, { x: 1035, y: 3030 }, { x: 926, y: 2980 }, { x: 818, y: 2929 }, { x: 712, y: 2875 }, { x: 613, y: 2807 },
+        { x: 523, y: 2729 }, { x: 442, y: 2640 }, { x: 373, y: 2543 }, { x: 316, y: 2438 }, { x: 272, y: 2327 }, { x: 242, y: 2211 },
+        { x: 226, y: 2093 }, { x: 223, y: 1973 }, { x: 235, y: 1854 }, { x: 251, y: 1736 }, { x: 263, y: 1617 }, { x: 252, y: 1498 },
+        { x: 233, y: 1380 }, { x: 220, y: 1261 }, { x: 231, y: 1142 }, { x: 266, y: 1028 }, { x: 325, y: 925 }, { x: 405, y: 836 },
+        { x: 502, y: 766 }, { x: 611, y: 718 }, { x: 728, y: 694 }, { x: 847, y: 686 }, { x: 966, y: 678 }, { x: 1086, y: 671 },
+        { x: 1205, y: 663 }, { x: 1324, y: 655 }, { x: 1444, y: 647 }, { x: 1563, y: 639 }, { x: 1682, y: 632 }, { x: 1802, y: 624 },
+        { x: 1920, y: 610 }, { x: 2034, y: 574 }, { x: 2148, y: 536 }, { x: 2261, y: 499 }, { x: 2375, y: 462 }, { x: 2489, y: 424 },
+        { x: 2602, y: 387 }, { x: 2716, y: 349 }, { x: 2829, y: 312 }, { x: 2943, y: 274 }, { x: 3057, y: 239 }, { x: 3175, y: 221 },
+        { x: 3295, y: 224 }, { x: 3412, y: 247 }, { x: 3523, y: 289 }, { x: 3626, y: 350 }, { x: 3717, y: 427 }, { x: 3796, y: 517 },
+        { x: 3873, y: 608 }, { x: 3951, y: 699 }, { x: 4028, y: 791 }, { x: 4105, y: 882 }, { x: 4188, y: 968 }, { x: 4288, y: 1032 },
+        { x: 4397, y: 1083 }, { x: 4505, y: 1133 }, { x: 4614, y: 1183 }, { x: 4722, y: 1233 }, { x: 4827, y: 1291 }, { x: 4922, y: 1363 },
+        { x: 5004, y: 1450 }, { x: 5073, y: 1548 }, { x: 5125, y: 1655 }, { x: 5161, y: 1769 }, { x: 5178, y: 1887 }, { x: 5178, y: 2007 },
+        { x: 5159, y: 2125 }, { x: 5123, y: 2238 }, { x: 5069, y: 2345 }, { x: 5003, y: 2445 }, { x: 4936, y: 2544 }, { x: 4869, y: 2643 },
+        { x: 4795, y: 2737 }, { x: 4709, y: 2820 }, { x: 4613, y: 2891 }, { x: 4508, y: 2948 }, { x: 4396, y: 2990 }, { x: 4280, y: 3018 },
+        { x: 4163, y: 3042 }, { x: 4046, y: 3065 }, { x: 3928, y: 3089 }, { x: 3811, y: 3113 }, { x: 3694, y: 3136 }, { x: 3577, y: 3160 },
+        { x: 3460, y: 3184 }, { x: 3342, y: 3208 }, { x: 3225, y: 3231 }, { x: 3108, y: 3255 }, { x: 2991, y: 3279 }, { x: 2874, y: 3303 },
+        { x: 2756, y: 3326 }, { x: 2639, y: 3350 },
       ],
     },
   ];
