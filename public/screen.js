@@ -3449,6 +3449,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       case 'snailHit': tone(240, 0.7, { type: 'triangle', to: 70, vol: 0.14 }); break;
       case 'rescue': [880, 660, 990].forEach((f, i) => tone(f, 0.14, { when: i * 0.09, type: 'sine', vol: 0.09 })); break;
       // los de la casa y los del videojuego
+      case 'freno': tone(320, 0.4, { type: 'sawtooth', to: 80, vol: 0.13 }); break;
       case 'espuma': tone(900, 0.4, { type: 'sine', to: 320, vol: 0.09 }); break;
       case 'patito': [700, 900].forEach((f, i) => tone(f, 0.12, { when: i * 0.08, type: 'square', vol: 0.09 })); break;
       case 'glitch': [1200, 300, 900, 200].forEach((f, i) => tone(f, 0.07, { when: i * 0.05, type: 'square', vol: 0.11 })); break;

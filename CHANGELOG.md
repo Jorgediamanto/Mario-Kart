@@ -3,6 +3,26 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 — La caja del que va primero: frenazo y menos champiñón
+
+Ir primero ya no es un chollo al pasar por una caja. Antes, **la mitad de las cajas del líder eran
+champiñón** y el que se escapaba se escapaba del todo.
+
+- 🛑 **Frenazo**: **tres de cada diez cajas** del que va primero, en vez de darle algo, le pisan el
+  freno: **media velocidad durante un segundo**. Se le corta la velocidad que lleva en ese momento,
+  no solo el tope (si no, en recta no se notaría). Un segundo se recupera — no es para hundirlo, es
+  para que el de detrás tenga siempre una rendija.
+- 🍄 **Champiñón**: al que va primero le baja del **46 % al 18 %**. A los demás no le cambia nada.
+- El 30 % es exacto en los ocho circuitos: el peso se calcula sobre todo lo demás, así que en Bajo
+  la Cama (donde el líder también puede sacar espuma) sigue siendo 30 % y no 26 %.
+- Así queda la caja del primero: plátano 44 %, **frenazo 30 %**, champiñón 18 %, calamarazo 8 %. En
+  Bajo la Cama: plátano 36 %, frenazo 30 %, champiñón 14 %, espuma 13 %, calamarazo 7 %.
+
+- **Cómo probarlo**: ponte primero y pasa por cajas. Una de cada tres te frena en seco, con su
+  cartel («¡frenazo por ir primero!»), su chirrido y el aviso en el móvil.
+- **Pendiente de probar en fiesta**: si un 30 % es mucho (que el líder no pueda ni coger cajas) o
+  poco.
+
 ## 2026-09-20 — Dos circuitos monstruo más: «Bajo la Cama» y «Mundo Pixel»
 
 Los hermanos de Last Dance: otras dos vueltas únicas de unos tres minutos, cinco biomas cada una y

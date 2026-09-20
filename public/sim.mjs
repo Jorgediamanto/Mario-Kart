@@ -159,6 +159,15 @@ export const SNAIL_SLOW = 0.25;         // a cuánto se queda su velocidad máxi
 export const SNAIL_TIME = 3;            // segundos que dura
 export const SNAIL_CHOICE_TIME = 6;     // segundos para elegir antes de que elija solo
 /*
+ * El frenazo: la otra broma del que va primero (ver `inkSelf`). Tres de cada diez cajas, en vez de
+ * darle algo, le pisan el freno: media velocidad durante un segundo. No es para hundirlo — un
+ * segundo se recupera —, es para que pasar por una caja yendo primero **no sea gratis** y el de
+ * detrás tenga siempre una rendija.
+ */
+export const FRENO_TIME = 1;            // segundos frenado
+export const FRENO_FACTOR = 0.5;        // a cuánto se le queda la velocidad (50 %)
+export const FRENO_PROB = 0.30;         // de cada diez cajas del líder, tres son frenazo
+/*
  * Caparazón rojo 🎯 y caparazón azul 🔵.
  *
  * El azul es el objeto de los desesperados: sale disparado **por el centro de la carretera** a toda
@@ -537,7 +546,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   };
   // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
   // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
-  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, lianas: 0, terremotos: 0, portales: 0, boings: 0, bumps: 0, pads: 0, cruces: 0, espumas: 0, patitos: 0, glitches: 0, bichos: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
+  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, frenazos: 0, lianas: 0, terremotos: 0, portales: 0, boings: 0, bumps: 0, pads: 0, cruces: 0, espumas: 0, patitos: 0, glitches: 0, bichos: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -561,7 +570,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       x: g.x, y: g.y, z: g.h, vz: 0, air: false, ground: g.h, angle: g.ang, moveAngle: g.ang, speed: 0,
       dist: g.dist, gridDist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
-      boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0, lapAt: 0,
+      boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0, frenoUntil: 0, lapAt: 0,
       lastRamp: -1, lastRampAt: -99, offT: 0,
       rocketUntil: 0, inkUntil: 0, liana: null,
       enderezaTrasGolpe: false,
@@ -876,6 +885,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     if (star) maxS *= 1.25;
     if (small) maxS *= 0.7;
     if (k.slowUntil > now) maxS *= SNAIL_SLOW;   // caracol: a paso de tortuga
+    if (k.frenoUntil > now) maxS *= FRENO_FACTOR;  // frenazo del líder: medio segundo de susto
     if (k.easy && !gasPulsado) maxS *= EASY_MAX;  // modo fácil: sin pisar el gas se va un pelín más despacio
     if (k.offroad && !boosting && !star) maxS *= 0.45;
 
@@ -1239,7 +1249,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const w = [
       // al quitar el caparazón verde, el que va primero se quedaba con dos objetos y casi siempre
       // plátano: se le sube el champiñón para que al menos sea mitad y mitad
-      ['mushroom', 3 + 2 * r], ['banana', 3 - 1.5 * r],
+      // al que va primero se le baja el champiñón a propósito: si no, la mitad de sus cajas eran
+      // turbo y el líder se iba solo. Lo que le sobra se lo lleva el frenazo de aquí abajo.
+      ['mushroom', rank === 1 ? 1.2 : 3 + 2 * r], ['banana', 3 - 1.5 * r],
       ['red', rank === 1 ? 0 : 1 + 3 * r], ['star', 4 * r * r], ['lightning', n >= 3 ? 3 * r * r * r : 0],
       // el caracol es raro y solo aparece si hay a quién elegir; el que va primero no lo saca
       ['snail', n >= 2 && rank > 1 ? 2 * r * r : 0],
@@ -1258,6 +1270,16 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       const desde = extra.desde || 1;
       const peso = rank >= desde ? extra.peso * (extra.conLaPosicion === false ? 1 : 0.4 + 1.2 * r) : 0;
       w.push([extra.id, peso]);
+    }
+    /*
+     * El frenazo del que va primero: **tres de cada diez cajas**, exactamente (FRENO_PROB). El peso
+     * se calcula al final y a partir de todo lo demás, no con un número fijo: en Bajo la Cama el
+     * líder también puede sacar espuma, y con un peso fijo el frenazo se le habría quedado en un
+     * 26 % ahí y en un 30 % en los demás circuitos.
+     */
+    if (rank === 1) {
+      const otros = w.reduce((acc, [, x]) => acc + x, 0);
+      w.push(['frenazo', (otros * FRENO_PROB) / (1 - FRENO_PROB)]);
     }
     const total = w.reduce((acc, [, x]) => acc + x, 0);
     let x = random() * total;
@@ -1296,6 +1318,23 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
          * llevarse algo, se lleva un calamarazo en la cara y sigue corriendo a ciegas un rato. Así
          * el líder también tiene algo que temer al pasar por una caja.
          */
+        /*
+         * El frenazo: la caja no da nada y le pisa el freno al líder un segundo (FRENO_TIME). Se
+         * le baja también la velocidad que lleva en ese momento, no solo el tope: si solo se
+         * bajara el tope, yendo en recta no se notaría nada.
+         */
+        if (k.rolling.result === 'frenazo') {
+          k.rolling = null;
+          k.frenoUntil = now + FRENO_TIME;
+          k.speed *= FRENO_FACTOR;
+          stats.frenazos++;
+          hooks.onFx(k, 'freno');
+          hooks.onSfx('freno', k);
+          hooks.onParticles(k.x, k.z + 10, k.y, { n: 12, color: ['#ff3d3d', '#ffffff'], spread: 140, vy: 60, life: 0.5, size: 4 });
+          hooks.onToast(`${k.emoji} ${k.name}: ¡frenazo por ir primero! 🛑`, 2);
+          hooks.onStatus(k);
+          continue;
+        }
         if (k.rolling.result === 'inkSelf') {
           k.rolling = null;
           k.inkUntil = Math.max(k.inkUntil, now + INK_SELF_TIME);

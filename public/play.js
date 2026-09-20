@@ -211,6 +211,7 @@
         if (m.kind === 'rocket') { vibrate([30, 30, 30, 30, 200]); flashBody('#b86a1f'); showRaceMsg('🚀 ¡Agárrate!', 1800); }
         if (m.kind === 'ink') { vibrate([90, 60, 90]); flashBody('#241046'); showRaceMsg('🦑 ¡Te han pintado la pantalla!', 2000); }
         if (m.kind === 'blue') { vibrate([40, 40, 40]); showRaceMsg('🔵 ¡Va a por el primero!', 1500); }
+        if (m.kind === 'freno') { vibrate([180]); flashBody('#a83232'); showRaceMsg('🛑 ¡Frenazo por ir primero!', 1500); }
         // los de la casa y los del videojuego (Bajo la Cama y Mundo Pixel)
         if (m.kind === 'espuma') { vibrate([50, 40, 50]); flashBody('#3a6a7a'); showRaceMsg('🧼 ¡Espuma! No agarras', 1800); }
         if (m.kind === 'glitch') { vibrate([20, 30, 20, 30, 20]); flashBody('#6a1f8a'); showRaceMsg('🔀 ¡Te han cambiado el sitio!', 1800); }

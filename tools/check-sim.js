@@ -768,12 +768,13 @@ const escenarios = [
     run(sim) {
       /*
        * Porcentajes declarados con siete corredores, de la posición 1 a la 7. La idea del reparto:
-       * el que va delante solo saca cosas de defensa (y de vez en cuando le estalla un calamarazo),
-       * y cuanto más atrás vas, mejores cosas: el **cohete** y el **caparazón azul** son de la mitad
-       * de atrás para abajo, y el último es el que más los ve.
+       * el que va delante solo saca cosas de defensa —y de cada diez cajas, **tres le pisan el
+       * freno** y una de cada doce le estalla en la cara—, y cuanto más atrás vas, mejores cosas: el
+       * **cohete** y el **caparazón azul** son de la mitad de atrás para abajo, y el último es el
+       * que más los ve.
        */
       const DECLARADO = {
-        1: { mushroom: 45.7, banana: 45.9, inkSelf: 8.5, red: 0, blue: 0, rocket: 0, lightning: 0, snail: 0 },
+        1: { banana: 44.2, frenazo: 30.0, mushroom: 17.7, inkSelf: 8.1, red: 0, blue: 0, rocket: 0, lightning: 0, snail: 0 },
         2: { mushroom: 33.4, banana: 27.4, ink: 22.5, red: 14.9, star: 1.1, blue: 0, rocket: 0 },
         4: { mushroom: 28.2, ink: 19.3, red: 17.7, banana: 15.9, star: 7.1, blue: 5.7, snail: 3.5, lightning: 2.7, rocket: 0 },
         6: { mushroom: 19.3, red: 14.3, ink: 13.4, rocket: 12.0, star: 11.5, blue: 9.3, lightning: 7.2, banana: 7.2, snail: 5.8 },
@@ -800,6 +801,7 @@ const escenarios = [
         if (['lightning', 'red', 'snail', 'blue', 'rocket', 'ink'].includes(id)) return `al primero le ha salido ${id}`;
         const id2 = s.rollItem(2, 7);
         if (id2 === 'blue' || id2 === 'rocket') return `al segundo le ha salido ${id2}`;
+        if (id2 === 'frenazo') return 'al segundo le ha salido un frenazo, que es solo del que va primero';
       }
       return null;
     },
@@ -1331,6 +1333,46 @@ const escenarios = [
   },
   {
     /*
+     * La caja del que va primero. Antes casi la mitad de sus cajas eran champiñón y el líder se
+     * escapaba solo; ahora tres de cada diez le pisan el freno (medio segundo de susto: la mitad de
+     * velocidad durante un segundo) y el champiñón le sale mucho menos. A los demás, igual que
+     * siempre: esto es solo para el que va delante.
+     */
+    nombre: 'al primero, 3 de cada 10 cajas son frenazo (y mucho menos champiñón)',
+    run(sim) {
+      const s = carrera(sim, { bots: 6, trackIndex: pista('Chicle') });
+      const N = 40000;
+      let frenazos = 0, champis = 0;
+      for (let i = 0; i < N; i++) {
+        const id = s.rollItem(1, 7);
+        if (id === 'frenazo') frenazos++;
+        if (id === 'mushroom') champis++;
+      }
+      const pcFreno = (frenazos / N) * 100, pcChampi = (champis / N) * 100;
+      if (pcFreno < 28 || pcFreno > 32) return `el frenazo le sale al primero el ${pcFreno.toFixed(1)} % de las veces (tiene que ser el 30 %)`;
+      if (pcChampi > 25) return `el primero saca champiñón el ${pcChampi.toFixed(1)} % (antes era el 46 % y tiene que bajar de verdad)`;
+      for (let i = 0; i < 8000; i++) if (s.rollItem(2, 7) === 'frenazo') return 'el frenazo también le sale al segundo';
+      // y el frenazo de verdad, por el camino de siempre: la ruleta acaba y no da objeto, frena
+      const s2 = carrera(sim, { bots: 1, trackIndex: pista('Chicle') });
+      const k = humano(s2);
+      k.speed = 445;
+      k.rolling = { until: s2.state.simTime - 0.01, result: 'frenazo' };
+      s2.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+      s2.update(DT);
+      if (k.item) return `el frenazo le ha dado un objeto (${k.item})`;
+      if (!(k.frenoUntil > s2.state.simTime)) return 'la caja no le ha frenado';
+      const antes = k.speed;
+      for (let f = 0; f < 30; f++) { s2.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s2.update(DT); }
+      if (k.speed > 300) return `con el frenazo puesto sigue a ${k.speed.toFixed(0)} px/s (tendría que ir por la mitad)`;
+      if (antes > 300) return `el frenazo no le ha cortado la velocidad de golpe (se quedó en ${antes.toFixed(0)})`;
+      // y al segundo se le pasa
+      for (let f = 0; f < 90; f++) { s2.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s2.update(DT); }
+      if (k.speed < 380) return `un segundo después sigue frenado (${k.speed.toFixed(0)} px/s)`;
+      return null;
+    },
+  },
+  {
+    /*
      * La espuma de Bajo la Cama: es una trampa de **zona**, no un plátano. Ni tira al que la pisa
      * ni se gasta al pisarla: se queda ahí, y lo que hace es dejar el kart sin agarre (sigue
      * derecho aunque gires). Si algún día se gastara al primer contacto, dejaría de ser lo que es.
@@ -1696,6 +1738,13 @@ const escenarios = [
         const t = s.state.track;
         let mejorT = 0, nivel = 0, val = 0;
         for (let f = 0; f < 60 * 80 && k.lapCount < 1; f++) {
+          /*
+           * Con un objeto en la mano no se cogen cajas: así lo que se mide aquí es **el derrape** y
+           * no la lotería. Yendo solo, este kart va primero siempre, y al primero una de cada tres
+           * cajas le pisa el freno (y otras le dan champiñón): con eso dentro, la medida decía más
+           * de la suerte que tuvo la vuelta que de las curvas del circuito.
+           */
+          k.item = 'banana';
           const near = t.nearestNear(k.x, k.y, ((k.dist % t.N) + t.N) % t.N, t.win);
           const obj = t.samples[(near.i + 22) % t.N];
           const diff = sim.wrapAngle(Math.atan2(obj.y - k.y, obj.x - k.x) - k.angle);
