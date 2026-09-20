@@ -86,6 +86,17 @@ export const WRONG_WAY_SPEED = 60;      // por debajo de esta velocidad no se co
 export const WRONG_WAY_RESCUE = 4.5;    // segundos yendo al revés antes de que lo recojan
 export const OFFROAD_RESCUE = 3.5;      // segundos seguidos fuera de la pista antes de que lo recojan
 /*
+ * Modo fácil, uno por jugador: se enciende con un interruptor en la sala del móvil y se recuerda
+ * allí. El kart **acelera solo** (el botón de gas pasa a ser un empujón suave opcional) y el
+ * volante lleva una **ayuda hacia el centro de la carretera**. Está pensado para quien coge un
+ * mando por primera vez en una fiesta y se pasa la carrera mirando el quitamiedos; con la ayuda da
+ * la vuelta entera aunque no toque nada, despacito y sin salirse. La ayuda se paga con un pelín de
+ * velocidad, así que nadie lo va a encender para ir más rápido.
+ */
+export const EASY_AYUDA = 0.7;    // cuánto manda la ayuda cuando no tocas el volante (0 = nada, 1 = todo)
+export const EASY_MAX = 0.94;     // velocidad máxima si no pisas el gas (pisándolo, la de siempre)
+export const EASY_MIRA = 22;      // a cuántas muestras por delante mira la ayuda
+/*
  * Caracol 🐌: el objeto raro. Al usarlo **se para la carrera entera**, quien lo usa elige a quién
  * se lo planta y esa persona va a paso de caracol un rato. Parar el juego es fuerte, así que:
  * el que elige tiene un tiempo límite y, si se lo piensa demasiado, se lo lleva el que va justo
@@ -361,7 +372,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     return {
       id: e.playerId != null ? 'p' + e.playerId : e.kb ? 'kb' : 'bot' + e.char,
       playerId: e.playerId != null ? e.playerId : null,
-      isKb: !!e.kb, isBot: !!e.bot, isHuman: !e.bot,
+      isKb: !!e.kb, isBot: !!e.bot, isHuman: !e.bot, easy: !!e.easy,
       name: e.name, char: e.char, emoji: ch.emoji, color: ch.color,
       skill: 0.86 + random() * 0.1,
       lane: (random() * 2 - 1) * state.track.halfW * 0.5,
@@ -549,7 +560,20 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const active = state.phase === 'race' && !spinning;
     // `inp.d` (el viejo botón de derrape) ya no se usa: el derrape sale solo. Se sigue aceptando en
     // el protocolo para no romper los móviles que lleven la página cargada de antes.
-    const s = active ? inp.s : 0, g = active ? inp.g : 0, b = active ? inp.b : 0;
+    let s = active ? inp.s : 0, g = active ? inp.g : 0, b = active ? inp.b : 0;
+    /*
+     * Modo fácil (ver EASY_AYUDA): el gas se pisa solo mientras no frenes, y al volante se le suma
+     * una ayuda que apunta a la carretera unas muestras más adelante. Cuanto menos toques tú, más
+     * manda la ayuda: con el volante quieto el kart se conduce solo; girando a tope, mandas tú.
+     */
+    const gasPulsado = !!g;
+    if (k.easy && active) {
+      if (!b) g = 1;
+      const suyo = tramoDe(k);
+      const sm = t.samples[(suyo.i + EASY_MIRA) % t.N];
+      const rumbo = wrapAngle(Math.atan2(sm.y - k.y, sm.x - k.x) - k.angle);
+      s = clamp(s + clamp(rumbo * 2.4, -1, 1) * EASY_AYUDA, -1, 1);
+    }
 
     const near = t.nearest(k.x, k.y);
     const onRoad = near.d <= t.halfW + 3;
@@ -560,6 +584,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     if (star) maxS *= 1.25;
     if (small) maxS *= 0.7;
     if (k.slowUntil > now) maxS *= SNAIL_SLOW;   // caracol: a paso de tortuga
+    if (k.easy && !gasPulsado) maxS *= EASY_MAX;  // modo fácil: sin pisar el gas se va un pelín más despacio
     if (k.offroad && !boosting && !star) maxS *= 0.45;
 
     if (!k.air) {

@@ -7,13 +7,18 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 01:20
+- último latido (UTC): 2026-09-20 01:25
 - rama: noche/2026-09-20
 
 ## Punto en curso
-- IDEAS.md: ninguno (recién cerrado «Mejorar los circuitos para la vista en tercera persona»)
-- hecho: —
-- siguiente paso: —
+- IDEAS.md: Fase 3 — «Modo fácil por jugador» (ya se puede: el volante del dueño está dentro)
+- hecho: el núcleo, en `sim.mjs`: `easy` por kart, gas automático, ayuda de dirección
+  (`EASY_AYUDA` 0,7 · `EASY_MIRA` 22) y `EASY_MAX` 0,94 si no pisas el gas. Medido: un kart fácil
+  **sin tocar nada termina los cinco circuitos** y siempre más lento que un bot (6,2 s fuera de
+  pista en total, 10 vueltas).
+- siguiente paso: el interruptor en la sala del móvil (`play.html`/`play.js`, recordado en
+  localStorage), `hello` con el flag, `server.js` (`publicPlayer`), la sala de la tele
+  (`screen.js`) y las entradas de la carrera; luego pruebas en `check-protocol.js` y `check-sim.js`.
 - intentos fallidos en este punto: 0
 
 ## Última sesión
