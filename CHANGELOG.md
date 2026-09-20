@@ -41,6 +41,29 @@ llevan la fecha en que se hicieron.
 
 - **Cómo probarlo**: `npm start`, abre el mando en el móvil y mira la pantalla de entrar: siete
   caras, las cogidas apagadas. Elige una y entra: la misma cara sale arriba, en la tele y en tu kart.
+## 2026-09-20 (noche) — Estelas, marcas de neumático y humo al aterrizar
+
+Tres cosas que se ven y ninguna que se juegue distinto (`public/sim.mjs` sigue sin tocarse).
+
+- **Marcas de neumático**: al derrapar quedan dos rayas negras en el asfalto, una por rueda, que se
+  van borrando en segundo y medio. Sirven para algo más que para presumir: enseñan por dónde ha
+  trazado el de delante.
+- **Estela de velocidad**: con turbo o con estrella salen rayas largas por detrás del kart.
+- **Humo al aterrizar**: caer fuerte levanta una nube, y cuanto más fuerte, más grande.
+- **Sin un solo dibujado más.** Los tres efectos usan el saco de partículas que ya existía (900 como
+  mucho, todas en una sola llamada de dibujo), así que la pantalla dividida no paga nada nuevo. Las
+  partículas admiten ahora orientarse y estirarse (`ang` y `largo`) en vez de dar volteretas: eso es
+  lo que las convierte en marcas y en rayas.
+- **Presupuesto medido**: una carrera de 8 karts pide como mucho 160 partículas a la vez (escenario
+  nuevo en `npm test`, que se pondrá rojo si algún efecto futuro se dispara), y el peor caso con
+  todo a la vez sale en unas 700 de 900. La cuenta está escrita junto a las constantes de
+  `screen.js`.
+
+- **Cómo probarlo en la fiesta**: derrapa en una curva larga y mira atrás en el panel: tienen que
+  quedar las marcas. Coge un turbo y fíjate en las rayas. Salta en Luna Loca y mira el polvo al caer.
+  **Pendiente de probar en fiesta**: **medir los fps con la tecla `P` con 4 y con 8 paneles**. Si
+  baja de 60, lo primero que hay que subir es `MARCA_CADA` en `screen.js` (menos marcas por segundo).
+
 ## 2026-09-20 (noche) — La cámara, con carácter
 
 Todo esto es **solo imagen**: `public/sim.mjs` no cambia ni una línea, así que las carreras se
