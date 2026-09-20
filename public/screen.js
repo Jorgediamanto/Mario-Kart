@@ -276,6 +276,32 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     }
   }
 
+  /*
+   * Biomas (`theme.biomas`): un circuito puede estar hecho de varios paisajes, uno por tramo del
+   * recorrido. Lo usa «Last Dance»: jungla, hielo, mina, centro de la tierra y cielo. Cada bioma
+   * pinta su asfalto, su terreno, su niebla, su cielo y sus bichos, y **la niebla y el cielo se
+   * cambian por panel**, según dónde esté cada jugador: dos personas pueden ir por biomas distintos
+   * y cada una ve el suyo.
+   */
+  function biomaEn(t, fraccion) {
+    const lista = t.def.theme.biomas;
+    if (!lista || !lista.length) return null;
+    const f = ((fraccion % 1) + 1) % 1;
+    for (const b of lista) if (f < b.hasta) return b;
+    return lista[lista.length - 1];
+  }
+  function biomaDeMuestra(t, i) { return biomaEn(t, i / t.N); }
+  // cada bioma tiene su cielo; se guarda hecho para no rehacer la textura en cada cambio
+  const cielosDeBioma = new Map();
+  function cieloDeBioma(b, th) {
+    const clave = (b && b.nombre) || 'base';
+    if (!cielosDeBioma.has(clave)) {
+      const sky = (b && b.sky) || th.sky;
+      cielosDeBioma.set(clave, skyTexture(sky[0], sky[1]));
+    }
+    return cielosDeBioma.get(clave);
+  }
+
   function buildWorld(t) {
     const th = t.def.theme;
     const rnd = mulberry32(999 + t.index * 17);
@@ -312,10 +338,16 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       const pos = [], col = [], idx = [];
       const c1 = new THREE.Color(th.ground), c2 = new THREE.Color(th.groundAlt);
       const TE = t.ter;
+      const _t1 = new THREE.Color(), _t2 = new THREE.Color();
       for (let iy = 0; iy < TE.rows; iy++) for (let ix = 0; ix < TE.cols; ix++) {
         const x = TE.x0 + ix * TE.cell, y = TE.y0 + iy * TE.cell;
         pos.push(x, t.terrain[iy * TE.cols + ix], y);
-        const c = rnd() < 0.45 ? c2 : c1;
+        let a = c1, b = c2;
+        if (th.biomas) {     // el terreno se pinta del bioma que le pilla más cerca
+          const bio = biomaDeMuestra(t, t.nearest(x, y).i);
+          if (bio) { _t1.set(bio.ground || th.ground); _t2.set(bio.groundAlt || th.groundAlt); a = _t1; b = _t2; }
+        }
+        const c = rnd() < 0.45 ? b : a;
         col.push(c.r, c.g, c.b);
       }
       for (let iy = 0; iy < TE.rows - 1; iy++) for (let ix = 0; ix < TE.cols - 1; ix++) {
@@ -362,9 +394,19 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     // Arcoíris: la carretera va cambiando de color a lo largo del circuito, en franjas anchas
     // para que desde la cámara de persecución se vea el color cambiar según avanzas.
     const _arco = new THREE.Color();
+    // con biomas, el asfalto cambia de color al cambiar de paisaje (y sigue alternando franjas)
+    const _bio = new THREE.Color(), _bio2 = new THREE.Color();
     const colorCarretera = th.arcoiris
       ? (i) => { _arco.setHSL(((Math.floor(i / 7) * 7) / t.N * 4) % 1, 0.95, Math.floor(i / 7) % 2 ? 0.58 : 0.5); return _arco; }
-      : (i) => (Math.floor(i / 6) % 2 ? roadC : roadC2);
+      : th.biomas
+        ? (i) => {
+          const b = biomaDeMuestra(t, i);
+          _bio.set((b && b.road) || th.road);
+          if (Math.floor(i / 6) % 2) return _bio;
+          _bio2.copy(_bio).offsetHSL(0, 0, 0.06);
+          return _bio2;
+        }
+        : (i) => (Math.floor(i / 6) % 2 ? roadC : roadC2);
     world.add(ribbon(-t.halfW, t.halfW, colorCarretera, 1.0, cielo ? 0.72 : 1));
     const cA = new THREE.Color(th.curb[0]), cB = new THREE.Color(th.curb[1]);
     world.add(ribbon(t.halfW, t.halfW + 12, (i) => (Math.floor(i / 3) % 2 ? cA : cB), 1.0));
@@ -629,6 +671,42 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         }
       }
     }
+    /*
+     * Las paredes que parten la carretera en dos caminos (`paredes` en tracks.js). Se dibujan como
+     * un murete bajo con luces por encima, para que se vea desde lejos por qué lado hay que ir.
+     */
+    if (t.paredes && t.paredes.length) {
+      const geoMuro = new THREE.BoxGeometry(24, 46, 34);
+      const geoLuz = new THREE.BoxGeometry(14, 8, 14);
+      const trozos = [], luces = [];
+      const dummy = new THREE.Object3D();
+      for (const w of t.paredes) {
+        let n = 0;
+        for (let i = w.from; i !== w.to; i = (i + 1) % t.N) {
+          if (n++ % 4) continue;
+          const sm = t.samples[i];
+          trozos.push({ x: sm.x, y: sm.y, h: sm.h, ang: sm.ang });
+          if (n % 16 === 1) luces.push({ x: sm.x, y: sm.y, h: sm.h, ang: sm.ang });
+        }
+      }
+      if (trozos.length) {
+        const muro = new THREE.InstancedMesh(geoMuro, toon(th.curb ? th.curb[0] : '#ffffff'), trozos.length);
+        trozos.forEach((q, i) => {
+          dummy.position.set(q.x, q.h + 23, q.y);
+          dummy.rotation.set(0, -q.ang, 0);
+          dummy.updateMatrix(); muro.setMatrixAt(i, dummy.matrix);
+        });
+        world.add(muro, contornoInstanciado(muro));
+        const faro = new THREE.InstancedMesh(geoLuz, flat(th.pad || '#ffe600'), luces.length);
+        luces.forEach((q, i) => {
+          dummy.position.set(q.x, q.h + 54, q.y);
+          dummy.rotation.set(0, -q.ang, 0);
+          dummy.updateMatrix(); faro.setMatrixAt(i, dummy.matrix);
+        });
+        world.add(faro);
+      }
+    }
+
     // ---- arcos de aviso y bordillos altos ----
     // Desde la cámara de detrás ya no se ve el circuito entero: lo que viene hay que anunciarlo con
     // antelación. Un arco de color cruza la carretera unas 200 unidades antes de cada rampa
@@ -906,7 +984,34 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         return g;
       },
     };
-    for (const d of th.decor || []) {
+    /*
+     * Con biomas, la decoración se planta **a los lados de la pista de su tramo**: en un mundo tan
+     * grande como el de Last Dance (25.000 x 20.000), tirar objetos al azar por el mapa dejaba la
+     * carretera pelada y llenaba de palmeras sitios donde no pasa nadie.
+     */
+    if (th.biomas) {
+      for (const bioma of th.biomas) {
+        const desde = th.biomas.indexOf(bioma) === 0 ? 0 : th.biomas[th.biomas.indexOf(bioma) - 1].hasta;
+        const hasta = Math.min(1, bioma.hasta);
+        for (const d of bioma.decor || []) {
+          const maker = decor[d.kind];
+          if (!maker) continue;
+          for (let k = 0; k < d.n; k++) {
+            const f = desde + (hasta - desde) * ((k + 0.5) / d.n + (rnd() - 0.5) * 0.02);
+            const sm = t.samples[Math.floor(((f % 1) + 1) % 1 * t.N) % t.N];
+            const lado = rnd() < 0.5 ? -1 : 1;
+            const lejos = t.halfW + 110 + rnd() * 900;
+            const obj = maker();
+            const x = sm.x + sm.nx * lejos * lado, y = sm.y + sm.ny * lejos * lado;
+            if (x < 40 || y < 40 || x > t.W - 40 || y > t.H - 40) continue;
+            obj.position.x = x; obj.position.z = y; obj.position.y += t.terrainAt(x, y);
+            obj.rotation.y += rnd() * Math.PI * 2;
+            world.add(obj);
+          }
+        }
+      }
+    }
+    for (const d of (th.biomas ? [] : th.decor || [])) {
       const maker = decor[d.kind];
       if (!maker) continue;
       let placed = 0, tries = 0;
@@ -1849,6 +1954,29 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     }
   }
 
+  /*
+   * Pone la niebla y el cielo del bioma por el que va ese kart. Se llama justo antes de dibujar su
+   * panel: como la escena es una y se pinta una vez por jugador, cada uno puede ver su paisaje
+   * aunque estén en biomas distintos (uno en la mina, a oscuras, y otro en el cielo, despejado).
+   */
+  let ambienteActual = null;
+  function ambienteDe(k) {
+    const t = state.track, th = t.def.theme;
+    if (!th.biomas) return;
+    const b = biomaEn(t, (((k.dist % t.N) + t.N) % t.N) / t.N);
+    if (!b || b === ambienteActual) return;
+    ambienteActual = b;
+    scene.background = cieloDeBioma(b, th);
+    const lejos = Math.max(1, Math.max(t.W / MAP_W, t.H / MAP_H));
+    scene.fog.color.set(b.fog || th.fog);
+    hemi.color.set((b.sky || th.sky)[1]);
+    hemi.groundColor.set(b.ground || th.ground);
+    // en la mina y en el centro de la tierra se ve menos: la niebla aprieta
+    const cierra = b.nombre === 'Mina' || b.nombre === 'Centro de la Tierra' ? 0.55 : 1;
+    scene.fog.near = 1800 * lejos * cierra;
+    scene.fog.far = 4200 * lejos * cierra;
+  }
+
   function renderPaneles(dt) {
     const gente = personasEnCarrera();
     const rects = panelLayout(gente.length);
@@ -1863,6 +1991,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       c.cam.fov = fovVertical(c.cam.aspect) + c.fovExtra;
       c.cam.updateProjectionMatrix();
       carteles(k, c.cam, px.h);
+      ambienteDe(k);        // la niebla y el cielo del bioma por el que va ESTE jugador
       renderer.setViewport(px.x, px.y, px.w, px.h);
       renderer.setScissor(px.x, px.y, px.w, px.h);
       renderer.render(scene, c.cam);
@@ -2480,6 +2609,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     } else {
       panelesActivos = [];
       cartelesTodos();
+      if (state.karts.length) ambienteDe(state.karts[0]);
       updateCamera(dt);
       renderer.render(scene, camera);
     }

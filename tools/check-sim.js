@@ -203,9 +203,13 @@ function comprobarVolante() {
  */
 function correrCircuito(sim, index, opts = {}) {
   const silencioso = !!opts.silencioso;
-  const laps = index === 0 ? 3 : 2;
+  // las vueltas: 3 en el primero, 2 en los demás… salvo que el circuito fije las suyas (Last Dance)
+  const laps = trackDefs[index].vueltas || (index === 0 ? 3 : 2);
   const nombre = trackDefs[index].name;
-  const tope = 60 * laps + 30;
+  // el tope de tiempo se calcula con la longitud del circuito, no a ojo: Last Dance mide 73.000 px
+  // y una vuelta se va a los tres minutos
+  const largoPx = geom.buildSamples(trackDefs[index].points, 8).length * 8;
+  const tope = Math.max(90, (largoPx / 320) * laps * 1.8 + 30);
   const titulo = `${nombre} (${laps} vueltas)`;
 
   // ---- A) ocho bots hasta el final ----
@@ -350,10 +354,21 @@ function compararConLaReferencia(tiempos) {
  * así que no cuesta ni un segundo más.
  */
 const VUELTA_MIN = 25, VUELTA_MAX = 60;
+// Un circuito puede salirse de esa horquilla **si fija sus propias vueltas**: es el caso de «Last
+// Dance», que es una vuelta única de tres minutos a propósito. Ahí lo que se mira es que la carrera
+// entera (vuelta × vueltas) no se vaya de madre.
+const CARRERA_MAX = 260;
 
 function comprobarDuracionDeVuelta(tiempos) {
   console.log('Duración de la vuelta');
   for (const t of tiempos) {
+    const def = trackDefs.find((d) => d.name === t.nombre);
+    if (def && def.vueltas) {
+      const carrera = t.vueltaMedia * def.vueltas;
+      check(carrera <= CARRERA_MAX,
+        `${t.nombre}: una vuelta de ${t.vueltaMedia.toFixed(0)} s y ${def.vueltas} vuelta(s) = ${carrera.toFixed(0)} s de carrera (tope ${CARRERA_MAX} s)`);
+      continue;
+    }
     check(t.vueltaMedia >= VUELTA_MIN && t.vueltaMedia <= VUELTA_MAX,
       `${t.nombre}: vuelta media ${t.vueltaMedia.toFixed(1)} s (tiene que estar entre ${VUELTA_MIN} y ${VUELTA_MAX} s)`);
   }
@@ -793,7 +808,10 @@ const escenarios = [
         const s = sim.createSim({ geom, trackDefs, random: mulberry32(700 + ronda) });
         const entries = [];
         for (let i = 0; i < 8; i++) entries.push({ playerId: null, bot: true, name: 'Bot ' + (i + 1), char: i });
-        s.startRace({ entries, trackIndex: ronda % trackDefs.length, laps: 2 });
+        // los circuitos cortos: el monstruo («Last Dance») dura tres minutos por vuelta y aquí se
+        // corren ocho carreras, así que se queda fuera de esta prueba
+        const cortos = trackDefs.map((d, i) => (d.vueltas ? -1 : i)).filter((i) => i >= 0);
+        s.startRace({ entries, trackIndex: cortos[ronda % cortos.length], laps: 2 });
         while (s.state.simTime < 150 && s.state.phase !== 'results' && !s.allFinished()) s.update(DT);
         const ks = s.state.karts;
         if (ks.every((k) => k.finished)) terminan++;
@@ -1129,6 +1147,154 @@ const escenarios = [
       if (!(lider.inkUntil > s2.state.simTime)) return 'al primero no le ha manchado su propio calamarazo';
       if (s2.stats.inkSelf !== 1) return 'el calamarazo del primero no se ha contado';
       return null;
+    },
+  },
+  {
+    // `nearest` va por una rejilla para que un circuito largo no se coma el frame: tiene que dar
+    // exactamente lo mismo que mirar las muestras una a una
+    nombre: 'la rejilla de la carretera encuentra lo mismo que buscar a lo bruto',
+    run(sim) {
+      for (let pista = 0; pista < trackDefs.length; pista++) {
+        const s = carrera(sim, { bots: 0, trackIndex: pista });
+        const t = s.state.track;
+        const aLoBruto = (x, y) => {
+          let bi = 0, bd = Infinity;
+          for (let i = 0; i < t.N; i++) {
+            const dx = t.samples[i].x - x, dy = t.samples[i].y - y;
+            const d = dx * dx + dy * dy;
+            if (d < bd) { bd = d; bi = i; }
+          }
+          return { i: bi, d: Math.sqrt(bd) };
+        };
+        const azar = mulberry32(4000 + pista);
+        for (let k = 0; k < 400; k++) {
+          const x = azar() * t.W, y = azar() * t.H;
+          const a = t.nearest(x, y), b = aLoBruto(x, y);
+          if (Math.abs(a.d - b.d) > 0.01) {
+            return `en ${t.name}, en (${x.toFixed(0)},${y.toFixed(0)}) la rejilla dice ${a.d.toFixed(1)}px y lo bruto ${b.d.toFixed(1)}px`;
+          }
+        }
+      }
+      return null;
+    },
+  },
+  {
+    // Las tres habilidades de «Last Dance», que solo salen en ese circuito
+    nombre: 'la liana engancha al de delante y te planta detrás de él',
+    run(sim) {
+      const s = carrera(sim, { bots: 1, trackIndex: pista('Last Dance'), laps: 1 });
+      const k = humano(s);
+      const t = s.state.track;
+      const otro = s.state.karts.find((o) => o !== k);
+      const colocar = (q, idx) => {
+        const sm = t.samples[idx % t.N];
+        q.x = sm.x; q.y = sm.y; q.z = sm.h; q.ground = sm.h; q.air = false; q.vz = 0;
+        q.angle = sm.ang; q.moveAngle = sm.ang; q.speed = 0; q.dist = idx;
+      };
+      const i0 = Math.floor(0.05 * t.N);
+      colocar(k, i0);
+      colocar(otro, i0 + 120);          // ~960 px por delante, dentro del alcance
+      s.updateRanking();
+      k.item = 'liana';
+      s.useItem(k);
+      if (!k.liana) return 'la liana no ha enganchado a nadie';
+      for (let f = 0; f < 60 * 2; f++) { s.setInput(k, { s: 0, g: 0, b: 0, d: 0 }); s.update(DT); otro.speed = 0; }
+      const separacion = (otro.dist - k.dist) * 8;
+      if (separacion > 220) return `la liana lo ha dejado a ${separacion.toFixed(0)}px del otro, no pegado a él`;
+      if (s.stats.lianas !== 1) return 'la liana no se ha contado';
+      // y si no hay nadie delante, al menos da un turbo (no se desperdicia)
+      const s2 = carrera(sim, { bots: 0, trackIndex: pista('Last Dance'), laps: 1 });
+      const solo = humano(s2);
+      solo.item = 'liana';
+      s2.useItem(solo);
+      if (!(solo.boostUntil > s2.state.simTime)) return 'sin nadie delante, la liana no da ni el turbo de consolación';
+      return null;
+    },
+  },
+  {
+    nombre: 'el terremoto manda por los aires a los demás, no a quien lo usa',
+    run(sim) {
+      const s = carrera(sim, { bots: 3, trackIndex: pista('Last Dance'), laps: 1 });
+      const k = humano(s);
+      for (const o of s.state.karts) { o.air = false; o.vz = 0; o.starUntil = 0; }
+      const antes = s.state.karts.filter((o) => o !== k).map((o) => o.speed);
+      k.item = 'terremoto';
+      s.useItem(k);
+      const otros = s.state.karts.filter((o) => o !== k);
+      if (!otros.every((o) => o.air && o.vz > 100)) return 'no ha mandado a todos por los aires';
+      if (k.air || k.vz > 0) return 'el terremoto ha levantado también a quien lo usa';
+      if (!otros.every((o, i) => Math.abs(o.speed) < Math.abs(antes[i]) + 1)) return 'a los sacudidos no les ha frenado';
+      if (s.stats.terremotos !== 1) return 'el terremoto no se ha contado';
+      return null;
+    },
+  },
+  {
+    nombre: 'el portal te adelanta por la pista sin colarte una vuelta',
+    run(sim) {
+      const s = carrera(sim, { bots: 1, trackIndex: pista('Last Dance'), laps: 1 });
+      const k = humano(s);
+      const t = s.state.track;
+      // a mitad de circuito: en la parrilla, a dos metros de la meta, el salto la cruzaría (y eso
+      // está bien: el portal adelanta por la pista, no se salta el recorrido)
+      const i0 = Math.floor(0.3 * t.N), sm = t.samples[i0];
+      k.x = sm.x; k.y = sm.y; k.z = sm.h; k.ground = sm.h; k.air = false; k.vz = 0;
+      k.angle = sm.ang; k.moveAngle = sm.ang; k.speed = 300; k.dist = i0;
+      k.lapCount = Math.floor(k.dist / t.N);   // al colocarlo a mano hay que poner su vuelta al día
+      const antes = k.dist, vueltas = k.lapCount;
+      k.item = 'portal';
+      s.useItem(k);
+      const saltado = (k.dist - antes) * 8;
+      if (Math.abs(saltado - sim.PORTAL_SALTO) > 200) return `el portal ha saltado ${saltado.toFixed(0)}px y tenía que saltar ${sim.PORTAL_SALTO}`;
+      if (t.nearest(k.x, k.y).d > t.halfW) return 'el portal te deja fuera de la carretera';
+      for (let f = 0; f < 60; f++) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
+      if (k.lapCount !== vueltas) return 'el portal ha colado una vuelta';
+      if (s.stats.portales !== 1) return 'el portal no se ha contado';
+      return null;
+    },
+  },
+  {
+    nombre: 'las habilidades de la jungla solo salen en la jungla',
+    run(sim) {
+      const propias = ['liana', 'terremoto', 'portal'];
+      // en Last Dance salen…
+      const s = carrera(sim, { bots: 0, trackIndex: pista('Last Dance'), laps: 1 });
+      const vistas = new Set();
+      for (let i = 0; i < 20000; i++) vistas.add(s.rollItem(4, 7));
+      if (!propias.every((id) => vistas.has(id))) return `en Last Dance no salen todas: ${propias.filter((id) => !vistas.has(id)).join(', ')}`;
+      // …y en los demás, no
+      for (const nombre of ['Arcoíris', 'Chicle']) {
+        const s2 = carrera(sim, { bots: 0, trackIndex: pista(nombre) });
+        for (let i = 0; i < 8000; i++) {
+          const id = s2.rollItem(1 + (i % 7), 7);
+          if (propias.includes(id)) return `en ${nombre} ha salido ${id}, que es de la jungla`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    // Los dos caminos: la pared del medio no se puede atravesar
+    nombre: 'la pared que parte la carretera en dos caminos no se puede cruzar',
+    run(sim) {
+      const s = carrera(sim, { bots: 0, trackIndex: pista('Last Dance'), laps: 1 });
+      const k = humano(s);
+      const t = s.state.track;
+      if (!t.paredes.length) return 'este circuito no tiene paredes centrales';
+      const w = t.paredes[0];
+      const i0 = (w.from + 30) % t.N;
+      const sm = t.samples[i0];
+      // entra de lado, apuntando al muro desde el carril de la derecha
+      k.x = sm.x + sm.nx * 130; k.y = sm.y + sm.ny * 130;
+      k.z = sm.h; k.ground = sm.h; k.air = false; k.vz = 0;
+      k.angle = sm.ang - 1.2; k.moveAngle = k.angle; k.speed = 420; k.dist = i0;
+      let cruzado = false;
+      for (let f = 0; f < 60 * 2; f++) {
+        s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+        s.update(DT);
+        const n = t.nearest(k.x, k.y);
+        if (t.inRange(n.i, w.from, w.to) && n.lat < -w.ancho / 2) { cruzado = true; break; }
+      }
+      return cruzado ? 'ha atravesado la pared y se ha pasado al otro camino' : null;
     },
   },
   {

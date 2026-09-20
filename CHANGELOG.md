@@ -3,6 +3,47 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 — «Last Dance»: el circuito monstruo, con cinco biomas y tres habilidades propias
+
+El circuito del final de la fiesta. Una vuelta única de **72.900 px** (casi cinco veces Arcoíris,
+unos tres minutos) en un mundo de 25.250 x 20.350, dividido en **cinco biomas**, uno por sector:
+
+- **Jungla** (la salida, entre palmeras), **Hielo** (la parte rápida, todo blanco y curvones),
+  **Mina** (a oscuras, revirada, con la niebla encima), **Centro de la Tierra** (a −900 de altura,
+  rojo y con las curvas más cerradas) y **Cielo** (a +1.150, entre nubes y globos).
+- Cada bioma pinta su asfalto, su terreno, su niebla, su cielo y sus bichos. Y **la niebla y el
+  cielo cambian por panel**: si tú vas por la mina y tu amigo por el cielo, cada uno ve el suyo.
+- **Dos caminos**: en cinco tramos la carretera va partida por una pared por el medio y hay que
+  elegir lado; donde la pared se corta, se puede cambiar.
+- 15 saltos (el más grande, de 130), 22 cajas, 12 paneles de turbo, quitamiedos en todo el
+  recorrido y cinco monumentos por el camino (el aro, el arco de lava, el aro de fuego, el anillo
+  del planeta y el castillo).
+
+**Tres habilidades que solo salen aquí**, y son gordas a propósito:
+
+- **Liana** 🌿: te engancha al kart que tengas delante (hasta 1.400 px) y te arrastra hasta él en
+  siete décimas. Un adelantamiento de los de levantarse del sofá. Si no hay nadie delante, turbo.
+- **Terremoto** 🌋: tiembla la jungla entera y todos los demás salen por los aires, medio frenados
+  y desencarados. Al que lo usa no le pasa nada.
+- **Portal** 🌀: te abres un agujero y sales 900 px más adelante **por la pista** (sin colarte
+  vueltas ni atravesar paredes).
+
+Por el camino, dos mejoras que valen para todo el juego:
+
+- **`nearest` va por una rejilla**: buscar la carretera más cercana ya no recorre las 9.000
+  muestras, sino las celdas de alrededor. La simulación va el doble de rápida y un circuito así
+  se mueve a 60 fps.
+- **El validador mide la zona de aterrizaje en píxeles** (700), no en fracción de vuelta: en un
+  circuito de 73.000 px, el 10 % de la vuelta eran 7.300 px de pista prohibida para cajas.
+- Un circuito puede fijar **sus propias vueltas** (`vueltas` en tracks.js): Last Dance corre una
+  sola, que ya son tres minutos.
+
+- **Cómo probarlo**: `npm start`, elige «Last Dance» con ←→ y corre. Fíjate en el cambio de bioma
+  (sobre todo al entrar en la mina y al salir al cielo), en las paredes que parten la carretera y
+  en las tres habilidades nuevas.
+- **Pendiente de probar en fiesta**: si tres minutos de vuelta se hacen largos, si el terremoto es
+  demasiado bestia con siete jugadores y si se entiende a la primera lo de elegir camino.
+
 ## 2026-09-20 — Los cinco circuitos, al estilo de Arcoíris
 
 El dueño pidió que los otros cuatro se parecieran a Arcoíris «teniendo en cuenta las curvas, los

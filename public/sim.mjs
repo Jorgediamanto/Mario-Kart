@@ -137,6 +137,20 @@ export const ROCKET_SPEED = 2.1;        // veces la velocidad máxima normal
  */
 export const INK_TIME = 4.5;            // segundos con la pantalla manchada
 export const INK_SELF_TIME = 3.0;       // los que dura cuando le estalla al primero
+/*
+ * Las tres habilidades de «Last Dance», el circuito de la jungla. Solo salen ahí (`itemsExtra`) y
+ * son de las que cambian una carrera:
+ *  - **Liana** 🌿: te engancha al kart de delante y te arrastra hasta él en un instante. Un
+ *    adelantamiento de los de levantarse del sofá.
+ *  - **Terremoto** 🌋: tiembla todo el circuito y los que van por el suelo salen volando. Al que lo
+ *    usa no le pasa nada, claro.
+ *  - **Portal** 🌀: te abres un agujero y sales más adelante, en el mismo trazado. No atraviesas
+ *    paredes ni te saltas vueltas: es un empujón brutal, pero por la pista.
+ */
+export const LIANA_ALCANCE = 1400;      // px de pista por delante hasta los que engancha
+export const LIANA_TIME = 0.7;          // lo que tarda el viaje
+export const TERREMOTO_FUERZA = 420;    // con cuánta fuerza salen despedidos los demás
+export const PORTAL_SALTO = 900;        // px de pista que te adelanta el portal
 export const MAX_KARTS = 7;   // siete personajes, siete sitios: nadie repite kart
 export const SAMPLE_SPACING = 8;
 
@@ -168,6 +182,11 @@ export const ITEMS = {
   star: { icon: '⭐', name: 'Estrella' },
   lightning: { icon: '⚡', name: 'Rayo' },
   snail: { icon: '🐌', name: 'Caracol' },
+  // Exclusivos de circuitos que los pidan en `itemsExtra` (hoy, «Last Dance»). Son gordos a
+  // propósito: cambian la carrera, no la adornan.
+  liana: { icon: '🌿', name: 'Liana' },
+  terremoto: { icon: '🌋', name: 'Terremoto' },
+  portal: { icon: '🌀', name: 'Portal' },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
 
@@ -251,13 +270,48 @@ export function buildTrack(def, index, geom) {
   const t = {
     def, index, name: def.name, samples, N, halfW, width: def.width, gravity: def.gravity || 1,
     W, H, ter,
-    win: Math.floor(N / 8), boxes: [], grid: [], pads: [], barriers: [], ramps: [], world: null,
+    win: Math.floor(N / 8), boxes: [], grid: [], pads: [], barriers: [], paredes: [], ramps: [], world: null,
+    /*
+     * La muestra de carretera más cercana a un punto. Se mira en una **rejilla**: el circuito se
+     * reparte en celdas y solo se comparan las muestras de la celda y las ocho de alrededor. A lo
+     * bruto era recorrer las N muestras en cada llamada, y con un circuito largo («Last Dance»
+     * tiene 10.000) eso se comía el frame: siete karts la llaman varias veces por vuelta de bucle.
+     * Si en las celdas de alrededor no hubiera nada (un punto perdidísimo), se busca a lo bruto.
+     */
     nearest(x, y) {
-      let bi = 0, bd = Infinity;
-      for (let i = 0; i < N; i++) {
-        const dx = samples[i].x - x, dy = samples[i].y - y;
-        const d = dx * dx + dy * dy;
-        if (d < bd) { bd = d; bi = i; }
+      const R = this.rejilla;
+      let bi = -1, bd = Infinity;
+      if (R) {
+        const cx = Math.floor((x - R.x0) / R.cell), cy = Math.floor((y - R.y0) / R.cell);
+        const maxAro = Math.max(R.cols, R.rows);
+        // se mira en anillos de celdas cada vez más grandes y se para en cuanto lo encontrado ya no
+        // puede mejorar: lo que haya más allá del anillo está, por fuerza, más lejos
+        // el anillo 0 es la celda del propio punto; luego se va abriendo
+        for (let aro = 0; aro <= maxAro; aro++) {
+          for (let gy = cy - aro; gy <= cy + aro; gy++) {
+            if (gy < 0 || gy >= R.rows) continue;
+            const borde = Math.abs(gy - cy) === aro;
+            for (let gx = cx - aro; gx <= cx + aro; gx++) {
+              if (gx < 0 || gx >= R.cols) continue;
+              if (!borde && Math.abs(gx - cx) !== aro) continue;    // solo el borde del anillo
+              for (const i of R.celdas[gy * R.cols + gx]) {
+                const dx = samples[i].x - x, dy = samples[i].y - y;
+                const d = dx * dx + dy * dy;
+                if (d < bd) { bd = d; bi = i; }
+              }
+            }
+          }
+          const garantia = aro * R.cell;
+          if (bi >= 0 && bd <= garantia * garantia) break;
+        }
+      }
+      if (bi < 0) {
+        bd = Infinity;
+        for (let i = 0; i < N; i++) {
+          const dx = samples[i].x - x, dy = samples[i].y - y;
+          const d = dx * dx + dy * dy;
+          if (d < bd) { bd = d; bi = i; }
+        }
       }
       const s = samples[bi];
       return { i: bi, d: Math.sqrt(bd), lat: (x - s.x) * s.nx + (y - s.y) * s.ny };
@@ -295,6 +349,17 @@ export function buildTrack(def, index, geom) {
     for (const off of [-halfW * 0.6, 0, halfW * 0.6]) t.boxes.push({ x: s.x + s.nx * off, y: s.y + s.ny * off, h: s.h, respawnAt: 0, view: null });
   }
   for (const f of def.pads || []) t.pads.push(Math.floor(f * N) % N);
+  /*
+   * Muros centrales (`paredes`): tramos en los que la carretera va **partida en dos caminos** por
+   * una pared por el medio. Cada uno lleva por un sitio distinto (y en «Last Dance», a un bioma
+   * distinto), y donde la pared se corta se puede cambiar de camino. Para la simulación es una
+   * franja prohibida alrededor de la línea central: si entras, te empuja al lado que tengas más
+   * cerca. Así no hacen falta ramas de verdad en el trazado, que es un lío para el progreso, las
+   * vueltas y los bots.
+   */
+  for (const w of def.paredes || []) {
+    t.paredes.push({ from: Math.floor(w.from * N) % N, to: Math.floor(w.to * N) % N, ancho: w.ancho || 90 });
+  }
   for (const b of def.barriers || []) {
     const from = Math.floor(b.from * N) % N, to = Math.floor(b.to * N) % N;
     let side = 0;
@@ -316,6 +381,25 @@ export function buildTrack(def, index, geom) {
     const off = (col === 0 ? -1 : 1) * halfW * 0.45;
     t.grid.push({ x: s.x + s.nx * off, y: s.y + s.ny * off, h: s.h, ang: s.ang, dist: idx - N });
   }
+  /*
+   * Rejilla para `nearest`: celdas de unos 400 px con los índices de las muestras que caen dentro.
+   * Cada muestra se apunta también en las celdas vecinas que toque su radio de influencia, para que
+   * buscar en 3x3 celdas baste siempre.
+   */
+  {
+    const cell = 400;
+    const x0 = -TER_MARGEN_X, y0 = -TER_MARGEN_Y;
+    const cols = Math.ceil((W + TER_MARGEN_X * 2) / cell), rows = Math.ceil((H + TER_MARGEN_Y * 2) / cell);
+    const celdas = new Array(cols * rows);
+    for (let i = 0; i < celdas.length; i++) celdas[i] = [];
+    for (let i = 0; i < N; i++) {
+      const gx = clamp(Math.floor((samples[i].x - x0) / cell), 0, cols - 1);
+      const gy = clamp(Math.floor((samples[i].y - y0) / cell), 0, rows - 1);
+      celdas[gy * cols + gx].push(i);
+    }
+    t.rejilla = { cell, x0, y0, cols, rows, celdas };
+  }
+
   // relieve del terreno alrededor de la carretera
   const rnd = mulberry32(77 + index * 31);
   t.terrain = new Float32Array(ter.cols * ter.rows);
@@ -390,7 +474,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   };
   // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
   // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
-  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
+  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, lianas: 0, terremotos: 0, portales: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -416,7 +500,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0, lapAt: 0,
       lastRamp: -1, lastRampAt: -99, offT: 0,
-      rocketUntil: 0, inkUntil: 0,
+      rocketUntil: 0, inkUntil: 0, liana: null,
       enderezaTrasGolpe: false,
       wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
@@ -460,6 +544,13 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     if (Number.isInteger(trackIndex)) state.track = tracks[((trackIndex % tracks.length) + tracks.length) % tracks.length];
     hooks.onTrackChanged(state.track);
     if (Number.isInteger(laps)) state.laps = clamp(laps, 1, 9);
+    /*
+     * Un circuito puede fijar sus propias vueltas (`vueltas` en tracks.js). Lo usa «Last Dance»:
+     * con tres minutos por vuelta, tres vueltas serían una maratón de diez minutos y nadie quiere
+     * eso en una fiesta. Lo que elija la sala se respeta en los demás.
+     */
+    const suyas = state.track && state.track.def.vueltas;
+    if (Number.isInteger(suyas)) state.laps = clamp(suyas, 1, 9);
     for (const b of state.track.boxes) b.respawnAt = 0;
     shuffle(list);
     state.karts = list.map((e, i) => makeKart(e, state.track.grid[i]));
@@ -629,6 +720,25 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
    * atropella a quien te encuentres. Por eso no se dirige y no te pueden dar: es un regalo para el
    * que va último, no una ventaja que haya que pilotar.
    */
+  // El viaje de la liana: en `LIANA_TIME` segundos te planta detrás del kart al que enganchaste
+  function tirarDeLaLiana(k, dt) {
+    const t = state.track, now = simTime;
+    const l = k.liana;
+    const queda = Math.max(0, (l.hasta - now) / LIANA_TIME);
+    const avance = 1 - queda;
+    k.x = lerp(l.desde.x, l.x, avance);
+    k.y = lerp(l.desde.y, l.y, avance);
+    k.z = t.groundAt(k.x, k.y); k.ground = k.z; k.vz = 0; k.air = false;
+    k.angle = l.ang; k.moveAngle = l.ang;
+    k.speed = BASE_MAX_SPEED * 0.9;
+    k.offroad = false; k.offT = 0; k.stuckT = 0; k.wrongT = 0;
+    hooks.onParticles(k.x, k.z + 12, k.y, { n: 2, color: ['#39ff88', '#8dffc0'], spread: 60, vy: 40, life: 0.4, size: 4 });
+    if (now >= l.hasta) { k.liana = null; boost(k, 0.5); }
+    const propio = tramoDe(k);
+    comprobarSentido(k, propio, dt);
+    updateProgress(k, propio, dt);
+  }
+
   function volarConCohete(k, dt) {
     const t = state.track;
     const near = tramoDe(k);
@@ -661,6 +771,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     // mientras lo recogen se queda quieto: es la penalización por salirse
     if (k.rescueUntil > now) { k.speed = 0; k.vz = 0; k.air = false; k.driftT = 0; k.driftLevel = 0; return; }
     if (k.rocketUntil > now) { volarConCohete(k, dt); return; }
+    if (k.liana) { tirarDeLaLiana(k, dt); return; }
     const spinning = k.spinUntil > now;
     // se acabó el trompo: el morro, hacia la carretera (ver GOLPE_ENDEREZA). Si no, después de
     // cada caparazón toca buscarse la pista de nuevo, que es lo que más despista jugando.
@@ -792,6 +903,24 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
           stats.boings++;
           if (now - k.lastBoing > 0.25) { hooks.onSfx('boing', k); k.lastBoing = now; }
           hooks.onShake(3, k);
+        }
+      }
+    }
+    // muro central: si te metes en la franja de en medio, te saca al camino que tengas más cerca
+    for (const w of t.paredes) {
+      if (!t.inRange(near2.i, w.from, w.to)) continue;
+      const mitad = w.ancho / 2;
+      if (Math.abs(near2.lat) < mitad && !(k.z - k.ground > 40)) {
+        const sm = t.samples[near2.i];
+        const lado = near2.lat >= 0 ? 1 : -1;
+        k.x = sm.x + sm.nx * mitad * lado; k.y = sm.y + sm.ny * mitad * lado;
+        const vx = Math.cos(k.moveAngle) * k.speed, vy = Math.sin(k.moveAngle) * k.speed;
+        const vn = vx * sm.nx + vy * sm.ny;
+        if (vn * lado < 0) {      // iba hacia dentro del muro: rebota hacia su camino
+          setVel(k, vx - vn * sm.nx * 1.5, vy - vn * sm.ny * 1.5);
+          hooks.onSquash(k, 4);
+          hooks.onParticles(k.x, k.z + 8, k.y, { n: 6, color: t.def.theme.bumper, spread: 130, vy: 70, life: 0.4, size: 4 });
+          if (now - k.lastBoing > 0.25) { hooks.onSfx('boing', k); k.lastBoing = now; }
         }
       }
     }
@@ -999,6 +1128,12 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   // ===================== Objetos =====================
   function rollItem(rank, n) {
     const r = n > 1 ? (rank - 1) / (n - 1) : 0.5;
+    /*
+     * Objetos propios del circuito (`itemsExtra` en tracks.js). Se suman al reparto normal con el
+     * peso que diga cada uno: así «Last Dance» puede tener sus tres fumadas sin tocarle el reparto
+     * a los demás circuitos.
+     */
+    const propios = (state.track && state.track.def.itemsExtra) || [];
     const ultimos = r > 0.55;          // de la mitad de atrás para abajo
     const w = [
       // al quitar el caparazón verde, el que va primero se quedaba con dos objetos y casi siempre
@@ -1017,6 +1152,12 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       // y la broma para el que va primero: una de cada catorce cajas le revienta un calamarazo
       ['inkSelf', rank === 1 && n >= 3 ? 0.55 : 0],
     ];
+    for (const extra of propios) {
+      // cada objeto propio dice su peso base y, si quiere, desde qué puesto sale
+      const desde = extra.desde || 1;
+      const peso = rank >= desde ? extra.peso * (extra.conLaPosicion === false ? 1 : 0.4 + 1.2 * r) : 0;
+      w.push([extra.id, peso]);
+    }
     const total = w.reduce((acc, [, x]) => acc + x, 0);
     let x = random() * total;
     for (const [id, wt] of w) { x -= wt; if (x <= 0) return id; }
@@ -1132,6 +1273,60 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
         hooks.onFx(k, 'rocket');
         hooks.onSfx('rocket', k);
         hooks.onToast(`${k.emoji} ${k.name}: ¡cohete! 🚀`, 2);
+        break;
+      }
+      case 'liana': {
+        // engancha al primero que tenga por delante dentro del alcance y se lanza hacia él
+        const t2 = state.track;
+        const objetivo = state.karts
+          .filter((o) => o !== k && !o.finished && o.dist > k.dist && (o.dist - k.dist) * SAMPLE_SPACING < LIANA_ALCANCE)
+          .sort((a, b) => a.dist - b.dist)[0];
+        if (!objetivo) { boost(k, 1.0); hooks.onToast(`${k.emoji} ${k.name}: la liana no engancha a nadie… turbo de consolación 🌿`, 2); break; }
+        const sm = t2.samples[((Math.round(objetivo.dist) % t2.N) + t2.N) % t2.N];
+        k.liana = { hasta: now + LIANA_TIME, x: sm.x - Math.cos(sm.ang) * 40, y: sm.y - Math.sin(sm.ang) * 40, ang: sm.ang, desde: { x: k.x, y: k.y } };
+        k.invUntil = Math.max(k.invUntil, now + LIANA_TIME + 0.2);
+        stats.lianas++;
+        hooks.onFx(k, 'liana');
+        hooks.onSfx('liana', k);
+        hooks.onToast(`${k.emoji} ${k.name} se engancha con la liana a ${objetivo.emoji} ${objetivo.name} 🌿`, 2);
+        break;
+      }
+      case 'terremoto': {
+        let sacudidos = 0;
+        for (const o of state.karts) {
+          if (o === k || o.finished || o.starUntil > now) continue;
+          o.vz = Math.max(o.vz, TERREMOTO_FUERZA * (0.7 + random() * 0.6));
+          o.air = true;
+          o.speed *= 0.55;
+          o.driftT = 0; o.driftLevel = 0;
+          o.angle += (random() - 0.5) * 1.2;
+          hooks.onFx(o, 'terremoto');
+          hooks.onParticles(o.x, o.z + 6, o.y, { n: 12, color: ['#8a5a2b', '#c98a4b', '#ffd000'], spread: 180, vy: 140, life: 0.8, size: 5 });
+          sacudidos++;
+        }
+        stats.terremotos++;
+        hooks.onShake(14, k);
+        hooks.onFlash();
+        hooks.onSfx('terremoto', k);
+        hooks.onToast(`${k.emoji} ${k.name} sacude la jungla: ${sacudidos} por los aires 🌋`, 2.4);
+        break;
+      }
+      case 'portal': {
+        const t2 = state.track;
+        const saltos = Math.round(PORTAL_SALTO / SAMPLE_SPACING);
+        const destino = ((Math.round(k.dist) + saltos) % t2.N + t2.N) % t2.N;
+        const sm = t2.samples[destino];
+        hooks.onParticles(k.x, k.z + 20, k.y, { n: 22, color: ['#b14bff', '#00e5ff', '#ffffff'], spread: 220, vy: 120, life: 0.7, size: 5 });
+        k.x = sm.x; k.y = sm.y; k.z = sm.h; k.ground = sm.h; k.vz = 0; k.air = false;
+        k.angle = sm.ang; k.moveAngle = sm.ang;
+        k.dist += saltos;
+        k.speed = Math.max(k.speed, BASE_MAX_SPEED * 0.8);
+        k.aheadT = 0;     // el salto es legal: no es un atajo volando, es el portal
+        stats.portales++;
+        hooks.onParticles(k.x, k.z + 20, k.y, { n: 22, color: ['#b14bff', '#00e5ff', '#ffffff'], spread: 220, vy: 120, life: 0.7, size: 5 });
+        hooks.onFx(k, 'portal');
+        hooks.onSfx('portal', k);
+        hooks.onToast(`${k.emoji} ${k.name} se abre un portal 🌀`, 2);
         break;
       }
       case 'ink': {

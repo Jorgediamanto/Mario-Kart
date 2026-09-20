@@ -1,10 +1,10 @@
 # 🏁 Kart Party
 
 Juego de karts **en 3D** al estilo Mario Kart para jugar con amigos en el salón:
-**la tele es la pantalla del juego y cada móvil es un mando**. Hasta 8 corredores
-(personas + bots), 4 circuitos con rampas, saltos, paneles turbo y bumpers que rebotan,
-objetos (champiñón, plátano, caparazones, estrella, rayo), derrape automático con tres niveles de
-turbo, trucos
+**la tele es la pantalla del juego y cada móvil es un mando**. Hasta 7 corredores
+(personas + bots, siete personajes y siete sitios), 5 circuitos con rampas, saltos, paneles turbo y
+bumpers que rebotan, nueve objetos (champiñón, plátano, caparazón rojo y azul, cohete, tinta,
+estrella, rayo y caracol), derrape automático con tres niveles de turbo, trucos
 en el aire, vueltas, posiciones y podio final. Físicas exageradas (los karts se aplastan,
 se estiran, botan y vuelan) y colores chillones.
 
@@ -73,7 +73,8 @@ El volante se pone a cero solo al empezar cada cuenta atrás: sujeta el móvil c
 cómodo y eso pasa a ser el centro. Da igual lo inclinado que lo tengas.
 
 No hay freno ni marcha atrás: si te pierdes, te quedas clavado contra algo o te sales de la pista,
-a los 3 segundos te recogen y te dejan otra vez en la carretera mirando hacia donde toca.
+a los 2 segundos baja **Chuma vestido de árbitro** (con su silbato, su tarjeta amarilla y su rotor),
+te levanta y te deja otra vez en la carretera mirando hacia donde toca.
 
 > **Cómo se enciende el volante.** Los navegadores solo dejan leer el giroscopio en conexiones
 > cifradas, y el certificado del juego es suyo propio, así que el navegador enseña un aviso feo.
@@ -119,6 +120,7 @@ hayas cargado. En las curvas normales se llega a uno o dos niveles; el tres es p
 | `F` | Pantalla completa |
 | `V` | Vaciar la sala (dos veces seguidas): echa a todos y vuelven a entrar |
 | `P` | Ver los fps (para comprobar que va fino con la pantalla dividida) |
+| `M` | Silenciar (y volver a encender) todo el sonido de la tele |
 | Flechas, `Espacio` (objeto) | Conducir con el jugador de teclado (el derrape también sale solo) |
 
 ## La tele durante la carrera: pantalla dividida
@@ -136,19 +138,25 @@ sigue en los saltos. Los bots no tienen panel.
 | 5 | tres arriba y dos abajo |
 | 6 | 3 × 2 |
 | 7 | cuatro arriba y tres abajo |
-| 8 | 4 × 2 |
+
+Siete es el tope: **siete personajes, siete sitios**, y los bots ocupan los que sobren. Si entran
+siete personas, no hay bots.
 
 Cada panel lleva su marcador pequeño: emoji y nombre, posición, vuelta, el objeto que llevas y los
 avisos («¡TRUCO!», «¡ÚLTIMA VUELTA!», las estrellas del derrape). El tiempo de carrera va arriba en
 medio, para todos. La sala, la cuenta atrás y los resultados se siguen viendo con la cámara general
 del circuito, que enseña la pista entera.
 
+La salida es **con semáforo**, como en las carreras de verdad: con cada número de la cuenta atrás
+se enciende una luz roja, y al «¡YA!» se ponen las tres verdes de golpe.
+
 ## Cosas del circuito
 
 - **Rampas ↗ SALTO**: la carretera sube y se corta: cuanto más rápido llegues, más lejos vuelas.
   Los lomos de la carretera también te hacen botar si vas a tope.
 - **Paneles ➤ turbo**: pásales por encima.
-- **Bumpers** de colores en los bordes de algunos tramos: rebotas como en los coches de choque.
+- **Bumpers** (quitamiedos) de colores en los dos bordes de todo el recorrido, en los cinco
+  circuitos: rebotas como en los coches de choque y no te vas al campo rodando.
 - **Chocar con otro kart** lo empuja (y a ti), con un pequeño salto si vais fuerte.
 - **Césped/arena/lava**: salirse frena mucho; cortar por fuera no cuenta para la vuelta.
 
@@ -160,31 +168,47 @@ Si saltas por encima de un plátano o un caparazón, no te alcanzan.
 - 🍄 **Champiñón**: turbo (y en el césped no te frena).
 - 🍌 **Plátano**: lo dejas detrás; quien lo pise da un trompo y sale volando.
 - 🎯 **Caparazón rojo**: persigue al corredor que va justo delante de ti.
+- 🔵 **Caparazón azul**: sale disparado como un misil por el centro de la carretera a por **el que
+  va primero**. Su camino es fino a propósito: al líder le da solo si va por el medio, así que
+  abriéndose o cortando por la cuerda se libra. Solo sale del tercero para atrás.
+- 🚀 **Cohete**: el premio de los últimos. Te pone en el centro de la pista y te dispara al **doble
+  de velocidad** durante cuatro segundos y medio, atropellando a quien encuentres; mientras dura, ni
+  se conduce ni te pueden dar. Solo sale de la mitad de la parrilla para atrás.
+- 🦑 **Tinta**: a todos los demás se les llena la pantalla de manchas unos segundos.
 - ⭐ **Estrella**: unos segundos invencible y más rápido; si tocas a otro, lo haces girar.
 - ⚡ **Rayo**: todos los demás se encogen y van más lentos un rato.
 - 🐌 **Caracol** (raro): **se para la carrera entera**, eliges en tu móvil a quién se lo plantas y
   esa persona va un 75 % más lenta durante tres segundos. Si te lo piensas más de seis segundos,
   se lo lleva quien vaya justo delante de ti. Al que va primero nunca le toca.
 
+Cuanto más atrás vas, mejores objetos te tocan, y **al que va primero le tocan los peores**: no le
+salen ni rojo, ni azul, ni cohete, ni caracol. Y de cada doce cajas, más o menos, una le estalla en
+la cara: en vez de objeto se lleva **un calamarazo él solito** y sigue corriendo a ciegas un rato.
+
 ## Circuitos
 
-| Circuito | Ambiente | Particularidad |
-|---|---|---|
-| **Arcoíris** | Espacio, planetas y estrellas | **El fácil y el largo**: carretera del doble de ancha, quitamiedos en los dos lados de todo el recorrido (no te sales), tres veces más largo, tres saltos, un aro gigante por el que se vuela y un castillo con un árbol de cristal por debajo del que se pasa |
-| Chicle | Prado de chicle: árboles de caramelo, globos, setas | Fácil, una rampa y dos lomos |
-| Playa Neón | Atardecer, arena, palmeras, flamencos | Eses y rampa larga |
-| Volcán Disco | Suelo morado, lava, cristales | Horquilla con bumpers y rampa alta |
-| Luna Loca | Gravedad baja, cráteres, planetas | Dos rampas: saltos larguísimos |
+Los cinco están cortados por el mismo patrón: carretera ancha, **quitamiedos en los dos lados de
+todo el recorrido** (no te sales rodando: rebotas y sigues), un salto grande de verdad con su **aro
+por el que se vuela**, otros dos saltos de propina, y un **monumento por debajo del que se pasa**.
+Una vuelta dura entre 27 y 33 segundos.
 
-En Arcoíris conviene poner **1 o 2 vueltas** en vez de 3: cada vuelta son unos 30 segundos, tres
-veces lo que dura una de los otros circuitos.
+| Circuito | Ambiente | Largo | Particularidad |
+|---|---|---|---|
+| **Arcoíris** | Espacio, planetas y estrellas | 15.900 px | **El grande**: la carretera más ancha (260) y el trazado más largo, con curvas de todos los tipos y una cerrada de verdad. Se vuela por un **aro gigante** y se pasa por debajo de un **castillo** con un árbol de cristal. Se cae un poco más despacio que en los demás |
+| Chicle | Prado de chicle: árboles de caramelo, globos, setas | 12.800 px | **El fácil, a propósito**: curvas abiertas, ninguna cerrada. Se vuela por dentro de un **donut** y se pasa por debajo de una **tarta** de tres pisos con su vela |
+| Playa Neón | Atardecer, arena, palmeras, flamencos | 13.600 px | La **recta más larga** de los cinco frente al mar y, a la vuelta, la horquilla de la sombrilla. Se vuela por un **flotador** gigante y se pasa por debajo del **chiringuito** |
+| Volcán Disco | Suelo morado, lava, cristales | 13.500 px | **El técnico**: zigzag, la horquilla del volcán y las dos curvas más cerradas del juego. Aquí el derrape de nivel 3 se gana curva a curva. Se vuela por un **aro de fuego** y se pasa bajo un **arco de lava** |
+| Luna Loca | Gravedad baja, cráteres, planetas | 13.200 px | **El de volar**: con la gravedad a la mitad los saltos son larguísimos y las curvas, las más abiertas de todas. Se vuela por el **anillo de un planeta** y se pasa por debajo de la **base lunar** |
+
+Arcoíris es un tercio más largo que los demás, así que con 3 vueltas se va a los dos minutos: para
+una carrera rápida, ponle **1 o 2**.
 
 Están en `public/tracks.js`: una lista de puntos por los que pasa la carretera más el relieve
 (`features`), paneles turbo (`pads`), cajas (`boxes`) y bumpers (`barriers`). Si añades o cambias
 uno, ejecuta `npm run check`: comprueba que no se solapa consigo mismo, que cabe en su mundo, que
 no tiene curvas imposibles y que las cajas/paneles no caen encima de una rampa. Un circuito puede
-pedir un **mundo más grande** que la pantalla de siempre con `world: { w, h }` (es lo que hace
-Arcoíris); si no lo pide, son los 1920x1080 de toda la vida.
+pedir el **mundo que necesite** con `world: { w, h }` —los cinco lo hacen, entre 5400x3600 y
+6650x4100—; si no lo pide, son los 1920x1080 de toda la vida.
 
 ## Ajustes rápidos
 
@@ -232,7 +256,7 @@ npm test        # sintaxis + circuitos + servidor + carreras de bots + móviles 
 ```
 
 La última fase de `npm test` (`tools/check-sim.js`) corre carreras enteras **sin navegador**: usa la
-simulación de `public/sim.mjs` con ocho bots en los cuatro circuitos y comprueba que todos terminan,
+simulación de `public/sim.mjs` con la parrilla llena de bots en los cinco circuitos y comprueba que todos terminan,
 que nadie se sale del mapa ni se queda atascado, que el orden de llegada cuadra con los tiempos y que
 con la misma semilla sale exactamente la misma carrera. Debajo hay una lista de «escenarios» (el
 plátano hace girar, la estrella protege, el derrape da turbo…) a la que conviene sumar uno nuevo cada
@@ -242,7 +266,7 @@ Para mirar el juego de cerca sin jugarlo está `npm run race`:
 
 ```bash
 npm run race                                  # una carrera en el primer circuito
-npm run race -- --track all --runs 3          # los cuatro circuitos, tres carreras cada uno
+npm run race -- --track all --runs 3          # los cinco circuitos, tres carreras cada uno
 npm run race -- --track 2 --laps 5 --verbose  # registro de todo, con tiempo y posición
 npm run race -- --stats items                 # histogramas: items | drift | speed
 npm run race -- --track all --runs 3 --json   # en JSON, para comparar antes y después de un cambio

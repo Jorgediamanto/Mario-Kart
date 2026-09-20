@@ -70,8 +70,17 @@ for (const def of TRACKS) {
     frac(f.at, f.type);
     const end = f.at + f.length / (N * SPACING);
     if (end > 0.93) problems.push(`${f.type} en ${f.at} invade la parrilla de salida`);
-    for (const b of def.boxes) if (b > f.at - 0.01 && b < end + (f.type === 'ramp' ? 0.1 : 0.01)) problems.push(`caja en ${b} cae sobre ${f.type} (${f.at})`);
-    for (const p of def.pads || []) if (p > f.at - 0.01 && p < end + (f.type === 'ramp' ? 0.1 : 0.01)) problems.push(`panel turbo en ${p} cae sobre ${f.type} (${f.at})`);
+    /*
+     * Ni cajas ni paneles justo antes de un salto ni **donde se aterriza**. La zona de aterrizaje se
+     * mide en píxeles de pista (con el turbo de salto se vuelan unos 700), no en fracción de vuelta:
+     * en un circuito de 73.000 px como Last Dance, el 10 % de la vuelta son 7.300 px y prohibía
+     * media pista.
+     */
+    const largo = N * SPACING;
+    const antes = 150 / largo;      // justo encima de la rampa tampoco
+    const despues = (f.type === 'ramp' ? 700 : 100) / largo;
+    for (const b of def.boxes) if (b > f.at - antes && b < end + despues) problems.push(`caja en ${b} cae sobre ${f.type} (${f.at})`);
+    for (const p of def.pads || []) if (p > f.at - antes && p < end + despues) problems.push(`panel turbo en ${p} cae sobre ${f.type} (${f.at})`);
   }
   for (const b of def.barriers || []) { frac(b.from, 'barrera'); frac(b.to, 'barrera'); if (!['both', 'outer'].includes(b.side)) problems.push(`barrera con lado desconocido: ${b.side}`); }
 
