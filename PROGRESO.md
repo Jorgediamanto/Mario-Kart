@@ -7,18 +7,13 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 01:19
+- último latido (UTC): 2026-09-20 01:20
 - rama: noche/2026-09-20
 
 ## Punto en curso
-- IDEAS.md: Fase 2 — «Mejorar los circuitos para la vista en tercera persona» (los cuatro circuitos
-  que siguen en 9-12 s de vuelta: Costa, Volcán, Bosque, Ciudad… el que toque según `tracks.js`).
-- hecho: **los cinco circuitos con vuelta de 25-60 s**: Chicle 29,2 · Playa Neón 30,6 · Volcán Disco
-  30,4 · Luna Loca 28,3 · Arcoíris 33,5. Motor `tools/traza.js`, decoración junto a la carretera,
-  pista de pruebas propia para los escenarios de la horquilla y comprobación nueva de duración de
-  vuelta en `npm test`. Una entrada de CHANGELOG por circuito. `npm test` en verde.
-- siguiente paso: cerrar el punto en IDEAS.md (con la nota del atajo, que está medido y no sale con
-  esta simulación) y fusionar a main.
+- IDEAS.md: ninguno (recién cerrado «Mejorar los circuitos para la vista en tercera persona»)
+- hecho: —
+- siguiente paso: —
 - intentos fallidos en este punto: 0
 
 ## Última sesión
