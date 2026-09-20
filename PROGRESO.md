@@ -7,17 +7,13 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 01:50
+- último latido (UTC): 2026-09-20 01:52
 - rama: noche/2026-09-20
 
 ## Punto en curso
-- IDEAS.md: Fase 3 — «Calentamiento en la sala»
-- hecho: la fase `warmup` en `sim.mjs` con su escenario; la tele (sala HTML visible, karts en la
-  parrilla, el desfile del dueño se mantiene mientras nadie conduce y la cámara se va con los
-  karts en cuanto alguien se mueve); el móvil (botón «🕹️ Probar el mando» y «↩ sala»); aviso en
-  la sala de la tele; comprobación de la fase en `check-protocol.js`. `npm test` en verde.
-- siguiente paso: releer el diff de `screen.js` con calma (no tiene pruebas de navegador), y cerrar
-  el punto: IDEAS.md, CHANGELOG.md y fusión a main.
+- IDEAS.md: ninguno (recién cerrado «Calentamiento en la sala»)
+- hecho: —
+- siguiente paso: —
 - intentos fallidos en este punto: 0
 
 ## Última sesión

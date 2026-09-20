@@ -1051,7 +1051,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     if (state.phase === 'lobby' || state.phase === 'warmup') sim.setTrack(state.settings.track);
   }
   function changeSetting(key, delta) {
-    if (state.phase !== 'lobby') return;
+    if (state.phase !== 'lobby' && state.phase !== 'warmup') return;
     const s = { ...state.settings };
     if (key === 'track') s.track = (s.track + delta + TRACKS.length) % TRACKS.length;
     if (key === 'bots') s.bots = clamp(s.bots + delta, 0, 7);
@@ -1431,7 +1431,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   }
 
   function toggleKeyboardPlayer() {
-    if (state.phase !== 'lobby') return;
+    if (state.phase !== 'lobby' && state.phase !== 'warmup') return;
     state.kb = state.kb ? null : { input: { s: 0, g: 0, b: 0, d: 0 } };
     updateOverlays();
   }
@@ -1887,6 +1887,8 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   }
   function hideBig(ifText) { if (!ifText || bigEl.textContent === ifText) bigEl.classList.add('hidden'); }
 
+  // evita que `updateOverlays` se llame a sí misma al cambiar la fase desde dentro (ver abajo)
+  let sincronizando = false;
   function updateOverlays() {
     // en el calentamiento la sala sigue puesta: el anfitrión tiene que poder pulsar EMPEZAR
     const enSala = state.phase === 'lobby' || state.phase === 'warmup';
@@ -1902,7 +1904,6 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       try { sincronizarCalentamiento(); } finally { sincronizando = false; }
     }
   }
-  let sincronizando = false;
 
   function renderLobby() {
     actualizarEscaparate();     // los karts que dan vueltas delante de la cámara
