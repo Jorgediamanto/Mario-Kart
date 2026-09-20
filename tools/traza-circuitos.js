@@ -63,7 +63,7 @@ const CIRCUITOS = {
    * Es el circuito donde el derrape de nivel 3 se gana curva a curva.
    */
   'Volcán Disco': {
-    ancho: 180, esc: 1.3, ey: 0.58,
+    ancho: 180, esc: 1.40, ey: 0.58,
     spec: [
       { f:  40, r: 2000, R:  850, nombre: 'salida de meta' },
       { f:  92, r: 2050, R: 1000, nombre: 'rápida del cráter' },

@@ -260,39 +260,73 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
       ],
     },
     {
+      /*
+       * Volcán Disco — el técnico de los cinco: el zigzag, la horquilla del volcán y dos curvas
+       * cerradas de verdad (radio 173, el más pequeño de todos los circuitos). Aquí el derrape de
+       * nivel 3 se gana curva a curva, y por eso la carretera es la más estrecha de los rehechos
+       * (180): tiene que dar respeto, pero sin ser el pasillo de 110 de antes.
+       *
+       * Rehecho con el molde de Arcoíris: de 4.544 px (vuelta de 12 s) a 13.512 px en un mundo
+       * propio de 5600x3600. `node tools/traza-circuitos.js "Volcán Disco" --escribir`.
+       */
       name: 'Volcán Disco',
-      width: 110,
+      width: 180,
       gravity: 1,
-      boxes: [0.15, 0.5, 0.75],
-      pads: [0.08, 0.6],
+      world: { w: 5600, h: 3600 },
+      boxes: [0.05, 0.28, 0.35, 0.41, 0.57, 0.66, 0.83, 0.87],
+      pads: [0.10, 0.31, 0.58, 0.68, 0.85],
       features: [
-        { type: 'ramp', at: 0.26, height: 40, length: 170 },
-        { type: 'hill', at: 0.44, height: 16, length: 200 },
-        { type: 'hill', at: 0.84, height: 22, length: 260 },
+        { type: 'ramp', at: 0.14, height: 52, length: 180 },
+        { type: 'hill', at: 0.22, height: 24, length: 280 },
+        { type: 'ramp', at: 0.44, height: 50, length: 180 },
+        { type: 'hill', at: 0.61, height: 20, length: 260 },
+        { type: 'ramp', at: 0.70, height: 54, length: 180 },      // el salto grande, justo tras el panel
+        { type: 'hill', at: 0.90, height: 16, length: 240 },
       ],
-      barriers: [{ from: 0.3, to: 0.46, side: 'both' }, { from: 0.78, to: 0.84, side: 'outer' }],
+      // se sube al cráter en la primera mitad y se baja de vuelta a meta: 250 px de desnivel
+      relieve: [
+        { at: 0.00, h: 0 }, { at: 0.12, h: 40 }, { at: 0.26, h: 150 }, { at: 0.40, h: 220 },
+        { at: 0.52, h: 160 }, { at: 0.66, h: 60 }, { at: 0.78, h: -30 }, { at: 0.90, h: 40 },
+      ],
+      barriers: [
+        { from: 0.26, to: 0.33, side: 'both' }, { from: 0.375, to: 0.42, side: 'both' },
+        { from: 0.48, to: 0.51, side: 'outer' }, { from: 0.55, to: 0.60, side: 'outer' },
+        { from: 0.74, to: 0.80, side: 'both' }, { from: 0.86, to: 0.92, side: 'outer' },
+      ],
       theme: {
         sky: ['#2b0040', '#ff3d00'], fog: '#7a1c7a',
         ground: '#7a1fb8', groundAlt: '#4b0a80',
         road: '#1c1c2e', curb: ['#ffea00', '#1a1a1a'], bumper: ['#ff2d95', '#00e5ff'], pad: '#ffea00',
-        pools: { kind: 'lava', color: '#ff5e00', color2: '#ffd000', count: 8, minR: 40, maxR: 85 },
+        pools: { kind: 'lava', color: '#ff5e00', color2: '#ffd000', count: 12, minR: 40, maxR: 85 },
         decor: [
-          { kind: 'crystal', n: 26 }, { kind: 'rock', n: 18 }, { kind: 'pineTree', n: 14 },
-          { kind: 'cactus', n: 8 }, { kind: 'volcano', n: 2 },
+          { kind: 'crystal', n: 38 }, { kind: 'rock', n: 26 }, { kind: 'pineTree', n: 20 },
+          { kind: 'cactus', n: 12 }, { kind: 'volcano', n: 3 },
         ],
         palette: ['#00e5ff', '#ff2d95', '#ffea00', '#39ff88', '#ff6a00', '#b14bff'],
-        clouds: { color: '#ff8a65', n: 6 },
-        sun: { color: '#ff3d00', pos: [1600, 600, -1100], r: 90 },
+        clouds: { color: '#ff8a65', n: 9 },
+        sun: { color: '#ff3d00', pos: [4400, 700, -1700], r: 110 },
         stars: true,
       },
       points: [
-        { x: 450, y: 250 }, { x: 900, y: 230 }, { x: 1350, y: 250 }, { x: 1680, y: 350 },
-        { x: 1760, y: 600 }, { x: 1720, y: 790 }, { x: 1630, y: 915 }, { x: 1520, y: 935 },
-        { x: 1430, y: 860 }, { x: 1410, y: 760 }, { x: 1405, y: 690 }, { x: 1388, y: 625 },
-        { x: 1340, y: 577 }, { x: 1275, y: 560 }, { x: 1210, y: 577 }, { x: 1162, y: 625 },
-        { x: 1145, y: 690 }, { x: 1140, y: 760 }, { x: 1115, y: 860 }, { x: 1020, y: 935 },
-        { x: 750, y: 950 }, { x: 400, y: 900 }, { x: 190, y: 720 }, { x: 170, y: 470 },
-        { x: 260, y: 300 },
+        { x: 3851, y: 3112 }, { x: 3736, y: 3144 }, { x: 3621, y: 3176 }, { x: 3505, y: 3207 }, { x: 3390, y: 3239 }, { x: 3275, y: 3271 },
+        { x: 3159, y: 3303 }, { x: 3044, y: 3335 }, { x: 2927, y: 3360 }, { x: 2808, y: 3372 }, { x: 2689, y: 3369 }, { x: 2570, y: 3352 },
+        { x: 2455, y: 3321 }, { x: 2344, y: 3277 }, { x: 2239, y: 3219 }, { x: 2137, y: 3157 }, { x: 2035, y: 3095 }, { x: 1933, y: 3032 },
+        { x: 1831, y: 2970 }, { x: 1728, y: 2908 }, { x: 1626, y: 2846 }, { x: 1524, y: 2783 }, { x: 1417, y: 2731 }, { x: 1300, y: 2706 },
+        { x: 1183, y: 2683 }, { x: 1066, y: 2659 }, { x: 948, y: 2635 }, { x: 831, y: 2612 }, { x: 714, y: 2588 }, { x: 596, y: 2565 },
+        { x: 479, y: 2541 }, { x: 364, y: 2511 }, { x: 272, y: 2437 }, { x: 224, y: 2328 }, { x: 231, y: 2210 }, { x: 282, y: 2102 },
+        { x: 336, y: 1995 }, { x: 390, y: 1888 }, { x: 443, y: 1781 }, { x: 462, y: 1664 }, { x: 436, y: 1548 }, { x: 397, y: 1434 },
+        { x: 359, y: 1321 }, { x: 323, y: 1207 }, { x: 331, y: 1089 }, { x: 392, y: 987 }, { x: 493, y: 925 }, { x: 610, y: 905 },
+        { x: 729, y: 889 }, { x: 847, y: 873 }, { x: 966, y: 857 }, { x: 1085, y: 841 }, { x: 1203, y: 825 }, { x: 1322, y: 809 },
+        { x: 1440, y: 794 }, { x: 1559, y: 778 }, { x: 1670, y: 737 }, { x: 1770, y: 671 }, { x: 1869, y: 605 }, { x: 1969, y: 539 },
+        { x: 2068, y: 472 }, { x: 2168, y: 406 }, { x: 2267, y: 340 }, { x: 2367, y: 273 }, { x: 2476, y: 227 }, { x: 2595, y: 225 },
+        { x: 2706, y: 267 }, { x: 2811, y: 325 }, { x: 2916, y: 382 }, { x: 3021, y: 439 }, { x: 3126, y: 497 }, { x: 3231, y: 554 },
+        { x: 3336, y: 612 }, { x: 3441, y: 669 }, { x: 3546, y: 726 }, { x: 3660, y: 758 }, { x: 3780, y: 768 }, { x: 3899, y: 779 },
+        { x: 4018, y: 789 }, { x: 4137, y: 800 }, { x: 4256, y: 810 }, { x: 4375, y: 821 }, { x: 4495, y: 832 }, { x: 4614, y: 842 },
+        { x: 4733, y: 853 }, { x: 4851, y: 871 }, { x: 4962, y: 915 }, { x: 5060, y: 984 }, { x: 5139, y: 1073 }, { x: 5199, y: 1176 },
+        { x: 5255, y: 1282 }, { x: 5304, y: 1391 }, { x: 5342, y: 1504 }, { x: 5367, y: 1621 }, { x: 5379, y: 1740 }, { x: 5378, y: 1860 },
+        { x: 5364, y: 1979 }, { x: 5337, y: 2095 }, { x: 5298, y: 2208 }, { x: 5247, y: 2316 }, { x: 5184, y: 2418 }, { x: 5112, y: 2514 },
+        { x: 5039, y: 2608 }, { x: 4959, y: 2697 }, { x: 4868, y: 2774 }, { x: 4767, y: 2838 }, { x: 4658, y: 2887 }, { x: 4543, y: 2921 },
+        { x: 4428, y: 2953 }, { x: 4312, y: 2985 }, { x: 4197, y: 3017 }, { x: 4082, y: 3048 }, { x: 3966, y: 3080 },
       ],
     },
     {

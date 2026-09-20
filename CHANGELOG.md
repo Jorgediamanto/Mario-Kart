@@ -3,6 +3,32 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (noche) — Volcán Disco, rehecho: el técnico de los cinco
+
+Tercero de los cuatro. Mismo molde (mundo propio, trazado por script, validado antes de pegarlo),
+pero con otra intención: aquí no se viene a ir rápido, se viene a trazar.
+
+- **Volcán Disco** pasa de 4.544 px a **13.512 px**, en un mundo propio de **5600x3600**. La vuelta
+  de los bots pasa de **12,7 s a 30,4 s**.
+- **Es el más apretado de los rehechos**: el zigzag, dos curvas cerradas de verdad y el radio más
+  pequeño de todos los circuitos (173). La carretera queda en **180** —más estrecha que los otros
+  dos rehechos, que van a 200— para que dé algo de respeto, pero lejos del pasillo de 110 de antes.
+- **Se sube al cráter y se baja**: 250 px de desnivel repartidos por la vuelta, **tres saltos** (el
+  grande, justo después de un panel turbo) y lomos en las rectas.
+- **8 cajas y 5 paneles** (antes 3 y 2), quitamiedos a los dos lados en el zigzag y en el salto
+  grande, y el doble de lava.
+- **Lo que se ha perdido: la horquilla.** El generador de trazados no sabe hacer un giro de 180º sin
+  curvas ilegales, así que los circuitos nuevos son circuitos de carreras, no laberintos. Dos
+  pruebas de regresión dependían de esa horquilla (la del kart que aparece en el tramo de enfrente
+  y se le cuela el contador de progreso): ahora **llevan su propia pista de pruebas dentro de
+  `tools/check-sim.js`**, que es el trazado viejo de Volcán Disco tal cual. Siguen midiendo
+  exactamente lo mismo, pero ya no se rompen cuando cambia un circuito de la fiesta.
+- `tools/referencia.json` rehecho a propósito (Volcán Disco: 12,74 s → 30,40 s).
+
+- **Cómo probarlo en la fiesta**: `npm start`, elige Volcán Disco y fíjate en el zigzag: es donde se
+  nota si el derrape automático encadena bien. **Pendiente de probar en fiesta**: si con 180 de
+  ancho las cerradas se hacen injustas con 8 karts, subirlo a 200 como los otros.
+
 ## 2026-09-20 (noche) — Playa Neón, rehecha: el paseo marítimo de verdad
 
 Segundo de los cuatro circuitos cortos. Mismo molde que Chicle y Arcoíris (mundo propio, trazado

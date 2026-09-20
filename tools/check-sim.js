@@ -374,8 +374,8 @@ function comprobarPaneles(layout) {
 
 // ---------------------------------------------------------------- escenarios sueltos
 // Monta una carrera ya empezada (sin cuenta atrás) para poder forzar situaciones concretas.
-function carrera(sim, { bots = 1, laps = 3, trackIndex = pista('Chicle'), seed = 7, hooks } = {}) {
-  const s = sim.createSim({ geom, trackDefs, random: mulberry32(seed), hooks });
+function carrera(sim, { bots = 1, laps = 3, trackIndex = pista('Chicle'), seed = 7, hooks, defs = trackDefs } = {}) {
+  const s = sim.createSim({ geom, trackDefs: defs, random: mulberry32(seed), hooks });
   const entries = [{ playerId: 1, name: 'Humano', char: 0 }];
   for (let i = 1; i <= bots; i++) entries.push({ playerId: null, bot: true, name: 'Bot ' + i, char: i });
   s.startRace({ entries, trackIndex, laps });
@@ -387,11 +387,51 @@ const humano = (s) => s.state.karts.find((k) => !k.isBot);
 // y un escenario que necesita una horquilla no puede depender de que siga siendo el número 2.
 const pista = (nombre) => trackDefs.findIndex((d) => d.name === nombre);
 
-// Busca en el circuito los dos tramos que pasan más cerca sin ser el mismo (la horquilla) y planta
-// al humano encima del tramo de enfrente, con el progreso del tramo por el que iba: es lo que le
-// pasa a un kart que sale despedido en la horquilla de Volcán Disco.
-function enElTramoDeEnfrente(sim, { bots, seed, hooks, trackIndex = pista('Volcán Disco') } = {}) {
-  const s = carrera(sim, { bots, seed, hooks, trackIndex });
+/*
+ * Una pista de pruebas con horquilla, **solo para este escenario**: dos rectas paralelas a 360 px
+ * unidas por dos curvas de 180º. No es un circuito de la fiesta y no sale en `tracks.js`.
+ *
+ * Antes este escenario cogía Volcán Disco, que tenía una horquilla de verdad. Al rehacer los cinco
+ * circuitos en mundos tres veces más grandes (generados con `tools/traza.js`, que no sabe hacer un
+ * giro de 180º sin curvas ilegales) ya no queda ninguna horquilla, y sin dos tramos pegados no hay
+ * manera de montar la situación que se quiere probar. Atar una prueba de regresión a la forma de
+ * un circuito era el error: la forma cambia cuando el dueño pide otra cosa, el bug no.
+ */
+const PISTA_HORQUILLA = [{
+  /*
+   * Es el trazado que tenía Volcán Disco hasta el 2026-09-20, con su horquilla: dos tramos que se
+   * cruzan a 255 px, que es lo que hace falta para montar la situación. Se guarda aquí, y no en
+   * `tracks.js`, porque ya no es un circuito de la fiesta: Volcán Disco se rehizo en un mundo tres
+   * veces más grande y sin horquillas (el generador de `tools/traza.js` no sabe hacer un giro de
+   * 180º sin curvas ilegales).
+   *
+   * Atar una prueba de regresión a la forma de un circuito era el error de antes: la forma cambia
+   * cuando el dueño pide otra cosa, y el bug que se arregló no. Con la pista aquí dentro, el
+   * escenario sigue midiendo lo mismo pase lo que pase con los cinco circuitos.
+   */
+  name: 'Horquilla de pruebas (el Volcán Disco de antes)', width: 110, gravity: 1,
+  boxes: [], pads: [], features: [], barriers: [],
+  theme: { sky: ['#2b0040', '#ff3d00'], fog: '#7a1c7a', ground: '#7a1fb8', groundAlt: '#4b0a80',
+    road: '#1c1c2e', curb: ['#ffea00', '#1a1a1a'], bumper: ['#ff2d95', '#00e5ff'], pad: '#ffea00',
+    decor: [], palette: ['#00e5ff'], clouds: null, sun: null, stars: false },
+  points: [
+    { x: 450, y: 250 }, { x: 900, y: 230 }, { x: 1350, y: 250 }, { x: 1680, y: 350 },
+    { x: 1760, y: 600 }, { x: 1720, y: 790 }, { x: 1630, y: 915 }, { x: 1520, y: 935 },
+    { x: 1430, y: 860 }, { x: 1410, y: 760 }, { x: 1405, y: 690 }, { x: 1388, y: 625 },
+    { x: 1340, y: 577 }, { x: 1275, y: 560 }, { x: 1210, y: 577 }, { x: 1162, y: 625 },
+    { x: 1145, y: 690 }, { x: 1140, y: 760 }, { x: 1115, y: 860 }, { x: 1020, y: 935 },
+    { x: 750, y: 950 }, { x: 400, y: 900 }, { x: 190, y: 720 }, { x: 170, y: 470 },
+    { x: 260, y: 300 },
+  ],
+}];
+
+/*
+ * Busca en la pista los dos tramos que pasan más cerca sin ser el mismo (la horquilla) y planta al
+ * humano encima del tramo de enfrente, con el progreso del tramo por el que iba: es lo que le pasa
+ * a un kart que sale despedido en una horquilla.
+ */
+function enElTramoDeEnfrente(sim, { bots, seed, hooks } = {}) {
+  const s = carrera(sim, { bots, seed, hooks, defs: PISTA_HORQUILLA, trackIndex: 0 });
   const k = humano(s);
   const t = s.state.track;
   for (let f = 0; f < 60 * 2; f++) { s.setInput(k, s.aiInput(k)); s.update(DT); }   // cruza la meta
@@ -403,7 +443,7 @@ function enElTramoDeEnfrente(sim, { bots, seed, hooks, trackIndex = pista('Volc�
       if (!mejor || d < mejor.d) mejor = { i, j: j % t.N, d };
     }
   }
-  if (!mejor || mejor.d > t.halfW + 400) return { error: 'este circuito no tiene dos tramos lo bastante cerca' };
+  if (!mejor || mejor.d > t.halfW + 400) return { error: 'la pista de pruebas no tiene dos tramos lo bastante cerca' };
   const cur = ((k.dist % t.N) + t.N) % t.N;
   const base = k.dist - cur;                     // vueltas ya contadas, en muestras
   k.dist = base + mejor.i;
