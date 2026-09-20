@@ -6,62 +6,54 @@ es la hora del último push de la sesión: si tiene más de 45 minutos, la sesi�
 retomar la rama.
 
 ## Sesión en curso
-- inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 02:27
-- rama: noche/2026-09-20
+- inicio (UTC): ninguna
+- último latido (UTC): ninguno
+- rama: ninguna
 
 ## Punto en curso
-- IDEAS.md: ninguno (recién cerrado «Estelas y marcas»)
+- IDEAS.md: ninguno
 - hecho: —
 - siguiente paso: —
 - intentos fallidos en este punto: 0
 
 ## Última sesión
-- fin (UTC): 2026-09-19 17:50
-- resultado: **siete puntos cerrados y fusionados en `main`, `npm test` en verde** (comprobado con
-  `npm ci` limpio al final). Por orden: el bug del piloto automático de los bots; el **derrape
-  automático de tres niveles**; el bug del contador de progreso; la **pantalla dividida en tercera
-  persona** (lo que más quería el dueño); el primer paso de los circuitos (arcos de aviso y
-  bordillos); el **afinado de los objetos**; la **regresión de fase** con lista para la fiesta; y el
-  aviso **«¡Vas al revés!»**.
-- también: se fusionó sin perder nada lo que el dueño empujó a `main` a mediodía (su arreglo de la
-  horquilla con `nearestNear`) y se dejó intacto su punto del volante de giroscopio.
-- commits: rama `noche/2026-09-19`, fusionada en `main` con siete merges (uno por punto).
+- fin (UTC): 2026-09-20 02:29
+- resultado: **siete puntos cerrados y fusionados en `main`, `npm test` en verde** (con `npm ci`
+  limpio). Por orden: los **cinco circuitos rehechos** (Fase 2, el punto gordo); **modo fácil por
+  jugador**; **calentamiento en la sala**; **cámara con carácter**; **estelas y marcas**; **sonido
+  de motor por kart** (con bus, compresor y tecla `M`); y **música sintetizada**.
+- también: el dueño estuvo trabajando **a la vez**, de madrugada (`12c1d9e` retratos de personajes,
+  `43efe58` el «otro yo» con la corona). Sus dos commits están fusionados sin perder nada; el único
+  choque fue en `CHANGELOG.md` (dos entradas nuevas arriba) y se conservaron las dos.
+- commits: rama `noche/2026-09-20`, fusionada en `main` con siete merges (uno por punto).
 
 ## Notas para la siguiente sesión
 
-**El dueño trabajó con el agente la tarde del 2026-09-19** (sesión a mano, no nocturna). Lo que
-cambió y lo que queda:
-
-1. **Arreglado el atasco del muro** (`BUMPER_ENDEREZA`), **rehecho el trazado de Arcoíris** (15.728
-   px en un mundo de 6550x4050, 38,6 s de vuelta), **Arcoíris es ahora el primer circuito** y su
-   carretera **flota en el espacio** (`theme.cielo`: sin terreno ni suelo debajo, un poco
-   transparente). Los circuitos se piden **por nombre** en las pruebas, no por número.
-2. **Gráficos nuevos**: los karts, el plátano y el caparazón son modelos de Blender hechos **por
-   script** (`tools/blender/*.py` → `public/modelos/*.glb`), con contorno oscuro de dibujo animado
-   —también en quitamiedos y cajas—. Hay un visor en `/visor.html` para verlos de cerca. Blender
-   está instalado en este Mac (`blender --background --python tools/blender/kart.py`). Medido: 60
-   fps con 8 karts y 8 paneles.
-3. **A prueba, pendiente de la opinión del dueño**: el volante responde más fino cerca del centro
-   (`CURVA` 0,18 → 0,32 en `public/volante.js`, el tope sigue en 35º). Si dice que va blando, se
-   vuelve a 0,18. **No tocar el tope de 35º sin preguntarle.**
-4. **Segunda tanda del 2026-09-20** (también a mano, con el dueño): Arcoíris tiene **cuestas**
-   (`relieve` en `tracks.js`), los **saltos dan turbo al despegar** (`RAMPA_TURBO`) y vuelan de
-   verdad, las curvas del sector medio están más apretadas (radio mínimo 166), la velocidad base
-   sube a 445, las ruedas del modelo son más gordas y el «¡ÚLTIMA VUELTA!» dura 4 s en vez de toda
-   la vuelta. De rebote: tope al rebote de aterrizaje, el bot ya no se queda marcha atrás, y a
-   quien corre al revés o vaga fuera de la pista se le recoge. El trazado se regenera con
-   `node tools/traza-arcoiris.js`.
-5. **Tercera tanda del 2026-09-20**: **siete personajes** con nombre y cara propia (El Loco, Chuma,
-   Toro, Diamanto, Leini, Carlota, Scarlet), cabezas modeladas en `tools/blender/personajes.py`,
-   humo verde para El Loco, banderas de Texas y Cataluña, Carlota más pequeña, y **desfile de karts
-   girando en la sala**. Siete personajes = siete sitios: `MAX_KARTS` manda y el servidor y las
-   pruebas lo leen de ahí. Si algún día hace falta un octavo sitio, hay que inventar un personaje
-   más (el dueño eligió siete a propósito).
-6. **Lo siguiente que pidió, por orden**: seguir haciendo el juego más fácil sin quitar gracia, y
-   seguir mejorando los gráficos con el mismo estilo (simple y gracioso). Los otros cuatro
-   circuitos siguen con vueltas de 9-12 s y **sin cuestas**: se pueden rehacer igual que Arcoíris,
-   con el script y con su propio `relieve`.
-7. **Ojo**: en `CHANGELOG.md` había marcadores de conflicto de git (`<<<<<<<`) commitados en `main`
-   desde un merge anterior; se quitaron conservando los dos bloques de entradas.
-
+1. **Lo primero: los dos puntos que se saltaron.** «Ayuda la primera vez» y «Móvil legible de un
+   vistazo» (Fase 3) están sin hacer **solo** porque el dueño estaba despierto a las 3:52 tocando
+   `play.html`/`play.js`, que es donde viven enteros. No hay nada que decidir: mirar `git log` de
+   esos dos archivos y, si ya no está encima, hacerlos.
+2. **Lo que hay pendiente de oír y de medir** (está en cada entrada del CHANGELOG, y son tres cosas
+   que esta sesión **no ha podido comprobar**):
+   - **fps con la tecla `P`, con 4 y con 8 paneles**, por las marcas de neumático y las estelas. Si
+     baja de 60, subir `MARCA_CADA` en `screen.js`.
+   - **cómo suena** el motor por kart (`MOTOR_VOL` 0,05 · `MOTOR_BOT` 0,34) y la música
+     (`MUSICA_VOL` 0,055). Con `M` se calla todo; poniendo los volúmenes a 0 se quita sin más.
+   - **el hit-stop** de 30 ms (`CAM_HITSTOP`): congela la imagen de todos aunque el golpe sea de
+     uno. Si molesta con ocho jugadores, a 0.
+3. **Los circuitos ya no son los de antes.** Los cinco miden 12.800-15.900 px en mundos propios
+   (5400x3600 y parecidos) y la vuelta dura 28-33 s. `npm test` **exige** ahora que la vuelta media
+   esté entre 25 y 60 s, y que una persona que sostiene el volante llegue al nivel 3 de derrape en
+   algún circuito. Un trazado nuevo se genera con `node tools/traza-circuitos.js "<nombre>"
+   --escribir` (el motor está en `tools/traza.js`, compartido con Arcoíris).
+4. **Lo único que no salió**: el «atajo con riesgo» de Fase 2. Está **medido**, no abandonado: un
+   kart vuela 270-490 px y no hay ninguna curva de los cinco circuitos que se pueda cortar por el
+   aire ganando terreno, porque ahora son curvas abiertas. Para atajos de verdad la simulación
+   necesita **ramas** (hoy `nearest` + `lat` define una sola carretera). Está anotado en el punto de
+   Fase 6 con el porqué, y es una decisión para el dueño.
+5. **Ojo con las pruebas que dependían de la forma de un circuito**: las dos de la horquilla llevan
+   ahora **su propia pista dentro de `check-sim.js`** (el trazado viejo de Volcán Disco). Si algún
+   día se vuelve a tocar un circuito, esas dos ya no se rompen.
+6. **Cuidado con `git checkout`**: esta sesión llegó a commitear un trozo de trabajo en `main` local
+   por despiste (se movió a la rama de la noche y se reseteó `main` a `origin/main`, sin perder
+   nada). Comprobar la rama antes de cada commit.
