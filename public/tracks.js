@@ -130,28 +130,26 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
        * levantar el pie). Se genera con `node tools/traza-circuitos.js Chicle --escribir`.
        */
       name: 'Chicle',
-      width: 200,
+      width: 240,
       gravity: 1,
       world: { w: 5400, h: 3600 },
-      boxes: [0.12, 0.22, 0.33, 0.41, 0.645, 0.80, 0.87],
-      pads: [0.085, 0.26, 0.58, 0.85],
+      boxes: [0.05, 0.10, 0.28, 0.35, 0.47, 0.52, 0.90],
+      pads: [0.08, 0.31, 0.50, 0.92],
       features: [
-        { type: 'hill', at: 0.16, height: 24, length: 300 },     // lomo de la recta larga
-        { type: 'ramp', at: 0.455, height: 48, length: 180 },    // salto de mitad de vuelta
-        { type: 'hill', at: 0.60, height: 20, length: 280 },
-        { type: 'ramp', at: 0.675, height: 46, length: 180 },    // salto de la recta del chupachups
-        { type: 'hill', at: 0.90, height: 16, length: 240 },
+        // los saltos, al estilo de Arcoíris: uno grande de verdad (y su aro) y otros dos de propina
+        { type: 'ramp', at: 0.135, height: 95, length: 170 },   // el salto del donut
+        { type: 'hill', at: 0.39, height: 26, length: 280 },
+        { type: 'ramp', at: 0.575, height: 70, length: 150 },
+        { type: 'ramp', at: 0.715, height: 60, length: 150 },
+        { type: 'hill', at: 0.865, height: 20, length: 240 },
       ],
       // el sube y baja: cuestas suaves (ninguna llega al 6 %), que este es el circuito fácil
       relieve: [
         { at: 0.00, h: 0 }, { at: 0.14, h: 70 }, { at: 0.30, h: 120 }, { at: 0.46, h: 60 },
         { at: 0.60, h: -40 }, { at: 0.74, h: 20 }, { at: 0.88, h: 80 },
       ],
-      barriers: [
-        { from: 0.20, to: 0.31, side: 'outer' }, { from: 0.32, to: 0.40, side: 'both' },
-        { from: 0.50, to: 0.56, side: 'outer' }, { from: 0.72, to: 0.79, side: 'outer' },
-        { from: 0.86, to: 0.92, side: 'outer' },
-      ],
+      // quitamiedos en los dos lados de todo el circuito, como en Arcoíris: aquí no se sale nadie
+      barriers: [{ from: 0, to: 0.999, side: 'both' }],
       theme: {
         sky: ['#ff7ad9', '#8df6ff'], fog: '#ffb6ec',
         ground: '#86ff3d', groundAlt: '#4fe04a',
@@ -162,6 +160,10 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
         decor: [
           { kind: 'candyTree', n: 48 }, { kind: 'mushroom', n: 17 }, { kind: 'balloon', n: 20 },
           { kind: 'lollipop', n: 14 }, { kind: 'rock', n: 11 },
+        ],
+        props: [
+          { kind: 'donut', at: 0.165 },     // se vuela por dentro del donut
+          { kind: 'tarta', at: 0.66 },      // y se pasa por debajo de la tarta
         ],
         palette: ['#ff2d95', '#00e5ff', '#ffe600', '#b14bff', '#ff6a00', '#39ff88'],
         clouds: { color: '#ffffff', n: 11 },
@@ -200,29 +202,25 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
        * Se genera con `node tools/traza-circuitos.js "Playa Neón" --escribir`.
        */
       name: 'Playa Neón',
-      width: 200,
+      width: 230,
       gravity: 1,
       world: { w: 5700, h: 3650 },
-      boxes: [0.06, 0.30, 0.36, 0.42, 0.62, 0.80, 0.86],
-      pads: [0.10, 0.28, 0.41, 0.63, 0.84],
+      boxes: [0.02, 0.22, 0.28, 0.42, 0.47, 0.70, 0.75],
+      pads: [0.03, 0.25, 0.45, 0.68, 0.95],
       features: [
-        { type: 'ramp', at: 0.13, height: 50, length: 180 },      // el salto del paseo, en plena recta
-        { type: 'hill', at: 0.24, height: 22, length: 300 },
-        { type: 'ramp', at: 0.46, height: 52, length: 180 },      // el de en medio, el más alto
-        { type: 'hill', at: 0.58, height: 18, length: 260 },
-        { type: 'ramp', at: 0.665, height: 48, length: 180 },     // el de la recta del chiringuito
-        { type: 'hill', at: 0.90, height: 16, length: 240 },
+        { type: 'ramp', at: 0.06, height: 100, length: 180 },   // el salto del flotador
+        { type: 'hill', at: 0.34, height: 24, length: 280 },
+        { type: 'ramp', at: 0.52, height: 75, length: 160 },
+        { type: 'ramp', at: 0.79, height: 65, length: 150 },
+        { type: 'hill', at: 0.90, height: 18, length: 240 },
       ],
       // dunas: sube hacia el interior a mitad de vuelta y baja otra vez hasta la orilla
       relieve: [
         { at: 0.00, h: 0 }, { at: 0.12, h: -30 }, { at: 0.26, h: 60 }, { at: 0.40, h: 140 },
         { at: 0.54, h: 90 }, { at: 0.66, h: 10 }, { at: 0.80, h: -50 }, { at: 0.92, h: 20 },
       ],
-      barriers: [
-        { from: 0.20, to: 0.25, side: 'outer' }, { from: 0.26, to: 0.345, side: 'both' },
-        { from: 0.50, to: 0.55, side: 'outer' }, { from: 0.72, to: 0.79, side: 'outer' },
-        { from: 0.86, to: 0.92, side: 'outer' },
-      ],
+      // quitamiedos en los dos lados de todo el circuito, como en Arcoíris: aquí no se sale nadie
+      barriers: [{ from: 0, to: 0.999, side: 'both' }],
       theme: {
         sky: ['#5b00ff', '#ff7a00'], fog: '#ff9ac0',
         ground: '#ffd93d', groundAlt: '#ffb800',
@@ -231,6 +229,10 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
         decor: [
           { kind: 'palm', n: 44 }, { kind: 'beachBall', n: 17 }, { kind: 'umbrella', n: 14 },
           { kind: 'rock', n: 12 }, { kind: 'flamingo', n: 11 },
+        ],
+        props: [
+          { kind: 'flotador', at: 0.095 },    // el flotador gigante por el que se vuela
+          { kind: 'chiringuito', at: 0.61 },  // y el chiringuito, por debajo
         ],
         palette: ['#ff2d95', '#00e5ff', '#39ff88', '#ffe600', '#ff6a00', '#b14bff'],
         clouds: { color: '#ffc6e8', n: 11 },
@@ -270,29 +272,25 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
        * propio de 5600x3600. `node tools/traza-circuitos.js "Volcán Disco" --escribir`.
        */
       name: 'Volcán Disco',
-      width: 180,
+      width: 220,
       gravity: 1,
       world: { w: 5600, h: 3600 },
-      boxes: [0.05, 0.28, 0.35, 0.41, 0.57, 0.66, 0.83, 0.87],
-      pads: [0.10, 0.31, 0.58, 0.68, 0.85],
+      boxes: [0.03, 0.07, 0.26, 0.36, 0.42, 0.65, 0.70, 0.75],
+      pads: [0.05, 0.25, 0.40, 0.68, 0.95],
       features: [
-        { type: 'ramp', at: 0.14, height: 52, length: 180 },
-        { type: 'hill', at: 0.22, height: 24, length: 280 },
-        { type: 'ramp', at: 0.44, height: 50, length: 180 },
-        { type: 'hill', at: 0.61, height: 20, length: 260 },
-        { type: 'ramp', at: 0.70, height: 54, length: 180 },      // el salto grande, justo tras el panel
-        { type: 'hill', at: 0.90, height: 16, length: 240 },
+        { type: 'ramp', at: 0.13, height: 105, length: 170 },   // el salto del aro de fuego
+        { type: 'hill', at: 0.30, height: 22, length: 260 },
+        { type: 'ramp', at: 0.50, height: 70, length: 150 },
+        { type: 'ramp', at: 0.79, height: 70, length: 150 },
+        { type: 'hill', at: 0.90, height: 20, length: 240 },
       ],
       // se sube al cráter en la primera mitad y se baja de vuelta a meta: 250 px de desnivel
       relieve: [
         { at: 0.00, h: 0 }, { at: 0.12, h: 40 }, { at: 0.26, h: 150 }, { at: 0.40, h: 220 },
         { at: 0.52, h: 160 }, { at: 0.66, h: 60 }, { at: 0.78, h: -30 }, { at: 0.90, h: 40 },
       ],
-      barriers: [
-        { from: 0.26, to: 0.33, side: 'both' }, { from: 0.375, to: 0.42, side: 'both' },
-        { from: 0.48, to: 0.51, side: 'outer' }, { from: 0.55, to: 0.60, side: 'outer' },
-        { from: 0.74, to: 0.80, side: 'both' }, { from: 0.86, to: 0.92, side: 'outer' },
-      ],
+      // quitamiedos en los dos lados de todo el circuito, como en Arcoíris: aquí no se sale nadie
+      barriers: [{ from: 0, to: 0.999, side: 'both' }],
       theme: {
         sky: ['#2b0040', '#ff3d00'], fog: '#7a1c7a',
         ground: '#7a1fb8', groundAlt: '#4b0a80',
@@ -301,6 +299,10 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
         decor: [
           { kind: 'crystal', n: 38 }, { kind: 'rock', n: 26 }, { kind: 'pineTree', n: 20 },
           { kind: 'cactus', n: 12 }, { kind: 'volcano', n: 3 },
+        ],
+        props: [
+          { kind: 'aroFuego', at: 0.16 },   // se vuela por dentro del aro de fuego
+          { kind: 'arcoRoca', at: 0.56 },   // y se pasa por debajo del arco de lava
         ],
         palette: ['#00e5ff', '#ff2d95', '#ffea00', '#39ff88', '#ff6a00', '#b14bff'],
         clouds: { color: '#ff8a65', n: 9 },
@@ -340,28 +342,26 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
        * `node tools/traza-circuitos.js "Luna Loca" --escribir`.
        */
       name: 'Luna Loca',
-      width: 220,
+      width: 230,
       gravity: 0.55,
       world: { w: 5450, h: 3650 },
-      boxes: [0.03, 0.25, 0.31, 0.35, 0.52, 0.56, 0.75, 0.84],
-      pads: [0.24, 0.34, 0.55, 0.73, 0.86],
+      boxes: [0.02, 0.21, 0.26, 0.31, 0.43, 0.62, 0.66, 0.76],
+      pads: [0.04, 0.23, 0.44, 0.65, 0.78],
       features: [
-        { type: 'ramp', at: 0.08, height: 60, length: 190 },    // el salto de la recta de meta
-        { type: 'hill', at: 0.20, height: 20, length: 300 },
-        { type: 'ramp', at: 0.38, height: 64, length: 200 },    // el más alto: con esta gravedad, medio circuito volando
-        { type: 'hill', at: 0.47, height: 22, length: 280 },
-        { type: 'ramp', at: 0.60, height: 58, length: 190 },
-        { type: 'hill', at: 0.89, height: 18, length: 240 },
+        // con esta gravedad (0,55) las rampas mandan a la estratosfera: es el circuito saltarín
+        { type: 'ramp', at: 0.06, height: 110, length: 160 },   // el salto del anillo
+        { type: 'ramp', at: 0.47, height: 80, length: 150 },
+        { type: 'hill', at: 0.37, height: 24, length: 300 },
+        { type: 'hill', at: 0.70, height: 20, length: 260 },
+        { type: 'ramp', at: 0.80, height: 75, length: 150 },
       ],
       // los mares de la luna: subidas y bajadas largas, que con gravedad 0,55 se notan el doble
       relieve: [
         { at: 0.00, h: 0 }, { at: 0.13, h: 90 }, { at: 0.27, h: 180 }, { at: 0.42, h: 60 },
         { at: 0.55, h: -60 }, { at: 0.68, h: 40 }, { at: 0.80, h: 160 }, { at: 0.91, h: 60 },
       ],
-      barriers: [
-        { from: 0.28, to: 0.35, side: 'both' }, { from: 0.50, to: 0.545, side: 'outer' },
-        { from: 0.64, to: 0.70, side: 'both' }, { from: 0.80, to: 0.87, side: 'outer' },
-      ],
+      // quitamiedos en los dos lados de todo el circuito, como en Arcoíris: aquí no se sale nadie
+      barriers: [{ from: 0, to: 0.999, side: 'both' }],
       theme: {
         sky: ['#03001c', '#1b1464'], fog: '#2a1a6e',
         ground: '#5a7dff', groundAlt: '#3a55d6',
@@ -370,6 +370,10 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
         decor: [
           { kind: 'moonRock', n: 36 }, { kind: 'crystal', n: 30 }, { kind: 'planet', n: 9 },
           { kind: 'flag', n: 9 }, { kind: 'rocket', n: 5 },
+        ],
+        props: [
+          { kind: 'anillo', at: 0.10 },   // el anillo del planeta, y se vuela por dentro
+          { kind: 'base', at: 0.61 },     // la base lunar, por debajo
         ],
         palette: ['#00ffff', '#ff00ff', '#ffe600', '#39ff88', '#ff6a00', '#ffffff'],
         clouds: null,

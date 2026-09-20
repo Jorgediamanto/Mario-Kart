@@ -61,6 +61,9 @@ export const STEER_FIRME = 0.55;
 // dos rebotes bastan para salir; con menos vuelve el atasco, con 1 el kart se endereza solo del
 // todo y el golpe deja de notarse.
 export const BUMPER_ENDEREZA = 0.6;
+// Hasta dónde llega el quitamiedos: más allá del borde + esto, el kart está fuera de verdad y le
+// toca el rescate, no un empujón mágico de vuelta a la pista.
+export const BUMPER_ALCANCE = 140;
 // Igual que el rebote, pero al terminar el trompo de un golpe: el kart sale mirando hacia donde le
 // pilló el caparazón y hay que buscarse la carretera con el trompo aún en el cuerpo. Al acabar se
 // le endereza el morro hacia el sentido de la marcha, esta fracción de lo que le falta. Con 0,75
@@ -764,7 +767,15 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       const sideSign = Math.sign(near2.lat) || 1;
       if (br.side !== 0 && sideSign !== br.side) continue;
       const limit = t.halfW + 4;
-      if (Math.abs(near2.lat) > limit && !(k.z - k.ground > 30)) {
+      /*
+       * El quitamiedos es un muro, no un imán: solo empuja a quien lo está tocando. Sin el tope de
+       * `BUMPER_ALCANCE`, un kart que acabara lejos de la pista (un caparazón en un salto, por
+       * ejemplo) se veía arrastrado de golpe al borde desde cientos de píxeles… y así nunca le
+       * tocaba el rescate. Se notó al poner quitamiedos en **todo** el recorrido de los cinco
+       * circuitos: antes solo había en algunos tramos y el fallo pasaba desapercibido.
+       */
+      const fuera = Math.abs(near2.lat) - limit;
+      if (fuera > 0 && fuera < BUMPER_ALCANCE && !(k.z - k.ground > 30)) {
         const sm = t.samples[near2.i];
         k.x = sm.x + sm.nx * limit * sideSign; k.y = sm.y + sm.ny * limit * sideSign;
         const vx = Math.cos(k.moveAngle) * k.speed, vy = Math.sin(k.moveAngle) * k.speed;

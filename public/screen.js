@@ -472,6 +472,98 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         anim({ kind: 'spinY', obj: g.children[g.children.length - 2], speed: 0.5 });
         return g;
       },
+      /*
+       * Un aro genérico: de pie, cruzado en la carretera, se vuela por dentro. Cada circuito tiene
+       * el suyo con su forma (el donut de Chicle, el flotador de la playa, el aro de fuego del
+       * volcán, el anillo del planeta en la luna): solo cambian los colores y los adornos que se le
+       * cuelgan alrededor.
+       */
+      aroDe: ({ color, dentro, adorno, adornoColor, n = 14, gordo = 18, girar = 0 }) => {
+        const g = new THREE.Group();
+        const r = t.halfW + 60;
+        const anillo = new THREE.Mesh(new THREE.TorusGeometry(r, gordo, 10, 44), flat(color));
+        anillo.rotation.y = Math.PI / 2;
+        anillo.position.y = r + 30;
+        g.add(anillo);
+        if (dentro) {
+          const d = new THREE.Mesh(new THREE.TorusGeometry(r - gordo - 4, 7, 8, 40), flat(dentro));
+          d.rotation.y = Math.PI / 2; d.position.y = r + 30;
+          g.add(d);
+        }
+        if (adorno) {
+          for (let k = 0; k < n; k++) {
+            const a = (k / n) * Math.PI * 2;
+            const pieza = adorno === 'chispa'
+              ? new THREE.Mesh(new THREE.BoxGeometry(6, 16, 6), flat(adornoColor[k % adornoColor.length]))
+              : new THREE.Mesh(new THREE.ConeGeometry(13, 34, 7), flat(adornoColor[k % adornoColor.length]));
+            pieza.position.set(0, r + 30 + Math.cos(a) * (r + gordo), Math.sin(a) * (r + gordo));
+            pieza.rotation.x = -a + Math.PI;
+            g.add(pieza);
+          }
+        }
+        for (const lado of [-1, 1]) {
+          const pata = new THREE.Mesh(new THREE.CylinderGeometry(10, 14, r + 30, 8), toon(color));
+          pata.position.set(0, (r + 30) / 2, lado * (r - 10)); g.add(pata);
+        }
+        if (girar) anim({ kind: 'spinY', obj: anillo, speed: girar });
+        anim({ kind: 'pulse', obj: g, phase: 1.3 });
+        return g;
+      },
+      /*
+       * Un pórtico por el que se pasa por debajo: dos pilares y un techo. Con los colores y el
+       * remate de cada circuito sale una tarta, un chiringuito, un arco de lava o una base lunar.
+       */
+      porticoDe: ({ pilar, techo, remate, alto = 250, forma = 'caja' }) => {
+        const g = new THREE.Group();
+        const sep = t.halfW + 120;
+        for (const lado of [-1, 1]) {
+          const p = forma === 'roca'
+            ? new THREE.Mesh(new THREE.DodecahedronGeometry(72), toon(pilar))
+            : new THREE.Mesh(new THREE.CylinderGeometry(46, 58, alto, forma === 'caja' ? 10 : 7), toon(pilar));
+          p.position.set(0, alto / 2, sep * lado);
+          if (forma === 'roca') { p.scale.set(0.9, alto / 110, 0.9); p.position.y = alto / 2; }
+          g.add(p);
+        }
+        const dintel = new THREE.Mesh(new THREE.BoxGeometry(96, 46, sep * 2 + 90), toon(techo));
+        dintel.position.y = alto + 20; g.add(dintel);
+        if (remate === 'tarta') {
+          for (let k = 0; k < 3; k++) {
+            const piso = new THREE.Mesh(new THREE.CylinderGeometry(120 - k * 30, 130 - k * 30, 60, 16), toon(k % 2 ? '#fff2fb' : '#ff9ad5'));
+            piso.position.y = alto + 70 + k * 62; g.add(piso);
+            const nata = new THREE.Mesh(new THREE.TorusGeometry(120 - k * 30, 12, 8, 20), toon('#ffffff'));
+            nata.rotation.x = Math.PI / 2; nata.position.y = alto + 98 + k * 62; g.add(nata);
+          }
+          const vela = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 60, 8), toon('#ffe600'));
+          vela.position.y = alto + 280; g.add(vela);
+          const llama = new THREE.Mesh(new THREE.ConeGeometry(14, 36, 8), flat('#ff6a00'));
+          llama.position.y = alto + 330; g.add(llama);
+          anim({ kind: 'bob', obj: llama, amp: 9, phase: 0.7 });
+        } else if (remate === 'paja') {
+          const techoPaja = new THREE.Mesh(new THREE.ConeGeometry(sep + 120, 120, 4), toon('#d8a34a'));
+          techoPaja.position.y = alto + 90; techoPaja.rotation.y = Math.PI / 4; g.add(techoPaja);
+          for (let k = -2; k <= 2; k++) {
+            const tabla = new THREE.Mesh(new THREE.BoxGeometry(70, 16, 60), toon(k % 2 ? '#ff6a00' : '#00e5ff'));
+            tabla.position.set(0, alto + 44, k * 90); g.add(tabla);
+          }
+        } else if (remate === 'lava') {
+          for (let k = -3; k <= 3; k++) {
+            const gota = new THREE.Mesh(new THREE.ConeGeometry(16, 60 + (k % 3) * 26, 7), flat('#ff5e00'));
+            gota.rotation.x = Math.PI; gota.position.set(0, alto - 20, k * 78); g.add(gota);
+            anim({ kind: 'bob', obj: gota, amp: 4 + (k % 3) * 2, phase: k });
+          }
+          const luz = new THREE.PointLight('#ff5e00', 0, 800, 1.6);
+          luz.position.y = alto; luz.intensity = 360000; g.add(luz);
+        } else if (remate === 'cupula') {
+          const cupula = new THREE.Mesh(new THREE.SphereGeometry(140, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), flat('#8ee3ff'));
+          cupula.position.y = alto + 40; g.add(cupula);
+          const antena = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 110, 6), toon('#9aa0b5'));
+          antena.position.y = alto + 220; g.add(antena);
+          const plato = new THREE.Mesh(new THREE.SphereGeometry(40, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2.4), toon('#eaf6ff'));
+          plato.position.y = alto + 280; plato.rotation.z = 0.6; g.add(plato);
+          anim({ kind: 'spinY', obj: plato, speed: 0.8 });
+        }
+        return g;
+      },
       // El aro por el que se vuela en el salto grande. De pie, cruzado en la carretera.
       aro: () => {
         const g = new THREE.Group();
@@ -489,6 +581,18 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         anim({ kind: 'pulse', obj: g, phase: 1.3 });
         return g;
       },
+      // Chicle: un donut glaseado con virutas, y una tarta de tres pisos con su vela
+      donut: () => props.aroDe({ color: '#ff8ad8', dentro: '#ffe600', adorno: 'chispa', adornoColor: ['#ffffff', '#00e5ff', '#ffe600', '#39ff88'], n: 18, gordo: 26 }),
+      tarta: () => props.porticoDe({ pilar: '#ffd7f0', techo: '#ff5ec8', remate: 'tarta', alto: 250 }),
+      // Playa Neón: un flotador gigante y el chiringuito de la playa
+      flotador: () => props.aroDe({ color: '#ff3d6e', dentro: '#ffffff', adorno: 'chispa', adornoColor: ['#ffffff', '#ff3d6e'], n: 16, gordo: 24, girar: 0.25 }),
+      chiringuito: () => props.porticoDe({ pilar: '#c98a4b', techo: '#8a5a2b', remate: 'paja', alto: 240, forma: 'palo' }),
+      // Volcán Disco: el aro de fuego y un arco de roca con lava colgando
+      aroFuego: () => props.aroDe({ color: '#ff5e00', dentro: '#ffd000', adorno: 'llama', adornoColor: ['#ff5e00', '#ffd000', '#ff2d00'], n: 16, gordo: 20, girar: 0.5 }),
+      arcoRoca: () => props.porticoDe({ pilar: '#4b2a3a', techo: '#2e1a26', remate: 'lava', alto: 260, forma: 'roca' }),
+      // Luna Loca: el anillo de un planeta y la base lunar
+      anillo: () => props.aroDe({ color: '#8ee3ff', dentro: '#ff00ff', adorno: 'chispa', adornoColor: ['#ffffff', '#8ee3ff'], n: 20, gordo: 16, girar: 0.4 }),
+      base: () => props.porticoDe({ pilar: '#c9d4ff', techo: '#8fa4e8', remate: 'cupula', alto: 240, forma: 'palo' }),
     };
     for (const pr of th.props || []) {
       const hacer = props[pr.kind];

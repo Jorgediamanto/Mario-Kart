@@ -237,7 +237,13 @@ function correrCircuito(sim, index, opts = {}) {
       if (Math.abs(k.speed) > 2.5 * sim.BASE_MAX_SPEED) falla(`${k.name}: velocidad disparada (${k.speed.toFixed(0)})`);
       if (k.lapCount < lapsPrevias[i]) falla(`${k.name}: la vuelta va hacia atrás`);
       if (k.finished && !vueltasAlLlegar.has(k)) vueltasAlLlegar.set(k, k.lapCount);
-      // en cada ventana de 10 s, quien no ha terminado tiene que avanzar
+      /*
+       * En cada ventana de 10 s, quien no ha terminado tiene que avanzar. Pero los frames en los
+       * que **la carrera está parada** (alguien está eligiendo víctima del caracol) no cuentan: ahí
+       * no se mueve nadie a propósito, el reloj de la simulación tampoco corre, y sin esta salvedad
+       * el aviso de «atascado» saltaba solo porque la partida estaba en pausa.
+       */
+      if (s.state.eligiendo) return;
       const h = historial.get(k);
       // el tercer número es lo que se ha movido *siguiendo el sentido del circuito* (px): es la
       // forma honrada de ver si alguien va al revés, sin que la engañe el contador de progreso,
@@ -1543,21 +1549,18 @@ const escenarios = [
     run(sim) {
       if (sim.ITEMS.green) return 'el caparazón verde sigue en la lista';
       if (!sim.ITEMS.snail) return 'falta el caracol';
-      // el que va primero no puede sacar caracol, y al resto le sale poco
-      const s = carrera(sim, { bots: 7 });
-      const k = humano(s);
-      let caracoles = 0, total = 0, delLider = 0;
-      for (let i = 0; i < 4000; i++) {
-        k.rank = (i % 8) + 1;
-        k.item = null; k.rolling = null;
-        const caja = s.state.track.boxes[i % s.state.track.boxes.length];
-        k.x = caja.x; k.y = caja.y; k.z = caja.h;
-        caja.respawnAt = 0;
-        s.update(DT);
-        if (k.rolling) { total++; if (k.rolling.result === 'snail') { caracoles++; if (k.rank === 1) delLider++; } k.rolling = null; k.item = null; }
+      /*
+       * El que va primero no puede sacar caracol, y al resto le sale poco. Se mide sobre el propio
+       * reparto (`rollItem`) y no pasando por cajas: al pasar por una caja el ranking lo recalcula
+       * la simulación en ese mismo instante, así que no se puede forzar «ahora vas primero» y fiarse
+       * del resultado — antes esta prueba se sostenía de milagro.
+       */
+      const s = carrera(sim, { bots: 2 });
+      for (let i = 0; i < 4000; i++) if (s.rollItem(1, 7) === 'snail') return 'al que va primero le ha salido el caracol';
+      let caracoles = 0, total = 0;
+      for (let rank = 2; rank <= 7; rank++) {
+        for (let i = 0; i < 3000; i++) { total++; if (s.rollItem(rank, 7) === 'snail') caracoles++; }
       }
-      if (total < 100) return `no se han repartido bastantes objetos para medir (${total})`;
-      if (delLider) return 'al que va primero le ha salido el caracol';
       const parte = caracoles / total;
       return parte > 0.02 && parte < 0.14 ? null : `sale el ${(parte * 100).toFixed(1)} % de las veces (se busca entre el 2 y el 14 %)`;
     },

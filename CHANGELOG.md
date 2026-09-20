@@ -3,6 +3,36 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 — Los cinco circuitos, al estilo de Arcoíris
+
+El dueño pidió que los otros cuatro se parecieran a Arcoíris «teniendo en cuenta las curvas, los
+saltos y las barreras», con libertad para inventar. Lo que tienen ahora los cuatro:
+
+- **Carretera ancha**: Chicle 240, Playa Neón 230, Luna Loca 230 y Volcán Disco 220 (antes 180-220).
+- **Quitamiedos en los dos lados de todo el recorrido**, como en Arcoíris: no se sale nadie.
+- **Saltos de verdad**: cada circuito tiene su salto grande (95-110 de alto) con el turbo de salto,
+  más dos saltos medianos y dos lomos. En Luna Loca, con su gravedad de 0,55, el grande manda a la
+  estratosfera.
+- **Y un sitio que recordar**, uno por circuito, con su aro por el que se vuela y su pórtico por el
+  que se pasa por debajo:
+  - **Chicle**: un **donut glaseado** con virutas y una **tarta de tres pisos** con su vela.
+  - **Playa Neón**: un **flotador gigante** y el **chiringuito** de techo de paja.
+  - **Volcán Disco**: un **aro de fuego** que gira y un **arco de roca** con lava colgando.
+  - **Luna Loca**: el **anillo de un planeta** y la **base lunar** con su antena girando.
+
+Dos arreglos que salieron de poner quitamiedos en todo el recorrido:
+
+- **El quitamiedos era un imán**: empujaba de vuelta a la pista a cualquiera que estuviera fuera,
+  aunque estuviera a mil píxeles en mitad del campo, así que al que se salía de verdad no le llegaba
+  nunca el rescate. Ahora solo empuja a quien lo está tocando (`BUMPER_ALCANCE`).
+- **`npm test` contaba la pausa del caracol como si el kart estuviera atascado**: durante esos
+  segundos no se mueve nadie a propósito. Ahora esos frames no cuentan.
+
+- **Cómo probarlo**: `npm start` y darse una vuelta por cada circuito (←→ en la tele). Fíjate en los
+  saltos grandes y en pasar por dentro del donut, el flotador, el aro de fuego y el anillo.
+- **Pendiente de probar en fiesta**: si con la carretera tan ancha los circuitos se hacen fáciles de
+  más, y si los saltos grandes descolocan en los circuitos pequeños.
+
 ## 2026-09-20 — Se acabó el «otro yo» con la corona
 
 - **Qué pasaba**: entrabas desde el móvil y en la sala aparecía otro jugador con tu nombre, encima

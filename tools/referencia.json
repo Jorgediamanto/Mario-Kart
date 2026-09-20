@@ -3,10 +3,10 @@
   "comoRehacerlo": "KART_REFERENCIA=escribir node tools/check-sim.js",
   "fecha": "2026-09-20",
   "vueltaMedia": {
-    "Arcoíris": 33.49,
-    "Chicle": 29.22,
-    "Playa Neón": 30.57,
-    "Volcán Disco": 30.4,
-    "Luna Loca": 28.34
+    "Arcoíris": 33.45,
+    "Chicle": 26.57,
+    "Playa Neón": 29.78,
+    "Volcán Disco": 28.37,
+    "Luna Loca": 27.76
   }
 }
