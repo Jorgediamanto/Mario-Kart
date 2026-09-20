@@ -44,7 +44,7 @@ const CIRCUITOS = {
    * volver, con una horquilla junto a las palmeras.
    */
   'Playa Neón': {
-    ancho: 200, esc: 1.25, ey: 0.56,
+    ancho: 200, esc: 1.40, ey: 0.56,
     spec: [
       { f:  38, r: 2150, R: 1200, nombre: 'salida del paseo' },
       { f: 104, r: 2200, R: 1800, nombre: 'el curvón del mar' },

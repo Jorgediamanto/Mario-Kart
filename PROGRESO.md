@@ -7,18 +7,18 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 00:44
+- último latido (UTC): 2026-09-20 00:47
 - rama: noche/2026-09-20
 
 ## Punto en curso
 - IDEAS.md: Fase 2 — «Mejorar los circuitos para la vista en tercera persona» (los cuatro circuitos
   que siguen en 9-12 s de vuelta: Costa, Volcán, Bosque, Ciudad… el que toque según `tracks.js`).
-- hecho: motor compartido `tools/traza.js` + `traza-circuitos.js`; decoración junto a la carretera;
-  **Chicle rehecho** (12.832 px, mundo 5400x3600, ancho 200, cuestas, vuelta 29,2 s), `npm test` en
-  verde con la referencia rehecha a propósito y su entrada en CHANGELOG.
-- siguiente paso: igual con **Playa Neón**, luego Volcán Disco y Luna Loca (los vértices ya están
-  en `tools/traza-circuitos.js` y validados). Cuando estén los cuatro: escenario en `check-sim.js`
-  que exija vuelta de 25-60 s en **todos** los circuitos, y cerrar el punto en IDEAS.md.
+- hecho: motor compartido `tools/traza.js`; decoración junto a la carretera; **Chicle** (12.832 px,
+  vuelta 29,2 s) y **Playa Neón** (13.592 px, vuelta 30,6 s) rehechos, cada uno con su entrada en
+  CHANGELOG y `npm test` en verde.
+- siguiente paso: **Volcán Disco** (el técnico, vértices ya validados: 12.496 px, 8 % de curvas
+  cerradas) y luego Luna Loca. Después: escenario en `check-sim.js` que exija vuelta de 25-60 s en
+  todos los circuitos, y cerrar el punto en IDEAS.md.
 - intentos fallidos en este punto: 0
 
 ## Última sesión

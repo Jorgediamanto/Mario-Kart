@@ -190,36 +190,73 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
       ],
     },
     {
+      /*
+       * Playa Neón — el paseo marítimo: la recta más larga de los cinco circuitos pequeños
+       * (1.500 px seguidos frente al mar) y, al volver, curvas de todos los tipos, con la
+       * horquilla de la sombrilla como la parte lenta de verdad.
+       *
+       * Rehecho con el molde de Arcoíris: antes medía 4.088 px (vuelta de 9 s) en el mundo de
+       * 1920x1080; ahora mide 12.816 px en uno propio de 5400x3450, con la carretera a 200.
+       * Se genera con `node tools/traza-circuitos.js "Playa Neón" --escribir`.
+       */
       name: 'Playa Neón',
-      width: 110,
+      width: 200,
       gravity: 1,
-      boxes: [0.18, 0.46, 0.8],
-      pads: [0.34, 0.7],
+      world: { w: 5700, h: 3650 },
+      boxes: [0.06, 0.30, 0.36, 0.42, 0.62, 0.80, 0.86],
+      pads: [0.10, 0.28, 0.41, 0.63, 0.84],
       features: [
-        { type: 'hill', at: 0.24, height: 18, length: 240 },
-        { type: 'ramp', at: 0.54, height: 36, length: 170 },
-        { type: 'hill', at: 0.88, height: 12, length: 180 },
+        { type: 'ramp', at: 0.13, height: 50, length: 180 },      // el salto del paseo, en plena recta
+        { type: 'hill', at: 0.24, height: 22, length: 300 },
+        { type: 'ramp', at: 0.46, height: 52, length: 180 },      // el de en medio, el más alto
+        { type: 'hill', at: 0.58, height: 18, length: 260 },
+        { type: 'ramp', at: 0.665, height: 48, length: 180 },     // el de la recta del chiringuito
+        { type: 'hill', at: 0.90, height: 16, length: 240 },
       ],
-      barriers: [{ from: 0.12, to: 0.2, side: 'both' }, { from: 0.7, to: 0.78, side: 'outer' }],
+      // dunas: sube hacia el interior a mitad de vuelta y baja otra vez hasta la orilla
+      relieve: [
+        { at: 0.00, h: 0 }, { at: 0.12, h: -30 }, { at: 0.26, h: 60 }, { at: 0.40, h: 140 },
+        { at: 0.54, h: 90 }, { at: 0.66, h: 10 }, { at: 0.80, h: -50 }, { at: 0.92, h: 20 },
+      ],
+      barriers: [
+        { from: 0.20, to: 0.25, side: 'outer' }, { from: 0.26, to: 0.345, side: 'both' },
+        { from: 0.50, to: 0.55, side: 'outer' }, { from: 0.72, to: 0.79, side: 'outer' },
+        { from: 0.86, to: 0.92, side: 'outer' },
+      ],
       theme: {
         sky: ['#5b00ff', '#ff7a00'], fog: '#ff9ac0',
         ground: '#ffd93d', groundAlt: '#ffb800',
         road: '#0f3d5c', curb: ['#ff6a00', '#ffffff'], bumper: ['#00e5ff', '#ff2d95'], pad: '#39ff88',
-        pools: { kind: 'water', color: '#00e5ff', count: 7, minR: 45, maxR: 95 },
+        pools: { kind: 'water', color: '#00e5ff', count: 10, minR: 45, maxR: 95 },
         decor: [
-          { kind: 'palm', n: 30 }, { kind: 'beachBall', n: 12 }, { kind: 'umbrella', n: 10 },
-          { kind: 'rock', n: 8 }, { kind: 'flamingo', n: 8 },
+          { kind: 'palm', n: 44 }, { kind: 'beachBall', n: 17 }, { kind: 'umbrella', n: 14 },
+          { kind: 'rock', n: 12 }, { kind: 'flamingo', n: 11 },
         ],
         palette: ['#ff2d95', '#00e5ff', '#39ff88', '#ffe600', '#ff6a00', '#b14bff'],
-        clouds: { color: '#ffc6e8', n: 8 },
-        sun: { color: '#ffb300', pos: [300, 520, -1100], r: 120 },
+        clouds: { color: '#ffc6e8', n: 11 },
+        sun: { color: '#ffb300', pos: [600, 620, -1600], r: 140 },
         stars: false,
       },
       points: [
-        { x: 500, y: 930 }, { x: 900, y: 950 }, { x: 1300, y: 930 }, { x: 1650, y: 860 },
-        { x: 1760, y: 640 }, { x: 1660, y: 420 }, { x: 1420, y: 300 }, { x: 1180, y: 380 },
-        { x: 960, y: 520 }, { x: 760, y: 420 }, { x: 560, y: 260 }, { x: 320, y: 250 },
-        { x: 180, y: 420 }, { x: 190, y: 640 }, { x: 300, y: 830 },
+        { x: 2718, y: 3298 }, { x: 2600, y: 3322 }, { x: 2482, y: 3346 }, { x: 2364, y: 3369 }, { x: 2245, y: 3386 }, { x: 2125, y: 3395 },
+        { x: 2005, y: 3395 }, { x: 1884, y: 3388 }, { x: 1765, y: 3372 }, { x: 1647, y: 3349 }, { x: 1531, y: 3318 }, { x: 1417, y: 3279 },
+        { x: 1306, y: 3233 }, { x: 1197, y: 3181 }, { x: 1089, y: 3130 }, { x: 980, y: 3078 }, { x: 871, y: 3027 }, { x: 763, y: 2974 },
+        { x: 662, y: 2909 }, { x: 572, y: 2829 }, { x: 496, y: 2736 }, { x: 436, y: 2632 }, { x: 393, y: 2520 }, { x: 369, y: 2402 },
+        { x: 363, y: 2282 }, { x: 376, y: 2163 }, { x: 408, y: 2047 }, { x: 433, y: 1930 }, { x: 417, y: 1811 }, { x: 362, y: 1704 },
+        { x: 291, y: 1607 }, { x: 242, y: 1498 }, { x: 221, y: 1380 }, { x: 228, y: 1260 }, { x: 265, y: 1145 }, { x: 327, y: 1043 },
+        { x: 413, y: 959 }, { x: 516, y: 897 }, { x: 630, y: 860 }, { x: 746, y: 829 }, { x: 862, y: 798 }, { x: 978, y: 766 },
+        { x: 1094, y: 735 }, { x: 1211, y: 703 }, { x: 1325, y: 666 }, { x: 1432, y: 612 }, { x: 1539, y: 556 }, { x: 1645, y: 501 },
+        { x: 1752, y: 445 }, { x: 1859, y: 389 }, { x: 1965, y: 333 }, { x: 2072, y: 278 }, { x: 2185, y: 238 }, { x: 2304, y: 221 },
+        { x: 2424, y: 227 }, { x: 2541, y: 256 }, { x: 2649, y: 307 }, { x: 2751, y: 371 }, { x: 2853, y: 435 }, { x: 2955, y: 500 },
+        { x: 3056, y: 564 }, { x: 3158, y: 628 }, { x: 3259, y: 693 }, { x: 3361, y: 757 }, { x: 3463, y: 821 }, { x: 3573, y: 869 },
+        { x: 3691, y: 889 }, { x: 3811, y: 904 }, { x: 3930, y: 919 }, { x: 4049, y: 935 }, { x: 4169, y: 950 }, { x: 4288, y: 965 },
+        { x: 4407, y: 981 }, { x: 4527, y: 996 }, { x: 4646, y: 1011 }, { x: 4765, y: 1027 }, { x: 4884, y: 1043 }, { x: 5000, y: 1076 },
+        { x: 5107, y: 1130 }, { x: 5203, y: 1203 }, { x: 5284, y: 1292 }, { x: 5347, y: 1394 }, { x: 5395, y: 1504 }, { x: 5437, y: 1617 },
+        { x: 5462, y: 1734 }, { x: 5469, y: 1854 }, { x: 5457, y: 1974 }, { x: 5426, y: 2090 }, { x: 5379, y: 2201 }, { x: 5315, y: 2303 },
+        { x: 5247, y: 2402 }, { x: 5179, y: 2501 }, { x: 5106, y: 2596 }, { x: 5021, y: 2682 }, { x: 4928, y: 2757 }, { x: 4826, y: 2821 },
+        { x: 4717, y: 2873 }, { x: 4603, y: 2911 }, { x: 4486, y: 2937 }, { x: 4368, y: 2961 }, { x: 4250, y: 2985 }, { x: 4132, y: 3010 },
+        { x: 4014, y: 3034 }, { x: 3896, y: 3058 }, { x: 3779, y: 3082 }, { x: 3661, y: 3106 }, { x: 3543, y: 3130 }, { x: 3425, y: 3154 },
+        { x: 3307, y: 3178 }, { x: 3189, y: 3202 }, { x: 3071, y: 3226 }, { x: 2953, y: 3250 }, { x: 2836, y: 3274 },
       ],
     },
     {

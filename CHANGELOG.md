@@ -3,6 +3,26 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (noche) — Playa Neón, rehecha: el paseo marítimo de verdad
+
+Segundo de los cuatro circuitos cortos. Mismo molde que Chicle y Arcoíris (mundo propio, trazado
+generado por script y validado antes de pegarlo).
+
+- **Playa Neón** pasa de 4.088 px a **13.592 px**, en un mundo propio de **5700x3650**. La vuelta de
+  los bots pasa de **10,7 s a 30,6 s**.
+- **La recta más larga de los cinco**: 1.500 px seguidos frente al mar, con un salto en mitad. Al
+  volver hay curvas de todos los tipos y **la horquilla de la sombrilla**, que es la parte lenta de
+  verdad (radio 222): ahí es donde se gana o se pierde la vuelta.
+- **Carretera de 200** (antes 110) y **dunas**: el circuito sube hacia el interior a mitad de vuelta
+  y baja otra vez hasta la orilla. **Tres saltos** en vez de uno, cada uno en su recta.
+- **7 cajas y 5 paneles** (antes 3 y 2), quitamiedos en la horquilla y por fuera de las rápidas, y
+  más palmeras, sombrillas y charcos de agua, que ahora se plantan junto a la carretera.
+- `tools/referencia.json` rehecho a propósito (Playa Neón: 10,65 s → 30,64 s).
+
+- **Cómo probarlo en la fiesta**: `npm start`, elige Playa Neón y mira si la recta larga se hace
+  divertida o larga. **Pendiente de probar en fiesta**: la horquilla con 8 karts a la vez (puede ser
+  un tapón alegre o un desastre) y los fps con la tecla `P`.
+
 ## 2026-09-20 (noche) — Chicle, rehecho: tres veces más largo, el doble de ancho y con cuestas
 
 Primero de los cuatro circuitos que quedaban en vueltas de 9-12 s. El molde es el de Arcoíris (el
