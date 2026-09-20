@@ -116,6 +116,29 @@ async function recorrido(PORT) {
   check(joins.length === SITIOS, `la pantalla recibe un \`join\` por jugador (${joins.length} de ${SITIOS})`);
   check(moviles[0].id === lobby.hostId, 'el primero en entrar es el anfitrión');
 
+  // ---- modo fácil: el interruptor del móvil llega a la sala y a la pantalla ----
+  {
+    const m = moviles[1];
+    m.olvida(); moviles[0].olvida(); tele.olvida();
+    m.manda({ t: 'hello', token: m.token, name: 'Jugador 1', char: 1, easy: true });
+    const w = await m.espera('welcome');
+    check(w && w.easy === true, 'el `welcome` confirma el modo fácil que ha pedido el móvil');
+    const l = await moviles[0].espera('lobby');
+    const yo = l && l.players.find((p) => p.id === m.id);
+    check(!!yo && yo.easy === true, 'la sala (`lobby`) dice quién lleva el modo fácil');
+    const otro = l && l.players.find((p) => p.id === moviles[0].id);
+    check(!!otro && !otro.easy, 'quien no lo pide sigue en normal (un mando viejo no manda el campo)');
+    const join = tele.recibidos.filter((x) => x.t === 'join').pop();
+    check(!!join && join.player && join.player.easy === true, 'la pantalla se entera por `join` de que ese jugador va en modo fácil');
+    // y se puede apagar
+    m.olvida(); moviles[0].olvida();
+    m.manda({ t: 'hello', token: m.token, name: 'Jugador 1', char: 1, easy: false });
+    await m.espera('welcome');
+    const l2 = await moviles[0].espera('lobby');
+    const yo2 = l2 && l2.players.find((p) => p.id === m.id);
+    check(!!yo2 && !yo2.easy, 'apagar el interruptor vuelve a dejarlo en normal');
+  }
+
   // ---- la sala está llena: el siguiente se queda fuera ----
   {
     const sobra = cliente(PORT, 'sobra');

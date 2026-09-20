@@ -1085,6 +1085,38 @@ const escenarios = [
   },
   {
     /*
+     * Modo fácil (IDEAS.md, Fase 3): el kart acelera solo y el volante ayuda a no salirse. La
+     * prueba es la que pide el punto, y es la buena: **sin tocar el mando** tiene que dar la vuelta
+     * entera y llegar, porque para eso está —que quien nunca ha jugado no se quede de cara al
+     * quitamiedos—, y tiene que llegar **por detrás** de un bot, para que nadie lo encienda
+     * buscando ir más rápido.
+     */
+    nombre: 'un kart en modo fácil, sin que nadie toque el mando, termina la carrera por detrás del bot',
+    run(sim) {
+      for (const nombre of ['Chicle', 'Volcán Disco']) {
+        const s = sim.createSim({ geom, trackDefs, random: mulberry32(41) });
+        s.startRace({
+          entries: [{ playerId: 1, name: 'Fácil', char: 0, easy: true }, { playerId: null, bot: true, name: 'Bot', char: 1 }],
+          trackIndex: pista(nombre), laps: 1,
+        });
+        const k = s.state.karts.find((q) => q.playerId === 1), bot = s.state.karts.find((q) => q.isBot);
+        let fuera = 0;
+        for (let f = 0; f < 60 * 120 && !s.allFinished(); f++) {
+          s.setInput(k, { s: 0, g: 0, b: 0, d: 0 });        // nadie toca nada
+          s.setInput(bot, s.aiInput(bot));
+          s.update(DT);
+          if (k.offroad) fuera += DT;
+        }
+        if (!k.finished) return `${nombre}: no termina la vuelta solo (se queda en la ${k.lapCount})`;
+        if (!bot.finished) return `${nombre}: el bot no termina, así que no hay con qué comparar`;
+        if (k.finishTime <= bot.finishTime) return `${nombre}: el modo fácil llega antes que el bot (${k.finishTime.toFixed(1)} s contra ${bot.finishTime.toFixed(1)} s)`;
+        if (fuera > 8) return `${nombre}: se pasa ${fuera.toFixed(1)} s fuera de la pista, no es tan fácil`;
+      }
+      return null;
+    },
+  },
+  {
+    /*
      * «Curvas largas para derrapar al nivel 3» (IDEAS.md). El nivel 3 pide **1,4 s girando hacia el
      * mismo lado sin soltar**, así que hace falta un curvón que dure eso a velocidad de carrera.
      *

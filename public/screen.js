@@ -980,8 +980,8 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
 
   function upsertPlayer(p) {
     const cur = state.players.get(p.id);
-    if (cur) { cur.name = p.name; cur.char = p.char; cur.host = p.host; cur.connected = p.connected; }
-    else state.players.set(p.id, { id: p.id, name: p.name, char: p.char, host: p.host, connected: p.connected, input: { s: 0, g: 0, b: 0, d: 0 } });
+    if (cur) { cur.name = p.name; cur.char = p.char; cur.host = p.host; cur.connected = p.connected; cur.easy = !!p.easy; }
+    else state.players.set(p.id, { id: p.id, name: p.name, char: p.char, host: p.host, connected: p.connected, easy: !!p.easy, input: { s: 0, g: 0, b: 0, d: 0 } });
     const k = state.karts.find((q) => q.playerId === p.id);
     if (k) k.name = p.name;
   }
@@ -1361,7 +1361,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   function startRace() {
     if (state.phase !== 'lobby') return;
     const humans = [];
-    for (const p of state.players.values()) if (p.connected) humans.push({ playerId: p.id, name: p.name, char: p.char });
+    for (const p of state.players.values()) if (p.connected) humans.push({ playerId: p.id, name: p.name, char: p.char, easy: !!p.easy });
     if (state.kb) humans.push({ playerId: null, kb: true, name: 'Teclado', char: -1 });
     if (!humans.length) { toast('Hace falta al menos un jugador conectado'); return; }
     const used = new Set(humans.filter((h) => h.char >= 0).map((h) => h.char));
@@ -1874,7 +1874,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const rows = [];
     for (const p of state.players.values()) {
       const ch = CHARS[p.char] || CHARS[0];
-      rows.push(`<div class="slot full" style="border-color:${ch.color}"><span class="emoji">${ch.emoji}</span><span>${esc(p.name)}</span>${p.host ? '<span class="tag">👑 anfitrión</span>' : ''}<span class="dot ${p.connected ? '' : 'off'}"></span></div>`);
+      rows.push(`<div class="slot full" style="border-color:${ch.color}"><span class="emoji">${ch.emoji}</span><span>${esc(p.name)}</span>${p.host ? '<span class="tag">👑 anfitrión</span>' : ''}${p.easy ? '<span class="tag">🦺 modo fácil</span>' : ''}<span class="dot ${p.connected ? '' : 'off'}"></span></div>`);
     }
     if (state.kb) rows.push('<div class="slot full"><span class="emoji">⌨️</span><span>Teclado</span><span class="tag">flechas · espacio objeto · el derrape sale solo</span></div>');
     while (rows.length < MAX_KARTS) rows.push('<div class="slot empty"><span class="emoji">·</span><span>libre</span></div>');

@@ -33,7 +33,7 @@
     set(k, v) { try { localStorage.setItem('kp.' + k, v); } catch (_) { /* privado */ } },
   };
 
-  const me = { id: null, token: store.get('token', ''), name: store.get('name', ''), char: parseInt(store.get('char', '-1'), 10), host: false };
+  const me = { id: null, token: store.get('token', ''), name: store.get('name', ''), char: parseInt(store.get('char', '-1'), 10), host: false, easy: store.get('facil', '0') === '1' };
   if (!(me.char >= 0 && me.char < CHARS.length)) me.char = -1;
   let joined = false, wantJoin = false, editing = false, spectating = false;
   let eligiendo = null;      // caracol: { opciones, hasta } mientras nos toca elegir víctima
@@ -62,13 +62,14 @@
   }
   function sendHello() {
     if (!connected) return;
-    send({ t: 'hello', token: me.token || undefined, name: me.name, char: me.char });
+    send({ t: 'hello', token: me.token || undefined, name: me.name, char: me.char, easy: me.easy });
   }
 
   function handle(m) {
     switch (m.t) {
       case 'welcome':
         me.id = m.id; me.token = m.token; me.name = m.name; me.char = m.char;
+        if (typeof m.easy === 'boolean') me.easy = m.easy;
         store.set('token', me.token); store.set('name', me.name); store.set('char', me.char);
         joined = true; wantJoin = false; editing = false;
         phase = m.phase;
@@ -219,8 +220,9 @@
     $('set-laps').textContent = s.laps;
     $('set-bots').textContent = s.bots;
     $('guest-settings').textContent = me.host ? '' : `Circuito: ${trackName} · ${s.laps} vueltas · ${s.bots} bots`;
+    pintarFacil();
     $('lobby-players').innerHTML = lobby
-      ? lobby.players.map((p) => `<li class="${p.connected ? '' : 'off'}">${(CHARS[p.char] || CHARS[0]).emoji} ${esc(p.name)}${p.host ? ' 👑' : ''}${p.id === me.id ? ' <b style="color:#39ff88">(tú)</b>' : ''}${p.connected ? '' : ' <span style="opacity:.7">(sin conexión)</span>'}</li>`).join('')
+      ? lobby.players.map((p) => `<li class="${p.connected ? '' : 'off'}">${(CHARS[p.char] || CHARS[0]).emoji} ${esc(p.name)}${p.host ? ' 👑' : ''}${p.easy ? ' 🦺' : ''}${p.id === me.id ? ' <b style="color:#39ff88">(tú)</b>' : ''}${p.connected ? '' : ' <span style="opacity:.7">(sin conexión)</span>'}</li>`).join('')
       : '';
   }
   document.querySelectorAll('[data-set]').forEach((b) => {
@@ -237,6 +239,25 @@
     });
   });
   $('btn-start').addEventListener('click', () => { send({ t: 'start' }); vibrate(30); requestWakeLock(); });
+  /*
+   * Modo fácil: se guarda en este móvil y se le dice al servidor con un `hello` nuevo (es el mismo
+   * mensaje de siempre; un móvil viejo que no lo mande se queda en normal, como hasta ahora).
+   * Solo se puede cambiar en la sala: a mitad de carrera sería cambiarle el kart a alguien.
+   */
+  function pintarFacil() {
+    const b = $('btn-facil');
+    b.textContent = me.easy ? 'Encendido' : 'Apagado';
+    b.style.background = me.easy ? '#16c96a' : '#2a2f65';
+    $('facil-caja').style.opacity = spectating ? 0.5 : 1;
+  }
+  $('btn-facil').addEventListener('click', () => {
+    if (spectating) return;
+    me.easy = !me.easy;
+    store.set('facil', me.easy ? '1' : '0');
+    pintarFacil();
+    vibrate(15);
+    if (joined) sendHello();
+  });
   $('btn-change').addEventListener('click', () => { editing = true; setView(); });
   $('btn-leave').addEventListener('click', () => {
     send({ t: 'leave' });
@@ -346,7 +367,9 @@
     const bar = $('vbar'); if (bar) bar.classList.toggle('show', con);
     const centrar = $('btn-centrar'); if (centrar) centrar.classList.toggle('hidden', !con);
     const gas = $('gas-hint');
-    if (gas) gas.textContent = con ? 'gira el móvil para girar' : 'los dos giros a la vez = marcha atrás';
+    // en modo fácil el kart acelera solo, así que el botón deja de ser «el que hace que te muevas»
+    if (gas) gas.textContent = me.easy ? '🦺 acelera solo · el GAS es un empujón'
+      : con ? 'gira el móvil para girar' : 'los dos giros a la vez = marcha atrás';
     const estado = $('volante-estado'), btnV = $('btn-volante'), btnB = $('btn-botones');
     if (!estado) return;
     const saltar = !volantePosible() && !!urlVolante;   // estamos en la dirección normal y hay otra cifrada
