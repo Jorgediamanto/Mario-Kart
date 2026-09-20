@@ -3,6 +3,25 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (noche) — Al entrar eliges personaje, y con su cara de verdad
+
+- **El móvil enseña los personajes que hay.** La pantalla de elegir ya existía, pero llevaba la
+  lista vieja escrita a mano (Rana, Zorro, Panda…): salían personajes que ya no existen. Ahora la
+  lista viaja desde la simulación: la pantalla se la manda al servidor al conectarse (`screen`) y el
+  servidor la reparte a los móviles (`roster` y `lobby`), así que lo que se ve al entrar es siempre
+  lo que hay de verdad. `play.js` guarda una copia solo como respaldo, para el rato en que la tele
+  aún no se ha conectado.
+- **Con retrato.** Cada personaje se enseña con **su cara**, no con un emoji parecido: son fotos que
+  genera Blender junto a las cabezas (`tools/blender/personajes.py` → `public/modelos/retratos/`),
+  en tres cuartos para que se les vean los cuernos, el cigarro o las coletas. Si falta el archivo,
+  se ve el emoji de siempre. Tu cara sale también en la cabecera del móvil mientras esperas.
+- Los personajes cogidos salen apagados y no se pueden elegir (eso ya iba), y desde la sala se
+  puede cambiar de personaje con el botón de siempre.
+- **Arreglado de paso**: el botón «Activar el volante» salía metido en una columna de 52 px (se
+  comía el ancho de los botones ± de los ajustes). Ahora ocupa la línea entera y se lee.
+
+- **Cómo probarlo**: `npm start`, abre el mando en el móvil y mira la pantalla de entrar: siete
+  caras, las cogidas apagadas. Elige una y entra: la misma cara sale arriba, en la tele y en tu kart.
 ## 2026-09-20 (noche) — Modo fácil: un botón para quien nunca ha jugado
 
 En la sala de cada móvil hay ahora un interruptor **🦺 Modo fácil**. Es por jugador y se recuerda en

@@ -40,6 +40,8 @@ def material(nombre, color, rugosidad=0.6):
     b = m.node_tree.nodes['Principled BSDF']
     b.inputs['Base Color'].default_value = (*color, 1.0)
     b.inputs['Roughness'].default_value = rugosidad
+    # el color de la vista (lo que usa el render plano de los retratos) va aparte del BSDF
+    m.diffuse_color = (*color, 1.0)
     MATS[nombre] = m
     return m
 
@@ -140,6 +142,48 @@ def exportar():
     print('EXPORTADO cabezas.glb')
 
 
+def retratos(todos):
+    """Una foto de cada cara, para la pantalla de elegir personaje del móvil.
+
+    Sale en `public/modelos/retratos/<Nombre>.png`, con fondo transparente y de frente. Se usa el
+    motor «Workbench» (el de la vista de trabajo) a propósito: pinta los colores de material tal
+    cual, sin luces ni sombras raras, que es justo el estilo plano del juego, y no necesita tarjeta
+    gráfica para funcionar en cualquier ordenador."""
+    carpeta = os.path.join(SALIDA, 'retratos')
+    os.makedirs(carpeta, exist_ok=True)
+    esc = bpy.context.scene
+    esc.render.engine = 'BLENDER_WORKBENCH'
+    esc.display.shading.light = 'STUDIO'
+    esc.display.shading.color_type = 'MATERIAL'
+    esc.display.shading.show_object_outline = True
+    esc.display.shading.object_outline_color = (0.09, 0.05, 0.16)
+    esc.render.film_transparent = True
+    esc.render.resolution_x = esc.render.resolution_y = 256
+    esc.render.image_settings.file_format = 'PNG'
+    esc.render.image_settings.color_mode = 'RGBA'
+    # cámara en tres cuartos (los modelos miran hacia +X): así se ven los cuernos, el cigarro y
+    # las coletas, que de frente del todo no se aprecian. Ortográfica, para que no deforme.
+    bpy.ops.object.empty_add(location=(0, 0, 1.0))
+    mira = bpy.context.object
+    bpy.ops.object.camera_add(location=(52, -26, 16))
+    cam = bpy.context.object
+    cam.data.type = 'ORTHO'
+    cam.data.ortho_scale = R * 3.0
+    seguir = cam.constraints.new('TRACK_TO')
+    seguir.target = mira
+    seguir.track_axis = 'TRACK_NEGATIVE_Z'
+    seguir.up_axis = 'UP_Y'
+    esc.camera = cam
+    for o in todos:
+        for otro in todos:
+            otro.hide_render = otro is not o
+        esc.render.filepath = os.path.join(carpeta, o.name + '.png')
+        bpy.ops.render.render(write_still=True)
+        print('RETRATO', o.name)
+    for o in todos:
+        o.hide_render = False
+
+
 def main():
     limpiar()
     pielClara = material('PielClara', (0.98, 0.80, 0.66))
@@ -162,7 +206,8 @@ def main():
     p = cara(pielClara)
     for lado in (-1, 1):   # cejas de loco, muy marcadas
         p.append(caja((1.2, 4.4, 1.3), (R * 0.78, lado * 3.4, 4.6), negro, 0.4))
-    p.append(esfera(R * 0.98, (-0.6, 0, 0.6), material('Rapado', (0.35, 0.30, 0.28)), (0.92, 0.98, 0.9)))  # sombra del pelo rapado
+    # la sombra del pelo rapado, solo en la coronilla (si cubre toda la cabeza parece un casco)
+    p.append(esfera(R * 0.99, (-0.8, 0, R * 0.30), material('Rapado', (0.36, 0.31, 0.29)), (0.95, 0.99, 0.60)))
     p.append(cil(0.85, 7.0, (R * 0.95, -2.2, -3.6), blanco, 'X'))                 # el cigarro
     p.append(cil(0.9, 1.1, (R * 0.95 + 3.6, -2.2, -3.6), naranja, 'X'))           # la brasa
     todos.append(unir('Loco', p))
@@ -226,6 +271,7 @@ def main():
     for o in todos:
         o.location = (0, 0, 0)
     exportar()
+    retratos(todos)
 
 
 main()

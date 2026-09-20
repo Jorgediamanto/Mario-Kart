@@ -92,7 +92,13 @@ async function recorrido(PORT) {
   await tele.abierto;
   const roster = await tele.espera('roster');
   check(roster && Array.isArray(roster.taken), 'al conectar, el servidor manda `roster` con los personajes cogidos');
-  tele.manda({ t: 'screen', tracks: ['Chicle', 'Playa Neón', 'Volcán Disco', 'Luna Loca'] });
+  // la pantalla manda también los personajes: son los que el móvil enseña para elegir al entrar
+  const PERSONAJES = [
+    { name: 'El Loco', emoji: '🤪', color: '#39ff88' },
+    { name: 'Chuma', emoji: '🧿', color: '#e8a33d' },
+    { name: 'Toro', emoji: '🐂', color: '#6b3f2a' },
+  ];
+  tele.manda({ t: 'screen', tracks: ['Chicle', 'Playa Neón', 'Volcán Disco', 'Luna Loca'], chars: PERSONAJES });
   const init = await tele.espera('init');
   check(init && Array.isArray(init.players) && init.settings, 'la pantalla recibe `init` con la sala y los ajustes');
 
@@ -137,6 +143,19 @@ async function recorrido(PORT) {
     const l2 = await moviles[0].espera('lobby');
     const yo2 = l2 && l2.players.find((p) => p.id === m.id);
     check(!!yo2 && !yo2.easy, 'apagar el interruptor vuelve a dejarlo en normal');
+  }
+
+  // ---- al conectarse, un móvil recibe los personajes que hay para elegir ----
+  {
+    const mirón = cliente(PORT, 'mirón');
+    await mirón.abierto;
+    const r = await mirón.espera('roster');
+    check(r && Array.isArray(r.chars) && r.chars.length === PERSONAJES.length
+      && r.chars[0].name === 'El Loco' && r.chars[2].emoji === '🐂',
+      'quien abre el mando recibe la lista de personajes para elegir (antes de entrar)');
+    check(r && Array.isArray(r.taken) && r.taken.length === SITIOS,
+      `y sabe cuáles están cogidos (${r && r.taken ? r.taken.length : '?'} de ${SITIOS})`);
+    mirón.close();
   }
 
   // ---- la sala está llena: el siguiente se queda fuera ----

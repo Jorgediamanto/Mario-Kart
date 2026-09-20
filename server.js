@@ -235,6 +235,12 @@ let screenWs = null;
 let hostId = null;
 let phase = 'lobby';
 let trackNames = [];
+/*
+ * Los personajes los define la simulación (`CHARS` en public/sim.mjs) y llegan aquí en el `screen`
+ * de la pantalla, igual que los nombres de los circuitos: así el móvil enseña **los personajes que
+ * hay de verdad** para elegir, sin una segunda copia de la lista que se quede vieja.
+ */
+let charList = [];
 const settings = { track: 0, laps: 3, bots: 2 };
 let nextId = 1;
 
@@ -253,12 +259,12 @@ function lobbyMessage() {
   return {
     t: 'lobby',
     players: [...players.values()].map(publicPlayer),
-    settings, hostId, phase, tracks: trackNames,
+    settings, hostId, phase, tracks: trackNames, chars: charList,
     screen: !!(screenWs && screenWs.readyState === WebSocket.OPEN),
   };
 }
 function rosterMessage() {
-  return { t: 'roster', taken: [...players.values()].map((p) => p.char) };
+  return { t: 'roster', taken: [...players.values()].map((p) => p.char), chars: charList, max: MAX_PLAYERS };
 }
 function broadcastLobby() {
   const m = lobbyMessage();
@@ -353,6 +359,13 @@ wss.on('connection', (ws) => {
       screenWs = ws;
       ws.role = 'screen';
       if (Array.isArray(m.tracks)) trackNames = m.tracks.map((s) => String(s).slice(0, 40)).slice(0, 20);
+      if (Array.isArray(m.chars)) {
+        charList = m.chars.slice(0, NUM_CHARS).map((c) => ({
+          name: String((c && c.name) || '').slice(0, 20),
+          emoji: String((c && c.emoji) || '🏎️').slice(0, 8),
+          color: /^#[0-9a-f]{6}$/i.test((c && c.color) || '') ? c.color : '#ffffff',
+        }));
+      }
       if (settings.track >= Math.max(1, trackNames.length)) settings.track = 0;
       log('Pantalla conectada');
       send(ws, { t: 'init', players: [...players.values()].map(publicPlayer), settings, hostId });

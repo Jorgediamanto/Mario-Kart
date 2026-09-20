@@ -972,7 +972,15 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     if (state.replaced) return;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${proto}://${location.host}`);
-    ws.onopen = () => { wsSend({ t: 'screen', tracks: KART_TRACKS.map((t) => t.name) }); };
+    // la pantalla es la única que conoce `CHARS`: le pasa al servidor los circuitos y **los
+    // personajes**, para que los móviles enseñen los que hay de verdad al entrar
+    ws.onopen = () => {
+      wsSend({
+        t: 'screen',
+        tracks: KART_TRACKS.map((t) => t.name),
+        chars: CHARS.map((c) => ({ name: c.name, emoji: c.emoji, color: c.color })),
+      });
+    };
     ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch (_) { return; } handleMessage(m); };
     ws.onclose = () => { if (!state.replaced) setTimeout(connect, 1500); };
     ws.onerror = () => { /* onclose reconecta */ };

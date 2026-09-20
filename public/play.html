@@ -24,6 +24,10 @@
   .chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
   .char { aspect-ratio: 1; border-radius: 16px; border: 3px solid transparent; background: #1a1f45; font-size: 38px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #fff; padding: 0; }
   .char small { font-size: 11px; margin-top: 2px; font-weight: 600; }
+  /* el retrato del personaje (lo hace Blender: public/modelos/retratos). Si no carga, se ve el emoji */
+  .char img { width: 62px; height: 62px; object-fit: contain; display: block; margin-bottom: -4px; }
+  .char img + .em, .me img + .em { display: none; }
+  .me img { width: 34px; height: 34px; object-fit: contain; vertical-align: -9px; }
   .char.sel { background: #2a2f65; }
   .char.taken { opacity: .3; }
   .big { font-size: 22px; font-weight: 800; padding: 18px; border-radius: 16px; border: 0; background: #ffe600; color: #222; width: 100%; box-shadow: 0 6px 0 #c9a800; }
@@ -43,6 +47,8 @@
   .setting .lbl { flex: 1; font-size: 16px; padding-left: 8px; color: #aab0e8; }
   .setting .val { font-weight: 800; font-size: 18px; min-width: 90px; text-align: center; }
   .setting .btn { width: 52px; font-size: 22px; padding: 10px 0; }
+  /* el recuadro del volante es un «setting» pero sus botones son de texto, no de ± : ancho entero */
+  #volante-caja .btn { width: auto; font-size: 16px; padding: 12px 14px; }
   ul.players { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   ul.players li { background: #141834; border-radius: 10px; padding: 8px 10px; font-size: 15px; font-weight: 600; }
   ul.players li.off { opacity: .45; }

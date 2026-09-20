@@ -5,16 +5,36 @@
 (() => {
   'use strict';
 
-  const CHARS = [
-    { name: 'Rana', emoji: '🐸', color: '#3ddc84' },
-    { name: 'Zorro', emoji: '🦊', color: '#ff8c42' },
-    { name: 'Panda', emoji: '🐼', color: '#f2f2f2' },
-    { name: 'Tigre', emoji: '🐯', color: '#ffd23f' },
-    { name: 'Unicornio', emoji: '🦄', color: '#ff6bcb' },
-    { name: 'Pulpo', emoji: '🐙', color: '#a66cff' },
-    { name: 'Pingüino', emoji: '🐧', color: '#4cc9f0' },
-    { name: 'Dino', emoji: '🦖', color: '#ff4d4d' },
+  /*
+   * Los personajes de verdad los define la simulación (`CHARS` en sim.mjs) y llegan por el
+   * servidor en cuanto la pantalla se conecta (mensajes `roster` y `lobby`). Esta lista es solo el
+   * respaldo para el rato en que aún no han llegado: si algún día se cambian los personajes, esto
+   * se puede quedar viejo, pero lo que se ve al elegir será lo que mande la pantalla.
+   */
+  let CHARS = [
+    { name: 'El Loco', emoji: '🤪', color: '#39ff88' },
+    { name: 'Chuma', emoji: '🧿', color: '#e8a33d' },
+    { name: 'Toro', emoji: '🐂', color: '#6b3f2a' },
+    { name: 'Diamanto', emoji: '💎', color: '#7fe9ff' },
+    { name: 'Leini', emoji: '🤠', color: '#2a4fd6' },
+    { name: 'Carlota', emoji: '👧', color: '#ff8ad8' },
+    { name: 'Scarlet', emoji: '🌹', color: '#d62c2c' },
   ];
+  // La foto de cada personaje: el archivo se llama como él, sin artículo ni espacios («El Loco» → Loco)
+  const retratoDe = (c) => '/modelos/retratos/' + encodeURIComponent(String(c.name).replace(/^El /, '').replace(/\s+/g, '')) + '.png';
+
+  // Cambia la lista por la que manda la pantalla (si trae algo). Devuelve si ha cambiado algo.
+  function ponerChars(lista) {
+    if (!Array.isArray(lista) || !lista.length) return false;
+    const antes = JSON.stringify(CHARS);
+    CHARS = lista.map((c, i) => ({
+      name: (c && c.name) || 'Personaje ' + (i + 1),
+      emoji: (c && c.emoji) || '🏎️',
+      color: (c && c.color) || '#ffffff',
+    }));
+    if (me.char >= CHARS.length) me.char = -1;    // el que tenía guardado ya no existe
+    return JSON.stringify(CHARS) !== antes;
+  }
   const ITEMS = {
     mushroom: { icon: '🍄', name: 'Champiñón: turbo' },
     banana: { icon: '🍌', name: 'Plátano: lo sueltas detrás' },
@@ -94,6 +114,7 @@
         break;
       case 'roster':
         takenChars = new Set(m.taken);
+        ponerChars(m.chars);
         renderChars();
         break;
       case 'lobby':
@@ -101,6 +122,7 @@
         me.host = m.hostId === me.id;
         phase = m.phase;
         takenChars = new Set(m.players.filter((p) => p.id !== me.id).map((p) => p.char));
+        ponerChars(m.chars);
         renderChars();
         if (currentView === 'lobby') renderLobby();
         if (currentView === 'results') renderResults();
@@ -179,7 +201,10 @@
       const taken = takenChars.has(i) && i !== me.char;
       b.className = 'char' + (i === me.char ? ' sel' : '') + (taken ? ' taken' : '');
       b.style.borderColor = i === me.char ? c.color : 'transparent';
-      b.innerHTML = `${c.emoji}<small>${c.name}</small>`;
+      // el retrato de verdad (lo genera Blender); si no está, se queda el emoji
+      b.innerHTML = `<img src="${retratoDe(c)}" alt=""><span class="em">${c.emoji}</span><small>${esc(c.name)}</small>`;
+      const img = b.querySelector('img');
+      img.addEventListener('error', () => img.remove());
       b.addEventListener('click', () => {
         if (taken) { showErr('Ese personaje ya está cogido.'); return; }
         me.char = i; showErr(''); renderChars();
@@ -203,7 +228,9 @@
   // ---- Sala ----
   function renderLobby() {
     const ch = CHARS[me.char] || CHARS[0];
-    $('me-emoji').textContent = ch.emoji;
+    $('me-emoji').innerHTML = `<img src="${retratoDe(ch)}" alt=""><span class="em">${ch.emoji}</span>`;
+    const miFoto = $('me-emoji').querySelector('img');
+    miFoto.addEventListener('error', () => { miFoto.remove(); $('me-emoji').textContent = ch.emoji; });
     $('me-name').textContent = me.name;
     const hostP = lobby ? lobby.players.find((p) => p.id === lobby.hostId) : null;
     let text;
