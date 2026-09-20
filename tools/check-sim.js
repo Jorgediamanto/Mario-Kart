@@ -1084,6 +1084,43 @@ const escenarios = [
     },
   },
   {
+    /*
+     * «Curvas largas para derrapar al nivel 3» (IDEAS.md). El nivel 3 pide **1,4 s girando hacia el
+     * mismo lado sin soltar**, así que hace falta un curvón que dure eso a velocidad de carrera.
+     *
+     * Ojo con cómo se mide: los bots no valen para esto. Un bot sigue la línea corrigiendo sesenta
+     * veces por segundo, y cada corrección cruza el centro del volante y le rompe el derrape; por
+     * eso en una carrera de bots no sale **ni un** nivel 3, ni en los circuitos de ahora ni en los
+     * de antes. Una persona no conduce así: mueve el volante despacio y lo **sostiene** dentro de
+     * la curva. Eso es lo que imita el conductor de aquí abajo (el volante se mueve como mucho
+     * 0,06 por fotograma), y con él el nivel 3 sale en los circuitos que tienen curvón.
+     */
+    nombre: 'una persona que sostiene el volante llega al nivel 3 de derrape en algún circuito',
+    run(sim) {
+      const medidas = [];
+      for (const nombre of ['Playa Neón', 'Volcán Disco']) {
+        const s = carrera(sim, { bots: 0, laps: 2, trackIndex: pista(nombre) });
+        const k = humano(s);
+        const t = s.state.track;
+        let mejorT = 0, nivel = 0, val = 0;
+        for (let f = 0; f < 60 * 80 && k.lapCount < 1; f++) {
+          const near = t.nearestNear(k.x, k.y, ((k.dist % t.N) + t.N) % t.N, t.win);
+          const obj = t.samples[(near.i + 22) % t.N];
+          const diff = sim.wrapAngle(Math.atan2(obj.y - k.y, obj.x - k.x) - k.angle);
+          val += Math.max(-0.06, Math.min(0.06, diff * 3.2 - val));
+          s.setInput(k, { s: Math.max(-1, Math.min(1, val)), g: 1, b: 0, d: 0 });
+          s.update(DT);
+          if (k.driftT > mejorT) mejorT = k.driftT;
+          if (k.driftLevel > nivel) nivel = k.driftLevel;
+        }
+        medidas.push({ nombre, nivel, mejorT });
+      }
+      const resumen = medidas.map((m) => `${m.nombre} ${m.mejorT.toFixed(2)} s (nivel ${m.nivel})`).join(', ');
+      if (!medidas.some((m) => m.nivel >= 3)) return `nadie pasa del nivel 2: ${resumen}`;
+      return null;
+    },
+  },
+  {
     // el volante del móvil manda un decimal: girar a medias tiene que girar a medias
     nombre: 'la dirección es analógica: medio volante gira la mitad',
     run(sim) {

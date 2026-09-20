@@ -7,7 +7,7 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 01:12
+- último latido (UTC): 2026-09-20 01:19
 - rama: noche/2026-09-20
 
 ## Punto en curso
@@ -17,9 +17,8 @@ retomar la rama.
   30,4 · Luna Loca 28,3 · Arcoíris 33,5. Motor `tools/traza.js`, decoración junto a la carretera,
   pista de pruebas propia para los escenarios de la horquilla y comprobación nueva de duración de
   vuelta en `npm test`. Una entrada de CHANGELOG por circuito. `npm test` en verde.
-- siguiente paso: falta **lo único que queda de la «Comprobación» del punto**: un «atajo con
-  riesgo» (una rampa que salte por encima de una curva) validado con un bot que lo toma y llega
-  antes. Si sale, se marca [x] y se fusiona a main; si no, se anota y se cierra lo demás.
+- siguiente paso: cerrar el punto en IDEAS.md (con la nota del atajo, que está medido y no sale con
+  esta simulación) y fusionar a main.
 - intentos fallidos en este punto: 0
 
 ## Última sesión

@@ -71,7 +71,7 @@ const CIRCUITOS = {
       { f: 156, r: 2050, R:  250, nombre: 'la cerrada del humo' },
       { f: 184, r: 1600, R:  290, nombre: 'zigzag (izquierda)' },
       { f: 210, r: 2050, R:  250, nombre: 'zigzag (derecha)' },
-      { f: 238, r: 1480, R:  210, nombre: 'la horquilla del volcán' },
+      { f: 238, r: 1100, R:  620, nombre: 'la horquilla del volcán' },
       { f: 266, r: 2000, R:  310, nombre: 'apoyo de la bola de espejos' },
       { f: 296, r: 1420, R:  270, nombre: 'media del baile' },
       { f: 326, r: 2000, R:  520, nombre: 'salida hacia la recta' },
