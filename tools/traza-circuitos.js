@@ -25,7 +25,7 @@ const CIRCUITOS = {
    * No tiene ninguna curva cerrada de verdad: se puede dar la vuelta entera sin levantar el pie.
    */
   'Chicle': {
-    ancho: 200, esc: 1.25, ey: 0.60,
+    ancho: 200, esc: 1.34, ey: 0.60,
     spec: [
       { f:  42, r: 2050, R: 1000, nombre: 'salida de meta' },
       { f:  96, r: 2100, R: 1500, nombre: 'curvón del caramelo' },

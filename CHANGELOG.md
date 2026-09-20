@@ -3,6 +3,36 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (noche) — Chicle, rehecho: tres veces más largo, el doble de ancho y con cuestas
+
+Primero de los cuatro circuitos que quedaban en vueltas de 9-12 s. El molde es el de Arcoíris (el
+dueño ya eligió que cada circuito tenga **su propio mundo**, y allí salió bien): un polígono con las
+esquinas redondeadas, generado por script y validado antes de pegarlo.
+
+- **Chicle** pasa de 3.984 px a **12.832 px**, en un mundo propio de **5400x3600** (antes
+  1920x1080). La vuelta de los bots pasa de **9,4 s a 29,2 s**, dentro de los 25-60 s que pide la
+  hoja de ruta: ahora una vuelta da tiempo a que pasen cosas.
+- **La carretera es casi el doble de ancha** (110 → 200). Con la cámara de detrás, el pasillo de
+  antes obligaba a ir mirando el borde; ahora se puede trazar, adelantar por fuera y derrapar sin
+  acabar en la hierba. En la simulación nadie se sale ni una décima (columna «Fuera» a 0,0 s).
+- **Sube y baja**: cuestas suaves repartidas por la vuelta (ninguna llega al 6 %) y **dos saltos**
+  en vez de uno, cada uno en su recta. Es el circuito fácil de los cinco a propósito: curvas
+  abiertas, una sola chicane y ninguna curva cerrada de verdad.
+- Más sitio quiere más cosas: **7 cajas y 4 paneles turbo** (antes 3 y 2), quitamiedos por fuera de
+  las curvas rápidas y en la chicane, y algo más de decoración.
+- **La decoración se planta ahora junto a la carretera**, no sorteada por todo el mundo. Con mapas
+  ocho veces más grandes, media decoración caía donde no pasa nadie y las curvas se quedaban sin
+  referencias visuales. Mismo número de mallas, todas donde se juega. Vale para los cinco circuitos.
+- El motor de trazados vive ahora en `tools/traza.js`, compartido: `node tools/traza-circuitos.js
+  Chicle --escribir` vuelve a generar el trazado, y `npm run check` lo valida.
+- `tools/referencia.json` se ha rehecho **a propósito** (la vuelta de Chicle cambia de 9,42 s a
+  29,22 s; los otros cuatro siguen clavados).
+
+- **Cómo probarlo en la fiesta**: `npm start`, elige Chicle y da una vuelta. Debería notarse que la
+  carretera es ancha de verdad, que las curvas se ven venir y que la vuelta dura lo suyo.
+  **Pendiente de probar en fiesta**: si 3 vueltas (90 s) se hace largo, se baja a 2 desde la sala; y
+  medir los fps con la tecla `P` con 8 paneles, que hay más decoración que antes.
+
 ## 2026-09-20 (tarde) — Los siete de la fiesta, con cara propia y desfile en la sala
 
 - **Siete personajes, siete sitios**: El Loco (rapado y con un cigarro del que sale humo verde),

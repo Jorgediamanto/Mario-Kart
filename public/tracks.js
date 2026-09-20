@@ -118,36 +118,75 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
       ],
     },
     {
+      /*
+       * Chicle — el circuito de aprender, y el primero que se rehízo con el molde de Arcoíris.
+       *
+       * Antes medía 3.984 px y una vuelta duraba 8 s: te la sabías antes de acabar la primera y la
+       * carretera de 110 px era un pasillo para la cámara de detrás. Ahora mide 11.936 px en un
+       * mundo propio de 5100x3400, la carretera es casi el doble de ancha (200) y sube y baja.
+       *
+       * Es el fácil de los cinco **a propósito**: curvas abiertas, una sola chicane y ninguna
+       * cerrada de verdad (el radio más pequeño es 264, y con 200 de ancho eso se pasa sin
+       * levantar el pie). Se genera con `node tools/traza-circuitos.js Chicle --escribir`.
+       */
       name: 'Chicle',
-      width: 110,
+      width: 200,
       gravity: 1,
-      boxes: [0.2, 0.64, 0.82],
-      pads: [0.08, 0.7],
+      world: { w: 5400, h: 3600 },
+      boxes: [0.12, 0.22, 0.33, 0.41, 0.645, 0.80, 0.87],
+      pads: [0.085, 0.26, 0.58, 0.85],
       features: [
-        { type: 'hill', at: 0.28, height: 20, length: 260 },
-        { type: 'ramp', at: 0.46, height: 34, length: 160 },
-        { type: 'hill', at: 0.86, height: 14, length: 200 },
+        { type: 'hill', at: 0.16, height: 24, length: 300 },     // lomo de la recta larga
+        { type: 'ramp', at: 0.455, height: 48, length: 180 },    // salto de mitad de vuelta
+        { type: 'hill', at: 0.60, height: 20, length: 280 },
+        { type: 'ramp', at: 0.675, height: 46, length: 180 },    // salto de la recta del chupachups
+        { type: 'hill', at: 0.90, height: 16, length: 240 },
       ],
-      barriers: [{ from: 0.22, to: 0.3, side: 'both' }, { from: 0.62, to: 0.68, side: 'outer' }],
+      // el sube y baja: cuestas suaves (ninguna llega al 6 %), que este es el circuito fácil
+      relieve: [
+        { at: 0.00, h: 0 }, { at: 0.14, h: 70 }, { at: 0.30, h: 120 }, { at: 0.46, h: 60 },
+        { at: 0.60, h: -40 }, { at: 0.74, h: 20 }, { at: 0.88, h: 80 },
+      ],
+      barriers: [
+        { from: 0.20, to: 0.31, side: 'outer' }, { from: 0.32, to: 0.40, side: 'both' },
+        { from: 0.50, to: 0.56, side: 'outer' }, { from: 0.72, to: 0.79, side: 'outer' },
+        { from: 0.86, to: 0.92, side: 'outer' },
+      ],
       theme: {
         sky: ['#ff7ad9', '#8df6ff'], fog: '#ffb6ec',
         ground: '#86ff3d', groundAlt: '#4fe04a',
         road: '#3a1d7a', curb: ['#ff2d95', '#ffffff'], bumper: ['#ffe600', '#ff2d95'], pad: '#00ffd0',
-        pools: { kind: 'water', color: '#37e5ff', count: 4, minR: 40, maxR: 80 },
+        pools: { kind: 'water', color: '#37e5ff', count: 6, minR: 40, maxR: 80 },
+        // más decoración que antes, pero no el triple: el circuito es tres veces más largo y cada
+        // malla se dibuja una vez por panel (con 8 jugadores, ocho veces). Medir con la tecla P.
         decor: [
-          { kind: 'candyTree', n: 34 }, { kind: 'mushroom', n: 12 }, { kind: 'balloon', n: 14 },
-          { kind: 'lollipop', n: 10 }, { kind: 'rock', n: 8 },
+          { kind: 'candyTree', n: 48 }, { kind: 'mushroom', n: 17 }, { kind: 'balloon', n: 20 },
+          { kind: 'lollipop', n: 14 }, { kind: 'rock', n: 11 },
         ],
         palette: ['#ff2d95', '#00e5ff', '#ffe600', '#b14bff', '#ff6a00', '#39ff88'],
-        clouds: { color: '#ffffff', n: 9 },
-        sun: { color: '#fff176', pos: [1750, 760, -700], r: 70 },
+        clouds: { color: '#ffffff', n: 11 },
+        sun: { color: '#fff176', pos: [4600, 900, -1400], r: 110 },
         stars: false,
       },
       points: [
-        { x: 500, y: 245 }, { x: 900, y: 230 }, { x: 1300, y: 240 }, { x: 1600, y: 300 },
-        { x: 1740, y: 520 }, { x: 1650, y: 760 }, { x: 1400, y: 900 }, { x: 1150, y: 850 },
-        { x: 950, y: 700 }, { x: 750, y: 830 }, { x: 500, y: 920 }, { x: 250, y: 800 },
-        { x: 190, y: 560 }, { x: 280, y: 330 },
+        { x: 3393, y: 3163 }, { x: 3276, y: 3192 }, { x: 3160, y: 3221 }, { x: 3044, y: 3249 }, { x: 2927, y: 3278 }, { x: 2811, y: 3307 },
+        { x: 2694, y: 3335 }, { x: 2576, y: 3357 }, { x: 2457, y: 3369 }, { x: 2337, y: 3372 }, { x: 2217, y: 3365 }, { x: 2099, y: 3348 },
+        { x: 1982, y: 3322 }, { x: 1867, y: 3287 }, { x: 1755, y: 3245 }, { x: 1643, y: 3203 }, { x: 1530, y: 3160 }, { x: 1418, y: 3118 },
+        { x: 1306, y: 3076 }, { x: 1194, y: 3033 }, { x: 1082, y: 2991 }, { x: 973, y: 2940 }, { x: 872, y: 2876 }, { x: 780, y: 2799 },
+        { x: 700, y: 2710 }, { x: 632, y: 2611 }, { x: 578, y: 2504 }, { x: 538, y: 2391 }, { x: 514, y: 2274 }, { x: 505, y: 2154 },
+        { x: 497, y: 2035 }, { x: 463, y: 1920 }, { x: 402, y: 1817 }, { x: 327, y: 1723 }, { x: 262, y: 1623 }, { x: 226, y: 1509 },
+        { x: 223, y: 1390 }, { x: 253, y: 1274 }, { x: 313, y: 1171 }, { x: 400, y: 1089 }, { x: 505, y: 1033 }, { x: 617, y: 989 },
+        { x: 729, y: 945 }, { x: 840, y: 901 }, { x: 952, y: 857 }, { x: 1063, y: 812 }, { x: 1169, y: 757 }, { x: 1270, y: 692 },
+        { x: 1370, y: 626 }, { x: 1471, y: 561 }, { x: 1572, y: 496 }, { x: 1672, y: 431 }, { x: 1773, y: 366 }, { x: 1876, y: 304 },
+        { x: 1986, y: 258 }, { x: 2103, y: 230 }, { x: 2222, y: 220 }, { x: 2341, y: 229 }, { x: 2458, y: 257 }, { x: 2569, y: 303 },
+        { x: 2676, y: 357 }, { x: 2783, y: 411 }, { x: 2889, y: 466 }, { x: 2996, y: 520 }, { x: 3103, y: 574 }, { x: 3210, y: 628 },
+        { x: 3317, y: 683 }, { x: 3429, y: 726 }, { x: 3547, y: 744 }, { x: 3666, y: 758 }, { x: 3785, y: 772 }, { x: 3904, y: 787 },
+        { x: 4023, y: 801 }, { x: 4143, y: 815 }, { x: 4262, y: 829 }, { x: 4381, y: 843 }, { x: 4500, y: 859 }, { x: 4615, y: 890 },
+        { x: 4724, y: 939 }, { x: 4825, y: 1005 }, { x: 4913, y: 1086 }, { x: 4988, y: 1179 }, { x: 5047, y: 1283 }, { x: 5096, y: 1393 },
+        { x: 5133, y: 1507 }, { x: 5158, y: 1624 }, { x: 5169, y: 1743 }, { x: 5167, y: 1863 }, { x: 5152, y: 1982 }, { x: 5124, y: 2099 },
+        { x: 5084, y: 2211 }, { x: 5031, y: 2319 }, { x: 4967, y: 2420 }, { x: 4892, y: 2514 }, { x: 4817, y: 2607 }, { x: 4735, y: 2695 },
+        { x: 4644, y: 2773 }, { x: 4544, y: 2839 }, { x: 4437, y: 2892 }, { x: 4324, y: 2933 }, { x: 4208, y: 2962 }, { x: 4091, y: 2991 },
+        { x: 3975, y: 3020 }, { x: 3858, y: 3048 }, { x: 3742, y: 3077 }, { x: 3626, y: 3106 }, { x: 3509, y: 3134 },
       ],
     },
     {
