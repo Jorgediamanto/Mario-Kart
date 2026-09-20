@@ -7,11 +7,11 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 01:33
+- último latido (UTC): 2026-09-20 01:52
 - rama: noche/2026-09-20
 
 ## Punto en curso
-- IDEAS.md: ninguno (recién cerrado «Modo fácil por jugador»)
+- IDEAS.md: ninguno (recién cerrado «Calentamiento en la sala»)
 - hecho: —
 - siguiente paso: —
 - intentos fallidos en este punto: 0

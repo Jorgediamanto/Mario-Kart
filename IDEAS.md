@@ -442,10 +442,18 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 - [ ] **Salida perfecta.** Pulsar GAS justo en el «¡YA!» (ventana de 0,4 s) da un turbo de salida; pulsarlo
       demasiado pronto hace patinar 0,8 s. Cuenta atrás con vibración en cada número. Comprobación: simulación
       con entradas programadas: GAS en la ventana → turbo; GAS 1 s antes → patinazo.
-- [ ] **Calentamiento en la sala.** Mientras el anfitrión no pulsa EMPEZAR, los karts ya están en la pista
+- [x] **Calentamiento en la sala.** Mientras el anfitrión no pulsa EMPEZAR, los karts ya están en la pista
       (zona de pruebas junto a la meta) y se pueden conducir para aprender los botones. Comprobación: la
       simulación admite fase «calentamiento» sin vueltas ni objetos; al empezar la carrera todos vuelven a la
       parrilla.
+      - ✅ **Hecho la noche del 2026-09-20.** Fase `warmup` en `sim.mjs` (`sim.warmup({entries,
+        trackIndex})`): se conduce, se choca y te recogen si te clavas; ni vueltas, ni cajas, ni
+        objetos, ni clasificación. Quien entra nuevo no mueve de su sitio a quien ya conducía, y
+        cambiar de circuito devuelve a todos a la parrilla nueva. En el móvil, botón **«🕹️ Probar
+        el mando»** en la sala y «↩ sala» para volver. En la tele la sala sigue puesta (el anfitrión
+        tiene que poder empezar) y —esto con cuidado— **el desfile de karts del dueño se mantiene**:
+        mientras nadie toca el mando se ve la sala de siempre, y en cuanto alguien se mueve la
+        cámara se va con los karts. Escenario en `check-sim.js` y la fase en `check-protocol.js`.
 - [ ] **Ayuda la primera vez.** En el móvil, una sola pantalla con dibujos de los 4 botones y qué hacen (giro
       mantenido = derrape; dos giros = marcha atrás; giro en el aire = truco). Se muestra una vez y hay un botón
       «?» para volver a verla. Comprobación: `GET /play` contiene la ayuda y `play.js` guarda el flag en

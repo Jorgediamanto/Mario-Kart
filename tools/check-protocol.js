@@ -220,6 +220,10 @@ async function recorrido(PORT) {
     moviles[0].manda({ t: 'start' });
     const start = await tele.espera('start');
     check(!!start, 'el anfitrión manda `start` y llega a la pantalla');
+    // calentamiento: es una fase más, y al móvil le llega igual que las otras
+    tele.manda({ t: 'phase', phase: 'warmup' });
+    const cal = await moviles[4].espera((m) => m.t === 'phase' && m.phase === 'warmup');
+    check(!!cal, 'la fase de calentamiento llega a los móviles');
     tele.manda({ t: 'phase', phase: 'race' });
     const fase = await moviles[4].espera((m) => m.t === 'phase' && m.phase === 'race');
     check(!!fase, 'la pantalla cambia la fase y todos los móviles se enteran');

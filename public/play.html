@@ -137,6 +137,8 @@
     <div id="guest-settings" class="hint" style="margin-top:6px"></div>
     <ul class="players" id="lobby-players"></ul>
     <div id="no-screen" class="warn hidden">La pantalla de la tele no está abierta. Abre <b>http://…:3000</b> en el ordenador conectado a la tele.</div>
+    <!-- calentamiento: tu kart ya está en la pista, aquí se coge el mando para probarlo -->
+    <button id="btn-probar" class="big hidden" style="background:#9b3bff; margin-bottom:10px">🕹️ Probar el mando</button>
     <div class="row">
       <button id="btn-change" class="btn">Cambiar personaje</button>
       <button id="btn-fs" class="btn">Pantalla completa</button>
@@ -174,7 +176,7 @@
   </div>
 
   <div class="view" id="v-race">
-    <div class="status"><span class="pos" id="st-pos">—</span><span id="st-lap">—</span><span class="nm" id="st-name"></span><button id="btn-centrar" class="chip hidden">⊙ centrar</button></div>
+    <div class="status"><span class="pos" id="st-pos">—</span><span id="st-lap">—</span><span class="nm" id="st-name"></span><button id="btn-volver" class="chip hidden">↩ sala</button><button id="btn-centrar" class="chip hidden">⊙ centrar</button></div>
     <div class="vbar" id="vbar"><div class="marca"></div><div class="aguja" id="vaguja"></div><div class="txt" id="vtxt"></div></div>
     <div class="portrait-hint">Gira el móvil en horizontal para jugar más cómodo 🔄</div>
     <div class="pad" id="pad">

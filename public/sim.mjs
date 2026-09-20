@@ -377,7 +377,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       skill: 0.86 + random() * 0.1,
       lane: (random() * 2 - 1) * state.track.halfW * 0.5,
       x: g.x, y: g.y, z: g.h, vz: 0, air: false, ground: g.h, angle: g.ang, moveAngle: g.ang, speed: 0,
-      dist: g.dist, lapCount: -1, rank: 1, offroad: false,
+      dist: g.dist, gridDist: g.dist, lapCount: -1, rank: 1, offroad: false,
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0, lapAt: 0,
       lastRamp: -1, lastRampAt: -99, offT: 0,
@@ -399,14 +399,25 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
 
   // Circuito que se ve en la sala (solo antes de empezar)
   function setTrack(index) {
-    if (state.phase !== 'lobby') return;
+    if (state.phase !== 'lobby' && state.phase !== 'warmup') return;
     const i = ((index % tracks.length) + tracks.length) % tracks.length;
+    if (state.track === tracks[i]) return;
     state.track = tracks[i];
     hooks.onTrackChanged(state.track);
+    // si alguien estaba calentando, el circuito de debajo ha cambiado: de vuelta a la parrilla nueva
+    if (state.phase === 'warmup') {
+      state.karts.forEach((k, n) => {
+        const g = state.track.grid[n % state.track.grid.length];
+        k.x = g.x; k.y = g.y; k.z = g.h; k.ground = g.h; k.vz = 0; k.air = false;
+        k.angle = g.ang; k.moveAngle = g.ang; k.speed = 0;
+        k.dist = g.dist; k.gridDist = g.dist; k.lapCount = -1;
+        k.driftT = 0; k.driftLevel = 0; k.steerT = 0; k.steerDir = 0; k.stuckT = 0; k.offT = 0; k.wrongT = 0;
+      });
+    }
   }
 
   function startRace({ entries, trackIndex, laps } = {}) {
-    if (state.phase !== 'lobby') return false;
+    if (state.phase !== 'lobby' && state.phase !== 'warmup') return false;
     const list = (entries || []).slice(0, MAX_KARTS);
     if (!list.length) return false;
     for (const k of state.karts) hooks.onKartRemoved(k);
@@ -436,6 +447,39 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     hooks.onPhase('results');
     for (const k of state.karts) hooks.onStatus(k);
     hooks.onSfx('finish');
+  }
+
+  /*
+   * Calentamiento: mientras el anfitrión no pulsa EMPEZAR, quien ya está en la sala puede conducir
+   * su kart en la parrilla, justo antes de la meta, para aprender los botones sin que nadie le
+   * mire ni le adelante. Se conduce y se choca, y nada más: **ni vueltas, ni cajas, ni objetos, ni
+   * clasificación**. Al empezar la carrera, `startRace` los vuelve a poner en la parrilla.
+   *
+   * Se llama cada vez que cambia quién está en la sala. A quien ya estaba **no se le toca**: si
+   * entra alguien mientras tú das una vuelta de prueba, tú sigues donde ibas.
+   */
+  function warmup({ entries, trackIndex } = {}) {
+    if (state.phase !== 'lobby' && state.phase !== 'warmup') return false;
+    if (Number.isInteger(trackIndex)) setTrack(trackIndex);
+    const lista = (entries || []).slice(0, MAX_KARTS);
+    const idDe = (e) => (e.playerId != null ? 'p' + e.playerId : e.kb ? 'kb' : 'bot' + e.char);
+    const quedan = new Set(lista.map(idDe));
+    for (const k of state.karts.slice()) if (!quedan.has(k.id)) removeKart(k);
+    const libres = state.track.grid.slice();
+    for (const k of state.karts) { const i = libres.findIndex((g) => g && g.dist === k.gridDist); if (i >= 0) libres[i] = null; }
+    for (const e of lista) {
+      if (state.karts.some((k) => k.id === idDe(e))) continue;
+      const hueco = libres.findIndex((g) => g);
+      if (hueco < 0) break;
+      const k = makeKart(e, libres[hueco]);
+      k.gridDist = libres[hueco].dist;
+      libres[hueco] = null;
+      state.karts.push(k);
+      hooks.onKartAdded(k);
+      hooks.onStatus(k);
+    }
+    if (state.phase !== 'warmup') { state.phase = 'warmup'; hooks.onPhase('warmup'); }
+    return true;
   }
 
   function backToLobby() {
@@ -557,7 +601,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       k.angle = wrapAngle(k.angle + wrapAngle(sm.ang - k.angle) * GOLPE_ENDEREZA);
       k.moveAngle = k.angle;
     }
-    const active = state.phase === 'race' && !spinning;
+    const active = (state.phase === 'race' || state.phase === 'warmup') && !spinning;
     // `inp.d` (el viejo botón de derrape) ya no se usa: el derrape sale solo. Se sigue aceptando en
     // el protocolo para no romper los móviles que lleven la página cargada de antes.
     let s = active ? inp.s : 0, g = active ? inp.g : 0, b = active ? inp.b : 0;
@@ -728,7 +772,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     if (k.offroad && spd > 60) { k.dustT += dt; if (k.dustT > 0.06) { k.dustT = 0; hooks.onParticles(k.x, k.z + 3, k.y, { n: 2, color: [t.def.theme.groundAlt, t.def.theme.ground], spread: 40, vy: 50, life: 0.6, size: 6, g: 60 }); } }
 
     // ¿perdido o clavado? a los RESCUE_AFTER segundos, de vuelta a la carretera
-    if (state.phase === 'race' && !k.finished && !spinning) {
+    if ((state.phase === 'race' || state.phase === 'warmup') && !k.finished && !spinning) {
       const propio = tramoDe(k);                   // su tramo, no el que le pille más cerca
       const lento = Math.abs(k.speed) < RESCUE_SLOW && !k.air;
       const perdido = propio.d > t.halfW + RESCUE_FAR;
@@ -804,6 +848,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     }
     k.aheadT = 0;
     k.dist += delta;
+    if (state.phase !== 'race') return;    // en calentamiento se conduce, pero no se cuentan vueltas
     const lap = Math.floor(k.dist / N);
     if (lap > k.lapCount) {
       k.lapCount = lap;
@@ -1110,6 +1155,18 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       }
       return;
     }
+    /*
+     * Calentamiento: se conduce, pero no se juega. Los karts se mueven y se chocan entre ellos (que
+     * ya es medio divertido), les recogen si se quedan clavados, y nada más: ni vueltas, ni cajas,
+     * ni objetos, ni clasificación.
+     */
+    if (state.phase === 'warmup') {
+      for (const k of state.karts) stepKart(k, k.isBot ? aiInput(k) : k.input, dt);
+      collideKarts();
+      statusTimer += dt;
+      if (statusTimer >= 0.3) { statusTimer = 0; for (const k of state.karts) hooks.onStatus(k); }
+      return;
+    }
     if (state.phase !== 'race') return;
 
     // Caracol: la carrera está parada mientras alguien elige. No avanza ni el tiempo de vuelta ni
@@ -1147,7 +1204,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
 
   return {
     tracks, state, stats,
-    startRace, update, setInput, useItem, aiInput, hitKart, boost, backToLobby, removeKart, elegirVictima, rollItem,
+    startRace, warmup, update, setInput, useItem, aiInput, hitKart, boost, backToLobby, removeKart, elegirVictima, rollItem,
     setTrack, displayLap, updateRanking, allFinished,
     now: () => simTime,
   };
