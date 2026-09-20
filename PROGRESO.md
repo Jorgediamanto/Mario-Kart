@@ -7,13 +7,17 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 01:52
+- último latido (UTC): 2026-09-20 02:00
 - rama: noche/2026-09-20
 
 ## Punto en curso
-- IDEAS.md: ninguno (recién cerrado «Calentamiento en la sala»)
-- hecho: —
-- siguiente paso: —
+- IDEAS.md: Fase 4 — «Cámara con carácter». Los dos que quedaban de Fase 3 («Ayuda la primera vez»
+  y «Móvil legible de un vistazo») están **saltados a propósito**: el dueño estaba despierto a las
+  3:52 tocando `play.html`/`play.js` y los dos puntos viven ahí.
+- hecho: nada todavía.
+- siguiente paso: FOV que se abre con el turbo, sacudida corta en golpes y aterrizajes, hit-stop de
+  20-40 ms y mirar más lejos a más velocidad. Todo en `screen.js` y con constantes arriba; la
+  simulación **no se toca** (lo pide la comprobación del punto).
 - intentos fallidos en este punto: 0
 
 ## Última sesión

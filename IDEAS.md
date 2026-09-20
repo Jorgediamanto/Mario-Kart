@@ -458,9 +458,17 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       mantenido = derrape; dos giros = marcha atrás; giro en el aire = truco). Se muestra una vez y hay un botón
       «?» para volver a verla. Comprobación: `GET /play` contiene la ayuda y `play.js` guarda el flag en
       `localStorage`.
+      - ⏭ **Saltado la noche del 2026-09-20**: el dueño estaba despierto a las 3:52 de la mañana
+        tocando `play.html` y `play.js` (la pantalla de elegir personaje con retratos). Este punto
+        vive entero en esos dos archivos, así que hacerlo a la vez era pisarse. Se retoma en cuanto
+        él lo suelte; no hay nada que decidir, solo hacerlo.
 - [ ] **Móvil legible de un vistazo.** Posición y vuelta enormes en la barra de estado, fondo del móvil que
       cambia de color con el nivel de derrape y con el turbo, borde rojo mientras estás girando/golpeado.
       Comprobación: `play.js` reacciona a los campos de `st` y `fx` con clases CSS (prueba estática).
+      - ⏭ **Saltado la noche del 2026-09-20**: el dueño estaba despierto a las 3:52 de la mañana
+        tocando `play.html` y `play.js` (la pantalla de elegir personaje con retratos). Este punto
+        vive entero en esos dos archivos, así que hacerlo a la vez era pisarse. Se retoma en cuanto
+        él lo suelte; no hay nada que decidir, solo hacerlo.
 
 ## Fase 4 — Sensación de juego
 
