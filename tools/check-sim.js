@@ -697,20 +697,25 @@ const escenarios = [
     // propósito (y aquí se ve cuánto).
     nombre: 'el reparto de objetos por posición es el declarado',
     run(sim) {
-      // porcentajes declarados con 8 corredores, de la posición 1 a la 8
+      /*
+       * Porcentajes declarados con siete corredores, de la posición 1 a la 7. La idea del reparto:
+       * el que va delante solo saca cosas de defensa (y de vez en cuando le estalla un calamarazo),
+       * y cuanto más atrás vas, mejores cosas: el **cohete** y el **caparazón azul** son de la mitad
+       * de atrás para abajo, y el último es el que más los ve.
+       */
       const DECLARADO = {
-        1: { mushroom: 50.0, banana: 50.0, red: 0, star: 0, lightning: 0, snail: 0 },
-        2: { mushroom: 43.1, banana: 36.5, red: 18.7, star: 1.1, lightning: 0.1, snail: 0.5 },
-        4: { mushroom: 39.2, banana: 24.0, red: 23.2, star: 7.5, lightning: 2.4, snail: 3.7 },
-        6: { mushroom: 32.4, banana: 14.1, red: 23.0, star: 14.9, lightning: 8.0, snail: 7.5 },
-        8: { mushroom: 25.6, banana: 7.7, red: 20.5, star: 20.5, lightning: 15.4, snail: 10.3 },
+        1: { mushroom: 45.7, banana: 45.9, inkSelf: 8.5, red: 0, blue: 0, rocket: 0, lightning: 0, snail: 0 },
+        2: { mushroom: 33.4, banana: 27.4, ink: 22.5, red: 14.9, star: 1.1, blue: 0, rocket: 0 },
+        4: { mushroom: 28.2, ink: 19.3, red: 17.7, banana: 15.9, star: 7.1, blue: 5.7, snail: 3.5, lightning: 2.7, rocket: 0 },
+        6: { mushroom: 19.3, red: 14.3, ink: 13.4, rocket: 12.0, star: 11.5, blue: 9.3, lightning: 7.2, banana: 7.2, snail: 5.8 },
+        7: { mushroom: 16.0, rocket: 16.0, star: 12.9, red: 12.7, ink: 11.1, blue: 10.4, lightning: 9.6, snail: 6.4, banana: 4.8 },
       };
       const TIRADAS = 20000, MARGEN = 2.5;   // puntos porcentuales
       const s = sim.createSim({ geom, trackDefs, random: mulberry32(99) });
       for (const [pos, esperado] of Object.entries(DECLARADO)) {
         const cuenta = {};
         for (let i = 0; i < TIRADAS; i++) {
-          const id = s.rollItem(Number(pos), 8);
+          const id = s.rollItem(Number(pos), 7);
           cuenta[id] = (cuenta[id] || 0) + 1;
         }
         for (const [id, pct] of Object.entries(esperado)) {
@@ -720,10 +725,12 @@ const escenarios = [
           }
         }
       }
-      // y el primero nunca tiene que recibir rayo, caparazón rojo ni caracol
-      for (let i = 0; i < 3000; i++) {
-        const id = s.rollItem(1, 8);
-        if (id === 'lightning' || id === 'red' || id === 'snail') return `al primero le ha salido ${id}`;
+      // al primero no le puede salir nada de atacar, y al segundo tampoco lo gordo
+      for (let i = 0; i < 4000; i++) {
+        const id = s.rollItem(1, 7);
+        if (['lightning', 'red', 'snail', 'blue', 'rocket', 'ink'].includes(id)) return `al primero le ha salido ${id}`;
+        const id2 = s.rollItem(2, 7);
+        if (id2 === 'blue' || id2 === 'rocket') return `al segundo le ha salido ${id2}`;
       }
       return null;
     },
@@ -1019,6 +1026,102 @@ const escenarios = [
       if (tardanza > 7) return `han tardado ${tardanza.toFixed(1)} s en recogerlo`;
       const n = t.nearest(k.x, k.y);
       if (Math.abs(sim.wrapAngle(k.angle - t.samples[n.i].ang)) > 0.2) return 'lo han dejado mirando al revés otra vez';
+      return null;
+    },
+  },
+  {
+    // El cohete 🚀 es el premio del último: te dispara por el centro y atropella a quien pille
+    nombre: 'el cohete dispara al que lo usa y atropella por el camino',
+    run(sim) {
+      const s = carrera(sim, { bots: 2, laps: 3 });
+      const k = humano(s);
+      const t = s.state.track;
+      // al humano, al fondo de la parrilla y en marcha; delante, un bot en mitad de la carretera
+      const i0 = Math.floor(0.10 * t.N), sm = t.samples[i0];
+      k.x = sm.x; k.y = sm.y; k.z = sm.h; k.ground = sm.h; k.air = false; k.vz = 0;
+      k.angle = sm.ang; k.moveAngle = sm.ang; k.speed = 300; k.dist = i0;
+      const victima = s.state.karts.find((o) => o !== k);
+      const sv = t.samples[(i0 + 90) % t.N];
+      victima.x = sv.x; victima.y = sv.y; victima.z = sv.h; victima.ground = sv.h; victima.air = false;
+      victima.angle = sv.ang; victima.moveAngle = sv.ang; victima.speed = 0; victima.dist = i0 + 90;
+      victima.invUntil = 0;
+      const d0 = k.dist, golpes0 = victima.hitsTaken;
+      k.item = 'rocket';
+      s.useItem(k);
+      let masRapido = 0;
+      for (let f = 0; f < 60 * 5; f++) {
+        s.setInput(k, { s: 0, g: 0, b: 0, d: 0 });   // sin tocar nada: el cohete conduce
+        s.update(DT);
+        masRapido = Math.max(masRapido, Math.abs(k.speed));
+        victima.speed = 0;
+      }
+      const avance = (k.dist - d0) * 8;
+      if (masRapido < sim.BASE_MAX_SPEED * 1.8) return `el cohete solo llega a ${masRapido.toFixed(0)} de velocidad`;
+      if (avance < 2500) return `con el cohete solo avanza ${avance.toFixed(0)}px en 5 s`;
+      if (victima.hitsTaken === golpes0) return 'ha pasado por encima de otro kart y no le ha hecho nada';
+      if (s.stats.rockets !== 1) return 'el cohete no se ha contado en las estadísticas';
+      return null;
+    },
+  },
+  {
+    /*
+     * El caparazón azul 🔵 va a por el primero **por el centro de la carretera**, y su camino es
+     * fino: si el primero se abre, se libra. Se comprueban las dos cosas.
+     */
+    nombre: 'el caparazón azul va a por el primero, pero por un camino fino',
+    run(sim) {
+      const tiro = (apartarse) => {
+        const s = carrera(sim, { bots: 1, laps: 3 });
+        const t = s.state.track;
+        const k = humano(s);                       // el que dispara, atrás
+        const lider = s.state.karts.find((o) => o !== k);
+        const i0 = Math.floor(0.10 * t.N);
+        const colocar = (q, idx, lat) => {
+          const sm = t.samples[idx % t.N];
+          q.x = sm.x + sm.nx * lat; q.y = sm.y + sm.ny * lat;
+          q.z = sm.h; q.ground = sm.h; q.air = false; q.vz = 0;
+          q.angle = sm.ang; q.moveAngle = sm.ang; q.speed = 0; q.dist = idx; q.invUntil = 0;
+        };
+        colocar(k, i0, 0);
+        colocar(lider, i0 + 120, apartarse ? t.halfW - 20 : 0);
+        s.updateRanking();
+        const golpes0 = lider.hitsTaken;
+        k.item = 'blue';
+        s.useItem(k);
+        for (let f = 0; f < 60 * 4; f++) {
+          s.setInput(k, { s: 0, g: 0, b: 0, d: 0 });
+          s.update(DT);
+          k.speed = 0;
+          if (!apartarse) { lider.speed = 0; } else { lider.speed = 0; }
+        }
+        return lider.hitsTaken > golpes0;
+      };
+      if (!tiro(false)) return 'al primero, en mitad de la carretera, no le ha dado';
+      if (tiro(true)) return 'le ha dado al primero aunque estaba pegado al quitamiedos: el camino no es fino';
+      return null;
+    },
+  },
+  {
+    // La tinta 🦑 mancha a los demás, no a quien la usa. Y al primero le puede estallar sola.
+    nombre: 'la tinta mancha a los demás y al primero le estalla en la cara',
+    run(sim) {
+      const s = carrera(sim, { bots: 2, laps: 3 });
+      const k = humano(s);
+      k.item = 'ink';
+      s.useItem(k);
+      if (k.inkUntil > s.state.simTime) return 'se ha manchado el que la usa';
+      const otros = s.state.karts.filter((o) => o !== k);
+      if (!otros.every((o) => o.inkUntil > s.state.simTime)) return 'no ha manchado a todos los demás';
+      if (s.stats.inks !== 1) return 'la tinta no se ha contado';
+      // y el calamarazo del líder: sale de la caja, no se lleva objeto y se queda ciego un rato
+      const s2 = carrera(sim, { bots: 2, laps: 3, seed: 5 });
+      const lider = humano(s2);
+      lider.rank = 1;
+      lider.rolling = { until: s2.state.simTime, result: 'inkSelf' };
+      s2.update(DT);
+      if (lider.item) return 'el calamarazo del primero le ha dado un objeto además de mancharle';
+      if (!(lider.inkUntil > s2.state.simTime)) return 'al primero no le ha manchado su propio calamarazo';
+      if (s2.stats.inkSelf !== 1) return 'el calamarazo del primero no se ha contado';
       return null;
     },
   },

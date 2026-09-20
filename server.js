@@ -241,6 +241,7 @@ let trackNames = [];
  * hay de verdad** para elegir, sin una segunda copia de la lista que se quede vieja.
  */
 let charList = [];
+let itemList = [];   // los objetos (icono y nombre), para que el móvil los enseñe bien
 const settings = { track: 0, laps: 3, bots: 2 };
 let nextId = 1;
 
@@ -259,7 +260,7 @@ function lobbyMessage() {
   return {
     t: 'lobby',
     players: [...players.values()].map(publicPlayer),
-    settings, hostId, phase, tracks: trackNames, chars: charList,
+    settings, hostId, phase, tracks: trackNames, chars: charList, items: itemList,
     screen: !!(screenWs && screenWs.readyState === WebSocket.OPEN),
   };
 }
@@ -367,6 +368,13 @@ wss.on('connection', (ws) => {
       screenWs = ws;
       ws.role = 'screen';
       if (Array.isArray(m.tracks)) trackNames = m.tracks.map((s) => String(s).slice(0, 40)).slice(0, 20);
+      if (Array.isArray(m.items)) {
+        itemList = m.items.slice(0, 24).map((i) => ({
+          id: String((i && i.id) || '').slice(0, 20),
+          icon: String((i && i.icon) || '❓').slice(0, 8),
+          name: String((i && i.name) || '').slice(0, 30),
+        })).filter((i) => i.id);
+      }
       if (Array.isArray(m.chars)) {
         charList = m.chars.slice(0, NUM_CHARS).map((c) => ({
           name: String((c && c.name) || '').slice(0, 20),

@@ -27,6 +27,7 @@ def limpiar():
     for bloque in (bpy.data.meshes, bpy.data.materials):
         for x in list(bloque):
             bloque.remove(x)
+    MATS.clear()   # los materiales guardados apuntaban a los que acabamos de borrar
 
 
 MATS = {}
@@ -184,6 +185,51 @@ def retratos(todos):
         o.hide_render = False
 
 
+def arbitro():
+    """Chuma vestido de árbitro: el que te recoge cuando te caes del mapa.
+
+    Camiseta de rayas blancas y negras, silbato, tarjeta amarilla en la mano y un rotor encima para
+    llegar volando. Sale en su propio archivo (`arbitro.glb`) porque la tele lo usa aparte de las
+    cabezas: aparece sobre el kart mientras dura el rescate y se va."""
+    limpiar()
+    pielMorena = material('PielMorena', (0.55, 0.35, 0.22))
+    negro = material('Ojo', (0.07, 0.07, 0.10))
+    blanco = material('Blanco', (0.97, 0.97, 0.99))
+    amarillo = material('Tarjeta', (1.0, 0.85, 0.1))
+    metal = material('Metal', (0.62, 0.64, 0.72), 0.3)
+    rayas = material('Raya', (0.12, 0.12, 0.16))
+
+    partes = cara(pielMorena)
+    # el turbante, ahora en blanco y negro de árbitro
+    partes.append(esfera(R * 0.88, (-0.4, 0, R * 0.70), blanco, (1.04, 1.04, 0.60)))
+    partes.append(cil(R * 0.84, 3.0, (-0.2, 0, R * 0.50), rayas, 'Z', 18))
+    partes.append(esfera(R * 0.8, (R * 0.30, 0, -R * 0.55), negro, (0.85, 0.8, 0.5)))   # barba
+
+    # cuerpo a rayas, colgando de la cabeza
+    cuerpo_z = -R * 1.55
+    partes.append(caja((R * 1.0, R * 1.25, R * 1.15), (0, 0, cuerpo_z), blanco, 1.6))
+    for i in range(3):
+        partes.append(caja((R * 1.02, R * 0.2, R * 1.17), (0, (i - 1) * R * 0.42, cuerpo_z), rayas, 0.5))
+    # brazos, abiertos como quien va a agarrarte
+    for lado in (-1, 1):
+        partes.append(cil(1.9, R * 1.1, (0.5, lado * R * 0.72, cuerpo_z - R * 0.2), blanco, 'Z', 10))
+        partes.append(esfera(2.4, (0.5, lado * R * 0.72, cuerpo_z - R * 0.78), pielMorena))
+    # silbato y tarjeta amarilla
+    partes.append(cil(1.3, 3.4, (R * 0.55, R * 0.2, cuerpo_z + R * 0.35), metal, 'X', 10))
+    partes.append(caja((0.8, 4.2, 6.0), (R * 0.5, -R * 0.9, cuerpo_z - R * 0.55), amarillo, 0.3))
+    # rotor, para llegar volando
+    partes.append(cil(1.2, 7.0, (0, 0, R * 1.35), metal, 'Z', 8))
+    for giro in (0, 1):
+        pala = caja((26 if giro == 0 else 4, 4 if giro == 0 else 26, 1.2), (0, 0, R * 1.62), blanco, 0.4)
+        partes.append(pala)
+
+    o = unir('Arbitro', partes)
+    o.location = (0, 0, 0)
+    bpy.ops.export_scene.gltf(filepath=os.path.join(SALIDA, 'arbitro.glb'), export_format='GLB',
+                              export_apply=True, export_yup=True)
+    print('EXPORTADO arbitro.glb')
+
+
 def main():
     limpiar()
     pielClara = material('PielClara', (0.98, 0.80, 0.66))
@@ -272,6 +318,7 @@ def main():
         o.location = (0, 0, 0)
     exportar()
     retratos(todos)
+    arbitro()
 
 
 main()

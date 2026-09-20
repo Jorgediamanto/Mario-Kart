@@ -35,15 +35,38 @@
     if (me.char >= CHARS.length) me.char = -1;    // el que tenía guardado ya no existe
     return JSON.stringify(CHARS) !== antes;
   }
-  const ITEMS = {
+  /*
+   * Los objetos, igual que los personajes: los de verdad llegan de la pantalla (mensajes `roster` y
+   * `lobby`) y esto es solo el respaldo mientras no ha llegado nada. Lo que se lee aquí después del
+   * nombre («: turbo») es la chuleta que ve el jugador, y esa sí vive aquí.
+   */
+  let ITEMS = {
     mushroom: { icon: '🍄', name: 'Champiñón: turbo' },
     banana: { icon: '🍌', name: 'Plátano: lo sueltas detrás' },
     red: { icon: '🎯', name: 'Caparazón rojo: persigue al de delante' },
+    blue: { icon: '🔵', name: 'Caparazón azul: a por el primero' },
+    rocket: { icon: '🚀', name: 'Cohete: te dispara por la pista' },
+    ink: { icon: '🦑', name: 'Tinta: les tapa la pantalla' },
     star: { icon: '⭐', name: 'Estrella: invencible' },
     lightning: { icon: '⚡', name: 'Rayo: encoge a todos' },
     snail: { icon: '🐌', name: 'Caracol: para todo y eliges' },
   };
-  const ITEM_IDS = Object.keys(ITEMS);
+  let ITEM_IDS = Object.keys(ITEMS);
+  // La coletilla que explica cada objeto (la pantalla manda el nombre pelado)
+  const PISTAS = {
+    mushroom: 'turbo', banana: 'lo sueltas detrás', red: 'persigue al de delante',
+    blue: 'a por el primero', rocket: 'te dispara por la pista', ink: 'les tapa la pantalla',
+    star: 'invencible', lightning: 'encoge a todos', snail: 'para todo y eliges',
+  };
+  function ponerItems(lista) {
+    if (!Array.isArray(lista) || !lista.length) return;
+    const nuevo = {};
+    for (const it of lista) {
+      if (!it || !it.id) continue;
+      nuevo[it.id] = { icon: it.icon || '❓', name: (it.name || it.id) + (PISTAS[it.id] ? ': ' + PISTAS[it.id] : '') };
+    }
+    if (Object.keys(nuevo).length) { ITEMS = nuevo; ITEM_IDS = Object.keys(ITEMS); }
+  }
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -117,6 +140,7 @@
       case 'roster':
         takenChars = new Set(m.taken);
         ponerChars(m.chars);
+        ponerItems(m.items);
         renderChars();
         break;
       case 'lobby':
@@ -125,6 +149,7 @@
         phase = m.phase;
         takenChars = new Set(m.players.filter((p) => p.id !== me.id).map((p) => p.char));
         ponerChars(m.chars);
+        ponerItems(m.items);
         renderChars();
         if (currentView === 'lobby') renderLobby();
         if (currentView === 'results') renderResults();
@@ -167,6 +192,9 @@
         if (m.kind === 'zap') { vibrate([60, 50, 60, 50, 60]); flashBody('#b8a400'); showRaceMsg('⚡ ¡Te han encogido!', 1400); }
         if (m.kind === 'wrong') { vibrate([200, 100, 200]); flashBody('#a83232'); showRaceMsg('↩ ¡Vas al revés! Date la vuelta', 2500); }
         if (m.kind === 'star') { vibrate([25, 40, 25, 40, 60]); flashBody('#6a4fb8'); showRaceMsg('⭐ ¡Invencible!', 1400); }
+        if (m.kind === 'rocket') { vibrate([30, 30, 30, 30, 200]); flashBody('#b86a1f'); showRaceMsg('🚀 ¡Agárrate!', 1800); }
+        if (m.kind === 'ink') { vibrate([90, 60, 90]); flashBody('#241046'); showRaceMsg('🦑 ¡Te han pintado la pantalla!', 2000); }
+        if (m.kind === 'blue') { vibrate([40, 40, 40]); showRaceMsg('🔵 ¡Va a por el primero!', 1500); }
         // derrape automático: drift0 = se ha soltado; drift1..3 = nivel cargado
         if (typeof m.kind === 'string' && m.kind.startsWith('drift')) pintarDerrape(Number(m.kind.slice(5)) || 0);
         break;

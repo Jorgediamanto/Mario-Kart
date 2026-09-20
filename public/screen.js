@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import {
-  createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, BASE_MAX_SPEED, CHARS, ITEMS, ITEM_IDS,
+  createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, RESCUE_TIME, BASE_MAX_SPEED, CHARS, ITEMS, ITEM_IDS,
   clamp, lerp, smoothstep, mulberry32, ordinal,
 } from './sim.mjs';
 import { panelLayout, panelEnPixeles } from './layout.mjs';
@@ -131,6 +131,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   const $ = (id) => document.getElementById(id);
   const elegirEl = $('elegir');
   const lobbyEl = $('lobby'), resultsEl = $('results'), noticeEl = $('notice'), hudEl = $('hud'), bigEl = $('big'), toastsEl = $('toasts'), flashEl = $('flash');
+  const semaforoEl = $('semaforo');
   const timeChipEl = $('timechip'), fpsEl = $('fpsbox');
 
   // ===================== Three.js =====================
@@ -951,8 +952,17 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         sendPhase();
         updateOverlays();
       },
-      onCountdown: (n) => showBig(String(n)),
-      onGo: () => { showBig('¡YA!'); setTimeout(() => hideBig('¡YA!'), 1100); },
+      /*
+       * Salida parada con semáforo, como en las carreras de verdad: con cada segundo de la cuenta
+       * atrás se enciende una luz roja, y al «¡YA!» se ponen todas verdes y desaparece el panel.
+       */
+      onCountdown: (n) => { showBig(String(n)); pintarSemaforo(4 - n); },
+      onGo: () => {
+        showBig('¡YA!');
+        semaforoEl.classList.add('ya');
+        setTimeout(() => hideBig('¡YA!'), 1100);
+        setTimeout(() => { semaforoEl.classList.add('hidden'); semaforoEl.classList.remove('ya'); }, 900);
+      },
       onTrackChanged: (t) => setWorld(t),
       onKartAdded: (k) => makeKartModel(k),
       onKartRemoved: (k) => { removeKartModel(k); chases.delete(k); pararMotor(k); },
@@ -992,6 +1002,14 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         // nubecita de humo y chispas en el sitio donde lo dejan
         particles.emit(k.x, k.z + 30, k.y, { n: 18, color: ['#ffffff', '#00e5ff', '#aab0e8'], spread: 150, vy: 120, life: 0.8, size: 5, g: 240 });
         particles.emit(k.x, k.z + 4, k.y, { n: 10, color: ['#ffffff', '#d5d8ff'], spread: 90, vy: 40, life: 0.6, size: 7, g: 60, flat: true });
+        // y que baje el árbitro a recogerte (ver `montarArbitro`)
+        const M = k.view;
+        if (M && !M.arbitro && modelos.arbitro) {
+          M.arbitro = copiaDelModelo('arbitro');
+          M.arbitro.scale.setScalar(0.66);
+          M.arbitro.visible = false;
+          kartsGroup.add(M.arbitro);
+        }
       },
       onSquash: (k, dv) => { if (k.view) k.view.sq.vel -= dv; },
       onStretch: (k, dv) => { if (k.view) k.view.st.vel += dv; },
@@ -1035,6 +1053,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         t: 'screen',
         tracks: KART_TRACKS.map((t) => t.name),
         chars: CHARS.map((c) => ({ name: c.name, emoji: c.emoji, color: c.color })),
+        items: ITEM_IDS.map((id) => ({ id, icon: ITEMS[id].icon, name: ITEMS[id].name })),
       });
     };
     ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch (_) { return; } handleMessage(m); };
@@ -1149,7 +1168,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     cargador.load(`/modelos/${nombre}.glb`, (gltf) => { modelos[nombre] = gltf.scene; },
       undefined, (e) => console.warn(`No se ha podido cargar el modelo ${nombre}; se usa el de siempre`, e));
   }
-  for (const n of ['kart', 'platano', 'caparazon', 'cabezas']) cargarModelo(n);
+  for (const n of ['kart', 'platano', 'caparazon', 'cabezas', 'arbitro']) cargarModelo(n);
 
   /*
    * Una copia del modelo lista para meter en la escena: materiales `toon` (el del archivo se cambia
@@ -1425,6 +1444,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
 
   function removeKartModel(k) {
     if (!k.view) return;
+    if (k.view.arbitro) kartsGroup.remove(k.view.arbitro);
     kartsGroup.remove(k.view.g, k.view.shadow, k.view.driftGlow);
     k.view = null;
   }
@@ -1536,12 +1556,15 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   // ===================== Mallas de objetos =====================
   function shellMesh(type) {
     const g = new THREE.Group();
+    const colorConcha = type === 'red' ? '#ff3d3d' : type === 'blue' ? '#2a6bff' : '#39ff88';
     if (modelos.caparazon) {
-      g.add(copiaDelModelo('caparazon', { acento: type === 'red' ? '#ff3d3d' : '#39ff88' }));
+      const c = copiaDelModelo('caparazon', { acento: colorConcha });
+      if (type === 'blue') c.scale.setScalar(1.25);      // el azul es más gordo y da más miedo
+      g.add(c);
       scene.add(g);
       return g;
     }
-    const s = new THREE.Mesh(new THREE.SphereGeometry(10, 14, 10), toon(type === 'red' ? '#ff3d3d' : '#39ff88'));
+    const s = new THREE.Mesh(new THREE.SphereGeometry(10, 14, 10), toon(colorConcha));
     const rim = new THREE.Mesh(new THREE.TorusGeometry(9.5, 2.4, 8, 20), toon('#ffffff'));
     rim.rotation.x = Math.PI / 2;
     const spikes = new THREE.Mesh(new THREE.SphereGeometry(6, 8, 6), flat('#ffffff'));
@@ -1763,7 +1786,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       if (!el) {
         el = document.createElement('div');
         el.className = 'panel';
-        el.innerHTML = '<div class="pinfo"><span class="pem"></span><span class="pnm"></span></div>'
+        el.innerHTML = '<div class="tinta"></div><div class="pinfo"><span class="pem"></span><span class="pnm"></span></div>'
           + '<div class="ppos"></div><div class="plap"></div><div class="pitem"></div><div class="pmsg"></div>';
         el.querySelector('.pem').textContent = kart.emoji;
         el.querySelector('.pnm').textContent = kart.name;
@@ -1784,9 +1807,11 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       const msg = el.querySelector('.pmsg');
       msg.textContent = avisoDePanel(kart);
       msg.classList.toggle('alreves', !!kart.wrongWay);
+      el.classList.toggle('manchado', kart.inkUntil > state.simTime);
     }
   }
   function avisoDePanel(k) {
+    if (k.rocketUntil > state.simTime) return '🚀 ¡COHETE!';
     if (k.wrongWay) return '↩ ¡VAS AL REVÉS!';
     if (k.finished) return '¡META!';
     if (k.rescueUntil > state.simTime) return '¡Te devolvemos a la pista!';
@@ -1837,8 +1862,27 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     // karts
     for (const k of state.karts) {
       const M = k.view; if (!M) continue;
-      const boosting = k.boostUntil > now, star = k.starUntil > now, small = k.shrinkUntil > now, spinning = k.spinUntil > now;
+      const cohete = k.rocketUntil > now;
+      const boosting = k.boostUntil > now || cohete, star = k.starUntil > now, small = k.shrinkUntil > now, spinning = k.spinUntil > now;
       M.g.position.set(k.x, k.z, k.y);
+      /*
+       * Rescate: no te teletransportas y ya. Baja **Chuma vestido de árbitro** con su rotor, te
+       * engancha y te deja en la carretera. Es solo cosa de la tele: la simulación ya te ha puesto
+       * donde toca y te tiene parado ese ratito (RESCUE_TIME), así que aquí se dibuja la maniobra.
+       */
+      if (k.rescueUntil > now) {
+        const queda = clamp((k.rescueUntil - now) / RESCUE_TIME, 0, 1);
+        // el kart se levanta un palmo (más y se sale del encuadre de la cámara de persecución)
+        const alto = 46 * queda * queda;
+        M.g.position.y += alto;
+        if (M.arbitro) {
+          M.arbitro.visible = true;
+          // el árbitro es el que hace el viaje: entra desde arriba, te deja y se va
+          M.arbitro.position.set(k.x, k.z + alto + 62 + 150 * queda * queda, k.y);
+          M.arbitro.rotation.y = -k.angle + Math.sin(animT * 2.4) * 0.22;
+          M.arbitro.position.y += Math.sin(animT * 7) * 1.6;      // el vaivén del rotor
+        }
+      } else if (M.arbitro && M.arbitro.visible) M.arbitro.visible = false;
       let yaw = -k.angle;
       if (spinning) yaw -= (1 - (k.spinUntil - now) / SPIN_TIME) * Math.PI * 4;
       M.g.rotation.y = yaw;
@@ -1985,6 +2029,13 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       el.classList.toggle('fin', k.finished);
     }
   }
+  // Enciende las `n` primeras luces del semáforo (y lo saca a la pantalla si estaba escondido)
+  function pintarSemaforo(n) {
+    semaforoEl.classList.remove('hidden', 'ya');
+    const luces = semaforoEl.children;
+    for (let i = 0; i < luces.length; i++) luces[i].classList.toggle('on', i < n);
+  }
+
   function showBig(text) {
     bigEl.textContent = text;
     bigEl.classList.remove('hidden', 'pop');
@@ -2002,6 +2053,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     resultsEl.classList.toggle('hidden', state.phase !== 'results');
     hudEl.classList.toggle('hidden', enSala || panelesPrev);
     if (state.phase !== 'countdown' && state.phase !== 'race') bigEl.classList.add('hidden');
+    if (state.phase !== 'countdown') { semaforoEl.classList.add('hidden'); semaforoEl.classList.remove('ya'); }
     if (enSala) renderLobby();
     if (state.phase === 'results') renderResults();
     // los karts del calentamiento siguen a quien esté en la sala: aquí se pasa cada vez que cambia

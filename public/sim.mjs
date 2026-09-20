@@ -28,6 +28,9 @@ export const SPIN_TIME = 1.0;
 export const HIT_IMMUNITY = 2.5;
 export const ROULETTE_TIME = 1.6;
 export const BOX_RESPAWN = 5;
+// Lo cerca que hay que pasar de una caja para llevársela. Era 26 (el ancho justo de la caja) y
+// obligaba a apuntar; con 42 basta con pasar por encima «más o menos», que es lo que uno espera.
+export const BOX_ALCANCE = 42;
 // Rescate automático (el «Lakitu»): si un kart se queda clavado o muy lejos de la carretera,
 // se le recoloca en la pista mirando bien, y pierde un momento: esa es toda la penalización.
 export const RESCUE_AFTER = 2.2;  // segundos perdido o atascado antes de que lo recojan
@@ -105,6 +108,32 @@ export const EASY_MIRA = 22;      // a cuántas muestras por delante mira la ayu
 export const SNAIL_SLOW = 0.25;         // a cuánto se queda su velocidad máxima (25 % = un 75 % más lento)
 export const SNAIL_TIME = 3;            // segundos que dura
 export const SNAIL_CHOICE_TIME = 6;     // segundos para elegir antes de que elija solo
+/*
+ * Caparazón rojo 🎯 y caparazón azul 🔵.
+ *
+ * El azul es el objeto de los desesperados: sale disparado **por el centro de la carretera** a toda
+ * velocidad buscando al primero, y se lleva por delante a cualquiera que pille en el camino. Pero
+ * ese camino es **muy fino** (`BLUE_PASILLO`): va pegado a la línea central, así que al primero le
+ * da solo si está por el medio. Si se va por fuera o corta por la cuerda, se salva.
+ */
+export const RED_SPEED = 800;           // el rojo, más rápido que antes (660): ahora sí alcanza
+export const BLUE_SPEED = 1150;         // el azul va como un misil
+export const BLUE_LIFE = 14;            // segundos antes de disolverse (si no encuentra a nadie)
+export const BLUE_PASILLO = 42;         // lo fino que es su camino: más allá de esto, no te roza
+/*
+ * Cohete 🚀: el premio de los últimos. Te agarra, te pone en el centro de la carretera y te dispara
+ * a más del doble de velocidad durante unos segundos, atropellando a quien te encuentres. Mientras
+ * dura no se conduce (ni falta que hace) y no te pueden dar.
+ */
+export const ROCKET_TIME = 4.5;         // segundos de vuelo
+export const ROCKET_SPEED = 2.1;        // veces la velocidad máxima normal
+/*
+ * Tinta 🦑: a los demás se les mancha la pantalla y no ven bien un rato. Y **al que va primero** le
+ * puede estallar en la cara: de vez en cuando su caja no trae un objeto, sino un calamarazo para él
+ * solito, que es la forma más divertida de que el líder también sufra.
+ */
+export const INK_TIME = 4.5;            // segundos con la pantalla manchada
+export const INK_SELF_TIME = 3.0;       // los que dura cuando le estalla al primero
 export const MAX_KARTS = 7;   // siete personajes, siete sitios: nadie repite kart
 export const SAMPLE_SPACING = 8;
 
@@ -130,6 +159,9 @@ export const ITEMS = {
   mushroom: { icon: '🍄', name: 'Champiñón' },
   banana: { icon: '🍌', name: 'Plátano' },
   red: { icon: '🎯', name: 'Caparazón rojo' },
+  blue: { icon: '🔵', name: 'Caparazón azul' },
+  rocket: { icon: '🚀', name: 'Cohete' },
+  ink: { icon: '🦑', name: 'Tinta' },
   star: { icon: '⭐', name: 'Estrella' },
   lightning: { icon: '⚡', name: 'Rayo' },
   snail: { icon: '🐌', name: 'Caracol' },
@@ -355,7 +387,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   };
   // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
   // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
-  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
+  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -381,6 +413,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       item: null, rolling: null, itemUseAt: 0,
       boostUntil: 0, starUntil: 0, spinUntil: 0, invUntil: 0, shrinkUntil: 0, slowUntil: 0, lapAt: 0,
       lastRamp: -1, lastRampAt: -99, offT: 0,
+      rocketUntil: 0, inkUntil: 0,
       enderezaTrasGolpe: false,
       wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
@@ -588,10 +621,43 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     hooks.onToast(`${k.emoji} ${k.name}: ¡de vuelta a la pista!`, 2);
   }
 
+  /*
+   * El cohete 🚀 conduce por ti: te pega a la línea central, te lanza a más del doble de velocidad y
+   * atropella a quien te encuentres. Por eso no se dirige y no te pueden dar: es un regalo para el
+   * que va último, no una ventaja que haya que pilotar.
+   */
+  function volarConCohete(k, dt) {
+    const t = state.track;
+    const near = tramoDe(k);
+    const delante = t.samples[(near.i + 10) % t.N];
+    const objetivo = Math.atan2(delante.y - k.y, delante.x - k.x);
+    // se le lleva al centro suavemente, para que no vaya rebotando por los quitamiedos
+    const sm = t.samples[near.i];
+    k.x = lerp(k.x, sm.x, 1 - Math.exp(-6 * dt));
+    k.y = lerp(k.y, sm.y, 1 - Math.exp(-6 * dt));
+    k.angle = objetivo; k.moveAngle = objetivo;
+    k.speed = BASE_MAX_SPEED * ROCKET_SPEED;
+    k.x += Math.cos(objetivo) * k.speed * dt;
+    k.y += Math.sin(objetivo) * k.speed * dt;
+    k.z = t.groundAt(k.x, k.y); k.ground = k.z; k.vz = 0; k.air = false;
+    k.offroad = false; k.offT = 0; k.stuckT = 0; k.wrongT = 0;
+    // a quien pille por el camino, se lo lleva por delante
+    for (const o of state.karts) {
+      if (o === k || o.finished) continue;
+      const dx = o.x - k.x, dy = o.y - k.y;
+      if (dx * dx + dy * dy < (KART_R * 2.4) * (KART_R * 2.4)) hitKart(o, { id: k.id, tipo: 'rocket' });
+    }
+    hooks.onParticles(k.x, k.z + 10, k.y, { n: 2, color: ['#ffe600', '#ff6a00', '#ffffff'], spread: 90, vy: 40, life: 0.35, size: 5 });
+    const propio = tramoDe(k);
+    comprobarSentido(k, propio, dt);
+    updateProgress(k, propio, dt);
+  }
+
   function stepKart(k, inp, dt) {
     const t = state.track, now = simTime;
     // mientras lo recogen se queda quieto: es la penalización por salirse
     if (k.rescueUntil > now) { k.speed = 0; k.vz = 0; k.air = false; k.driftT = 0; k.driftLevel = 0; return; }
+    if (k.rocketUntil > now) { volarConCohete(k, dt); return; }
     const spinning = k.spinUntil > now;
     // se acabó el trompo: el morro, hacia la carretera (ver GOLPE_ENDEREZA). Si no, después de
     // cada caparazón toca buscarse la pista de nuevo, que es lo que más despista jugando.
@@ -922,6 +988,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   // ===================== Objetos =====================
   function rollItem(rank, n) {
     const r = n > 1 ? (rank - 1) / (n - 1) : 0.5;
+    const ultimos = r > 0.55;          // de la mitad de atrás para abajo
     const w = [
       // al quitar el caparazón verde, el que va primero se quedaba con dos objetos y casi siempre
       // plátano: se le sube el champiñón para que al menos sea mitad y mitad
@@ -929,6 +996,15 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       ['red', rank === 1 ? 0 : 1 + 3 * r], ['star', 4 * r * r], ['lightning', n >= 3 ? 3 * r * r * r : 0],
       // el caracol es raro y solo aparece si hay a quién elegir; el que va primero no lo saca
       ['snail', n >= 2 && rank > 1 ? 2 * r * r : 0],
+      // Lo gordo, solo para la parte de atrás de la parrilla: el cohete y el caparazón azul son
+      // para remontar, no para que el que va segundo remate al primero. Cuanto más atrás, más
+      // probables; al primero nunca le salen.
+      ['rocket', n >= 3 && ultimos ? 5 * r * r * r : 0],
+      ['blue', n >= 3 && rank > 2 ? 3.2 * r * r : 0],
+      // la tinta la puede llevar cualquiera menos el líder: a él le estalla (ver `inkSelf`)
+      ['ink', n >= 3 && rank > 1 ? 2 + 1.5 * r : 0],
+      // y la broma para el que va primero: una de cada catorce cajas le revienta un calamarazo
+      ['inkSelf', rank === 1 && n >= 3 ? 0.55 : 0],
     ];
     const total = w.reduce((acc, [, x]) => acc + x, 0);
     let x = random() * total;
@@ -943,7 +1019,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       for (const box of state.track.boxes) {
         if (box.respawnAt > now) continue;
         const dx = box.x - k.x, dy = box.y - k.y;
-        if (dx * dx + dy * dy < 26 * 26 && Math.abs(k.z - box.h) < 45) {
+        if (dx * dx + dy * dy < BOX_ALCANCE * BOX_ALCANCE && Math.abs(k.z - box.h) < 60) {
           box.respawnAt = now + BOX_RESPAWN;
           k.rolling = { until: now + ROULETTE_TIME, result: rollItem(k.rank, state.karts.length) };
           stats.pickups++;
@@ -962,6 +1038,21 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const now = simTime;
     for (const k of state.karts) {
       if (k.rolling && now >= k.rolling.until) {
+        /*
+         * `inkSelf` no es un objeto: es la broma que le puede tocar al que va primero. En vez de
+         * llevarse algo, se lleva un calamarazo en la cara y sigue corriendo a ciegas un rato. Así
+         * el líder también tiene algo que temer al pasar por una caja.
+         */
+        if (k.rolling.result === 'inkSelf') {
+          k.rolling = null;
+          k.inkUntil = Math.max(k.inkUntil, now + INK_SELF_TIME);
+          stats.inkSelf++;
+          hooks.onFx(k, 'ink');
+          hooks.onSfx('ink', k);
+          hooks.onToast(`${k.emoji} ${k.name}: ¡calamarazo por ir primero! 🦑`, 2.2);
+          hooks.onStatus(k);
+          continue;
+        }
         k.item = k.rolling.result; k.rolling = null;
         k.itemUseAt = now + 0.8 + random() * 2.5;
         hooks.onStatus(k);
@@ -995,10 +1086,54 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       }
       case 'red': {
         const ahead = state.karts.find((o) => o.rank === k.rank - 1) || null;
-        const p = { type: 'red', x: k.x + cos * 28, y: k.y + sin * 28, z: 0, angle: k.angle, speed: 660, owner: k.id, bornAt: now, life: 9, targetId: ahead ? ahead.id : null, dead: false, view: null };
+        const p = { type: 'red', x: k.x + cos * 28, y: k.y + sin * 28, z: 0, angle: k.angle, speed: RED_SPEED, owner: k.id, bornAt: now, life: 9, targetId: ahead ? ahead.id : null, dead: false, view: null };
         state.projectiles.push(p);
         hooks.onProjectileAdded(p);
         hooks.onSfx('shell', k);
+        break;
+      }
+      case 'blue': {
+        // sale al centro de la carretera y se va, disparado, a buscar al primero
+        const near = tramoDe(k);
+        const sm = state.track.samples[near.i];
+        const lider = state.karts.find((o) => o.rank === 1 && !o.finished) || null;
+        const p = {
+          type: 'blue', x: sm.x, y: sm.y, z: 0, angle: sm.ang, speed: BLUE_SPEED,
+          owner: k.id, bornAt: now, life: BLUE_LIFE, targetId: lider ? lider.id : null,
+          dist: near.i, dead: false, view: null,
+        };
+        state.projectiles.push(p);
+        hooks.onProjectileAdded(p);
+        hooks.onSfx('shell', k);
+        hooks.onFx(k, 'blue');
+        break;
+      }
+      case 'rocket': {
+        // te agarra, te pone en el centro y te dispara: mientras dura, ni se conduce ni te dan
+        const near = tramoDe(k);
+        const sm = state.track.samples[near.i];
+        k.x = sm.x; k.y = sm.y; k.z = sm.h; k.ground = sm.h; k.vz = 0; k.air = false;
+        k.angle = sm.ang; k.moveAngle = sm.ang;
+        k.rocketUntil = now + ROCKET_TIME;
+        k.invUntil = Math.max(k.invUntil, k.rocketUntil + 0.3);
+        k.spinUntil = 0; k.driftT = 0; k.driftLevel = 0;
+        stats.rockets++;
+        hooks.onFx(k, 'rocket');
+        hooks.onSfx('rocket', k);
+        hooks.onToast(`${k.emoji} ${k.name}: ¡cohete! 🚀`, 2);
+        break;
+      }
+      case 'ink': {
+        let manchados = 0;
+        for (const o of state.karts) {
+          if (o === k || o.finished || o.starUntil > now) continue;
+          o.inkUntil = Math.max(o.inkUntil, now + INK_TIME);
+          hooks.onFx(o, 'ink');
+          manchados++;
+        }
+        stats.inks++;
+        hooks.onSfx('ink', k);
+        hooks.onToast(`${k.emoji} ${k.name} llena de tinta a ${manchados === 1 ? 'su rival' : 'los demás'} 🦑`, 2.2);
         break;
       }
       case 'snail': {
@@ -1071,6 +1206,29 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     for (const p of state.projectiles) {
       if (p.dead) continue;
       let homing = false;
+      if (p.type === 'blue') {
+        /*
+         * El azul no persigue: **corre por la carretera**. Cada paso se engancha a la línea central
+         * un poco más adelante, así que su camino es una raya fina por el centro (BLUE_PASILLO) y
+         * solo se lleva por delante a quien esté justo ahí. Al primero le da si va por el medio;
+         * si se abre o corta por la cuerda, se libra.
+         */
+        homing = true;
+        const near = t.nearestNear(p.x, p.y, ((p.dist % t.N) + t.N) % t.N, t.win);
+        p.dist = near.i;
+        const sm = t.samples[(near.i + 6) % t.N];
+        const desired = Math.atan2(sm.y - p.y, sm.x - p.x);
+        p.angle += clamp(wrapAngle(desired - p.angle), -9 * dt, 9 * dt);
+        // si ya ha pasado al primero y sigue vivo, se apaga en cuanto se le acabe la vida
+        const objetivo = p.targetId ? state.karts.find((k) => k.id === p.targetId) : null;
+        if (objetivo && !objetivo.finished) {
+          const dx = objetivo.x - p.x, dy = objetivo.y - p.y;
+          if (dx * dx + dy * dy < 40000) {   // ya lo tiene a tiro: se endereza hacia él lo justo
+            const haciaEl = Math.atan2(dy, dx);
+            p.angle += clamp(wrapAngle(haciaEl - p.angle), -3 * dt, 3 * dt);
+          }
+        }
+      }
       if (p.type === 'red' && p.targetId) {
         const tgt = state.karts.find((k) => k.id === p.targetId);
         if (tgt) {
@@ -1090,10 +1248,11 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (age > p.life || p.x < 0 || p.x > t.W || p.y < 0 || p.y > t.H) { p.dead = true; continue; }
       if (!homing && t.nearest(p.x, p.y).d > t.halfW + 30) { p.dead = true; hooks.onParticles(p.x, p.z, p.y, { n: 8, color: '#ffffff', spread: 120, life: 0.4, size: 4 }); continue; }
       for (const k of state.karts) {
-        if (k.id === p.owner && (p.type === 'red' || age < 0.5)) continue;
+        if (k.id === p.owner && (p.type === 'red' || p.type === 'blue' || age < 0.5)) continue;
         if (k.z - p.z > 22) continue; // saltando por encima
         const dx = k.x - p.x, dy = k.y - p.y;
-        if (dx * dx + dy * dy < (KART_R + 10) * (KART_R + 10)) {
+        const alcance = p.type === 'blue' ? KART_R + BLUE_PASILLO / 2 : KART_R + 10;
+        if (dx * dx + dy * dy < alcance * alcance) {
           if (k.starUntil > now) { p.dead = true; hooks.onParticles(p.x, p.z, p.y, { n: 8, color: '#ffffff', spread: 120, life: 0.4, size: 4 }); }
           else if (hitKart(k, { id: p.owner, tipo: p.type })) p.dead = true;
           break;

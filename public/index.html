@@ -27,6 +27,17 @@
   #panels .pmsg { position: absolute; left: 0; right: 0; top: 38%; text-align: center; font-size: 1.4em; font-weight: 900;
     color: #fff; text-shadow: 0 .08em 0 #4a0a5e, 0 0 .5em rgba(255,45,149,.9); }
   #panels .pmsg:empty { display: none; }
+  /* Tinta 🦑: a quien le cae, se le pone la pantalla perdida un rato. Son manchas pintadas con
+     gradientes (nada que descargar) y se van desvaneciendo solas. */
+  #panels .tinta { position: absolute; inset: -6%; pointer-events: none; opacity: 0; transition: opacity .25s;
+    background:
+      radial-gradient(38% 30% at 22% 28%, rgba(10,4,26,.97) 60%, rgba(10,4,26,0) 72%),
+      radial-gradient(30% 26% at 72% 22%, rgba(12,2,30,.95) 58%, rgba(12,2,30,0) 74%),
+      radial-gradient(34% 32% at 62% 74%, rgba(8,2,22,.96) 58%, rgba(8,2,22,0) 76%),
+      radial-gradient(26% 22% at 34% 78%, rgba(14,4,32,.93) 58%, rgba(14,4,32,0) 78%),
+      radial-gradient(22% 18% at 88% 58%, rgba(10,4,26,.9) 55%, rgba(10,4,26,0) 78%),
+      radial-gradient(18% 16% at 8% 58%, rgba(10,4,26,.9) 55%, rgba(10,4,26,0) 78%); }
+  #panels .panel.manchado .tinta { opacity: 1; }
   #panels .pmsg.alreves { color: #fff; background: rgba(200,20,40,.85); border-radius: .4em; padding: .1em 0;
     animation: alrevesParpadeo .6s steps(2, end) infinite; }
   @keyframes alrevesParpadeo { 50% { opacity: .35; } }
@@ -56,6 +67,13 @@
   #big { position: absolute; left: 0; right: 0; top: 380px; text-align: center; font-size: 260px; font-weight: 900; color: var(--yellow);
     -webkit-text-stroke: 10px #4a0a5e; text-shadow: 0 16px 0 #4a0a5e, 0 0 60px rgba(255,230,0,.6); pointer-events: none; }
   #big.pop { animation: pop .9s ease-out; }
+  #semaforo { position: absolute; left: 0; right: 0; top: 120px; display: flex; justify-content: center; gap: 30px;
+    padding: 22px 34px; width: max-content; margin: 0 auto; background: rgba(8,2,24,.82); border-radius: 30px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.55), inset 0 0 0 4px rgba(255,255,255,.08); }
+  #semaforo.hidden { display: none; }
+  #semaforo span { width: 74px; height: 74px; border-radius: 50%; background: #2a0f2a; box-shadow: inset 0 6px 14px rgba(0,0,0,.7); transition: background .12s, box-shadow .12s; }
+  #semaforo span.on { background: #ff2b2b; box-shadow: 0 0 34px 10px rgba(255,43,43,.65), inset 0 4px 10px rgba(255,255,255,.35); }
+  #semaforo.ya span { background: #39ff88; box-shadow: 0 0 40px 12px rgba(57,255,136,.7), inset 0 4px 10px rgba(255,255,255,.4); }
   @keyframes pop { 0% { transform: scale(1.8); opacity: 0; } 20% { transform: scale(1); opacity: 1; } 100% { transform: scale(.95); opacity: 1; } }
   #toasts { position: absolute; left: 0; right: 0; top: 112px; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
   #toasts div { background: rgba(10,0,40,.8); border: 3px solid var(--pink); color: #fff; font-weight: 800; font-size: 26px; padding: 8px 22px; border-radius: 40px; animation: toastIn .3s ease-out; }
@@ -139,6 +157,8 @@
     <div id="fpsbox" class="hidden">— fps</div>
     <div id="toasts"></div>
     <div id="big" class="hidden"></div>
+    <!-- Semáforo de salida: se encienden las rojas con la cuenta atrás y se van todas de golpe -->
+    <div id="semaforo" class="hidden"><span></span><span></span><span></span></div>
     <div id="flash"></div>
     <div id="lobby">
       <div class="title">🏁 KART PARTY</div>
