@@ -137,7 +137,13 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
        * El trazado se genera con `node tools/traza-lastdance.js`.
        */
       name: 'Last Dance',
-      width: 280,
+      /*
+       * 400 de ancho, el más ancho del juego a propósito: en los tramos partidos la pared se lleva
+       * 90 y quedan **dos carriles de 155** (antes eran de 85: no se podía ni adelantar ni elegir
+       * nada, la pared te llevaba en volandas). El validador aguanta: la curva más cerrada del
+       * circuito tiene 287 px de radio y hacen falta 210.
+       */
+      width: 400,
       gravity: 0.92,
       world: { w: 25250, h: 20350 },
       // una sola vuelta: con tres minutos por vuelta, tres serían una maratón
@@ -194,11 +200,34 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
        * pared se corta entre tramo y tramo, que es donde se puede cambiar de camino.
        */
       paredes: [
-        { from: 0.055, to: 0.135, ancho: 110 },
-        { from: 0.255, to: 0.335, ancho: 110 },
-        { from: 0.445, to: 0.535, ancho: 110 },
-        { from: 0.625, to: 0.715, ancho: 110 },
-        { from: 0.795, to: 0.895, ancho: 110 },
+        // jungla
+        { from: 0.050, to: 0.090, ancho: 90 },
+        { from: 0.100, to: 0.140, ancho: 90 },
+        // hielo
+        { from: 0.250, to: 0.290, ancho: 90 },
+        { from: 0.300, to: 0.345, ancho: 90 },
+        // mina
+        { from: 0.440, to: 0.485, ancho: 90 },
+        { from: 0.495, to: 0.540, ancho: 90 },
+        // centro de la tierra
+        { from: 0.620, to: 0.665, ancho: 90 },
+        { from: 0.675, to: 0.720, ancho: 90 },
+        // cielo
+        { from: 0.790, to: 0.835, ancho: 90 },
+        { from: 0.845, to: 0.895, ancho: 90 },
+      ],
+      /*
+       * Los cruces: rampas que saltan **por encima** del muro y te dejan en el otro carril. Hay una
+       * en cada tramo de muro, siempre pegada a la línea de en medio, así que cruzar es una
+       * decisión (por fuera se pasa de largo). Con los huecos entre muro y muro, los dos caminos se
+       * entrelazan: se puede ir cambiando toda la vuelta.
+       */
+      cruces: [
+        0.068, 0.120,   // jungla
+        0.268, 0.325,   // hielo
+        0.458, 0.518,   // mina
+        0.640, 0.700,   // centro de la tierra
+        0.808, 0.868,   // cielo
       ],
       theme: {
         sky: ['#07220f', '#2fb36a'], fog: '#123a1e',
@@ -225,6 +254,12 @@ Arcoíris: OK — mundo 3400x1950, longitud 12632px, 1579 muestras, ancho 260px,
           { kind: 'palm', n: 40 }, { kind: 'candyTree', n: 20 }, { kind: 'rock', n: 30 },
           { kind: 'crystal', n: 30 }, { kind: 'balloon', n: 20 },
         ],
+        /*
+         * La cordillera: noventa montañas de `modelos/montanas.glb` repartidas por todo el hueco
+         * entre tramos, cada una del color de su bioma. Son lo que hace que un mundo de 25.000 x
+         * 20.000 parezca un sitio y no una mesa: desde la carretera siempre hay algo detrás.
+         */
+        montanas: { n: 90, lejos: 820, banda: 3400, min: 0.9, max: 2.2 },
         props: [
           { kind: 'aro', at: 0.16 },
           { kind: 'arcoRoca', at: 0.50 },

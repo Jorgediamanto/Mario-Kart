@@ -77,6 +77,20 @@ export const RAMPA_TURBO = 0.02;     // segundos de turbo por unidad de altura d
 export const RAMPA_TURBO_MAX = 2.0;  // tope, por si alguien pone una rampa gigantesca
 export const RAMPA_ESPERA = 2.5;     // segundos antes de volver a cobrar turbo en la misma rampa
 export const REBOTE_MAX = 150;       // lo más que puede rebotar un kart al aterrizar de golpe
+/*
+ * Cruces de carril: las rampas que cruzan por encima del muro central («Last Dance»). Al pisar una
+ * te tira hacia arriba y **hacia el otro carril**, que es lo que permite ir cambiando de camino sin
+ * esperar a que se acabe el muro. El empujón de lado es fijo (no depende de la velocidad) para que
+ * cruce igual el que va lanzado y el que va despacio, y el salto nunca regala velocidad: lo que
+ * ganas de lado lo pierdes de frente, así que cambiar de carril cuesta un pelín de ritmo.
+ */
+export const CRUCE_SALTO = 380;      // empujón hacia arriba (con la gravedad del circuito, ~0,9 s de vuelo)
+export const CRUCE_LATERAL = 300;    // empujón hacia el otro carril
+export const CRUCE_ESPERA = 3;       // segundos antes de que el mismo cruce vuelva a saltar
+// Lo ancho que es la rampa del cruce, en fracción del carril contando **desde el muro**. Con 0,45
+// solo salta el que va pegado a la línea de en medio: el que pasa por fuera sigue por su camino.
+// Cambiar de carril tiene que ser una decisión, no algo que te pase por ir por donde ibas.
+export const CRUCE_ANCHO = 0.45;
 // Progreso: cuando un kart aparece de golpe muy por delante (ha volado por encima de un atajo), su
 // avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
 // clasificación congelada media vuelta.
@@ -270,7 +284,7 @@ export function buildTrack(def, index, geom) {
   const t = {
     def, index, name: def.name, samples, N, halfW, width: def.width, gravity: def.gravity || 1,
     W, H, ter,
-    win: Math.floor(N / 8), boxes: [], grid: [], pads: [], barriers: [], paredes: [], ramps: [], world: null,
+    win: Math.floor(N / 8), boxes: [], grid: [], pads: [], barriers: [], paredes: [], cruces: [], ramps: [], world: null,
     /*
      * La muestra de carretera más cercana a un punto. Se mira en una **rejilla**: el circuito se
      * reparte en celdas y solo se comparan las muestras de la celda y las ocho de alrededor. A lo
@@ -344,11 +358,6 @@ export function buildTrack(def, index, geom) {
     },
     inRange(i, from, to) { return from <= to ? (i >= from && i <= to) : (i >= from || i <= to); },
   };
-  for (const f of def.boxes) {
-    const i = Math.floor(f * N) % N, s = samples[i];
-    for (const off of [-halfW * 0.6, 0, halfW * 0.6]) t.boxes.push({ x: s.x + s.nx * off, y: s.y + s.ny * off, h: s.h, respawnAt: 0, view: null });
-  }
-  for (const f of def.pads || []) t.pads.push(Math.floor(f * N) % N);
   /*
    * Muros centrales (`paredes`): tramos en los que la carretera va **partida en dos caminos** por
    * una pared por el medio. Cada uno lleva por un sitio distinto (y en «Last Dance», a un bioma
@@ -360,6 +369,23 @@ export function buildTrack(def, index, geom) {
   for (const w of def.paredes || []) {
     t.paredes.push({ from: Math.floor(w.from * N) % N, to: Math.floor(w.to * N) % N, ancho: w.ancho || 90 });
   }
+  /*
+   * Cruces de carril (`cruces`): el punto exacto en el que una rampa salta por encima del muro
+   * central y te deja en el otro camino (ver CRUCE_SALTO). Van dentro de un tramo de muro, que es
+   * donde tienen sentido, y la tele les dibuja su rampa y su arco.
+   */
+  for (const f of def.cruces || []) t.cruces.push(Math.floor(f * N) % N);
+  // ¿cae este punto dentro de la franja del muro central (con un margen para el kart)?
+  const enMuro = (i, off) => t.paredes.some((w) => t.inRange(i, w.from, w.to) && Math.abs(off) < w.ancho / 2 + 34);
+  for (const f of def.boxes) {
+    const i = Math.floor(f * N) % N, s = samples[i];
+    // la caja del medio se salta donde hay muro: estaría metida dentro de la pared y no la cogría nadie
+    for (const off of [-halfW * 0.6, 0, halfW * 0.6]) {
+      if (enMuro(i, off)) continue;
+      t.boxes.push({ x: s.x + s.nx * off, y: s.y + s.ny * off, h: s.h, respawnAt: 0, view: null });
+    }
+  }
+  for (const f of def.pads || []) t.pads.push(Math.floor(f * N) % N);
   for (const b of def.barriers || []) {
     const from = Math.floor(b.from * N) % N, to = Math.floor(b.to * N) % N;
     let side = 0;
@@ -474,7 +500,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   };
   // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
   // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
-  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, lianas: 0, terremotos: 0, portales: 0, boings: 0, bumps: 0, pads: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
+  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, lianas: 0, terremotos: 0, portales: 0, boings: 0, bumps: 0, pads: 0, cruces: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -502,7 +528,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       lastRamp: -1, lastRampAt: -99, offT: 0,
       rocketUntil: 0, inkUntil: 0, liana: null,
       enderezaTrasGolpe: false,
-      wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastBoing: 0, dustT: 0,
+      wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastCruce: -1, lastCruceAt: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,
@@ -906,6 +932,33 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
           if (now - k.lastBoing > 0.25) { hooks.onSfx('boing', k); k.lastBoing = now; }
           hooks.onShake(3, k);
         }
+      }
+    }
+    /*
+     * Cruces de carril: la rampa que cruza por encima del muro central. Solo salta quien pasa
+     * pegado al muro (CRUCE_ANCHO): te levanta y te tira al otro camino. Mientras vuelas el muro
+     * no te toca, y si te quedas corto, al aterrizar te empuja al carril de al lado igualmente.
+     */
+    if (!k.air) {
+      for (const ci of t.cruces) {
+        let di = near2.i - ci; if (di > t.N / 2) di -= t.N; if (di < -t.N / 2) di += t.N;
+        if (Math.abs(di) > 3) continue;
+        if (k.lastCruce === ci && now - k.lastCruceAt < CRUCE_ESPERA) continue;
+        const muro = t.paredes.find((q) => t.inRange(ci, q.from, q.to));
+        const desde = muro ? muro.ancho / 2 : 0;
+        const lat = Math.abs(near2.lat);
+        if (lat > desde + (t.halfW - desde) * CRUCE_ANCHO) continue;   // iba por fuera: sigue por su carril
+        k.lastCruce = ci; k.lastCruceAt = now;
+        const sm = t.samples[near2.i];
+        const lado = near2.lat >= 0 ? 1 : -1;                          // el lado en el que está ahora
+        const vx = Math.cos(k.moveAngle) * k.speed, vy = Math.sin(k.moveAngle) * k.speed;
+        const antes = Math.abs(k.speed);
+        setVel(k, vx - sm.nx * CRUCE_LATERAL * lado, vy - sm.ny * CRUCE_LATERAL * lado);
+        if (Math.abs(k.speed) > antes) k.speed = k.speed < 0 ? -antes : antes;
+        k.vz = Math.max(k.vz, CRUCE_SALTO); k.air = true;
+        stats.cruces++;
+        hooks.onSfx('jump', k);
+        hooks.onParticles(k.x, k.z + 6, k.y, { n: 12, color: t.def.theme.pad, spread: 150, vy: 130, life: 0.5, size: 4 });
       }
     }
     // muro central: si te metes en la franja de en medio, te saca al camino que tengas más cerca

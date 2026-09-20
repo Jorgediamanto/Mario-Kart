@@ -31,10 +31,12 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   `tools/sim-race.js` — `npm run race`: carreras por consola con tabla, registro y histogramas, para
   equilibrar con datos (`npm run race -- --help`). `tools/check-all.js` — comprobación completa
   (`npm test`).
-- `public/modelos/*.glb` — los modelos 3D (kart, plátano, caparazón y las **cabezas de los siete
-  personajes**, en `cabezas.glb`: un objeto por personaje, con su nombre sin artículos ni espacios). **No se editan a mano**: los
+- `public/modelos/*.glb` — los modelos 3D (kart, plátano, caparazón, las **cabezas de los siete
+  personajes**, en `cabezas.glb`: un objeto por personaje, con su nombre sin artículos ni espacios, y
+  las **montañas** de `montanas.glb`: seis tipos, uno por objeto, que la tele reparte con mallas
+  instanciadas y tiñe con el color del bioma). **No se editan a mano**: los
   genera `tools/blender/*.py` con Blender sin abrir ventana (`blender --background --python
-  tools/blender/kart.py`, `objetos.py`, `personajes.py`). Regla de los modelos: los materiales se llaman por su papel, no por su
+  tools/blender/kart.py`, `objetos.py`, `personajes.py`, `montanas.py`). Regla de los modelos: los materiales se llaman por su papel, no por su
   color — `Carroceria` lleva el color del personaje y `Detalle` su acento; el resto (`Oscuro`,
   `Metal`, `Goma`, `Piel`, `Claro`) los pinta `COLOR_MATERIAL` en `screen.js`. Si un modelo falta,
   la tele monta el kart de cajas de siempre, así que la fiesta nunca se queda sin karts.
@@ -82,7 +84,8 @@ three.js que no existan en la versión instalada (`node_modules/three/package.js
 - Las físicas son exageradas pero controlables: los cambios de sensación (velocidad, gravedad, giro)
   deben ser pequeños y justificados. Constantes principales al inicio de `screen.js`.
 - Circuitos nuevos: añade la definición en `tracks.js` y pasa `npm run check` (sin solapes, radios de
-  curva válidos, cajas/paneles fuera de rampas). Los puntos de control van **repartidos a distancia
+  curva válidos, cajas/paneles fuera de rampas, carriles de 120 px como mínimo donde haya muro
+  central y cruces de carril dentro de un muro y lejos de las rampas). Los puntos de control van **repartidos a distancia
   constante** (la spline es Catmull-Rom uniforme): con espaciados dispares salen radios de 37 px
   donde tocan 200. Un trazado nuevo se genera con un script y se valida antes de pegarlo.
 - Los circuitos se piden **por nombre**, no por número: el orden de la lista ya ha cambiado una vez

@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import {
   createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, RESCUE_TIME, BASE_MAX_SPEED, CHARS, ITEMS, ITEM_IDS,
-  clamp, lerp, smoothstep, mulberry32, ordinal,
+  clamp, lerp, smoothstep, mulberry32, ordinal, CRUCE_ANCHO,
 } from './sim.mjs';
 import { panelLayout, panelEnPixeles } from './layout.mjs';
 import * as Torneo from './torneo.mjs';
@@ -676,8 +676,13 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
      * Las paredes que parten la carretera en dos caminos (`paredes` en tracks.js). Se dibujan como
      * un murete bajo con luces por encima, para que se vea desde lejos por qué lado hay que ir.
      */
+    // ¿este punto está en el hueco que deja un cruce? (ahí el muro se corta para que se vea la rampa)
+    const enUnCruce = (i, margen) => (t.cruces || []).some((c) => {
+      let d = i - c; if (d > t.N / 2) d -= t.N; if (d < -t.N / 2) d += t.N;
+      return Math.abs(d) <= margen;
+    });
     if (t.paredes && t.paredes.length) {
-      const geoMuro = new THREE.BoxGeometry(24, 46, 34);
+      const geoMuro = new THREE.BoxGeometry(26, 36, 46);
       const geoLuz = new THREE.BoxGeometry(14, 8, 14);
       const trozos = [], luces = [];
       const dummy = new THREE.Object3D();
@@ -685,6 +690,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         let n = 0;
         for (let i = w.from; i !== w.to; i = (i + 1) % t.N) {
           if (n++ % 4) continue;
+          if (enUnCruce(i, 9)) continue;      // el hueco por donde se salta al otro carril
           const sm = t.samples[i];
           trozos.push({ x: sm.x, y: sm.y, h: sm.h, ang: sm.ang });
           if (n % 16 === 1) luces.push({ x: sm.x, y: sm.y, h: sm.h, ang: sm.ang });
@@ -693,19 +699,65 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       if (trozos.length) {
         const muro = new THREE.InstancedMesh(geoMuro, toon(th.curb ? th.curb[0] : '#ffffff'), trozos.length);
         trozos.forEach((q, i) => {
-          dummy.position.set(q.x, q.h + 23, q.y);
+          dummy.position.set(q.x, q.h + 18, q.y);
           dummy.rotation.set(0, -q.ang, 0);
           dummy.updateMatrix(); muro.setMatrixAt(i, dummy.matrix);
         });
         world.add(muro, contornoInstanciado(muro));
         const faro = new THREE.InstancedMesh(geoLuz, flat(th.pad || '#ffe600'), luces.length);
         luces.forEach((q, i) => {
-          dummy.position.set(q.x, q.h + 54, q.y);
+          dummy.position.set(q.x, q.h + 42, q.y);
           dummy.rotation.set(0, -q.ang, 0);
           dummy.updateMatrix(); faro.setMatrixAt(i, dummy.matrix);
         });
         world.add(faro);
       }
+    }
+
+    /*
+     * Los cruces de carril: una rampa peraltada a cada lado del muro, tan ancha como la banda que
+     * salta de verdad (CRUCE_ANCHO). Lo que se ve es exactamente lo que cruza: por fuera de la
+     * rampa se sigue por el mismo camino. El arco de aviso lo pone el bloque de abajo.
+     */
+    if (t.cruces && t.cruces.length) {
+      const sitios = [];
+      for (const ci of t.cruces) {
+        const muro = t.paredes.find((q) => t.inRange(ci, q.from, q.to));
+        const desde = muro ? muro.ancho / 2 : 0;
+        const banda = (t.halfW - desde) * CRUCE_ANCHO;
+        for (const lado of [-1, 1]) sitios.push({ i: ci, desde, banda, lado, centro: (desde + banda / 2) * lado });
+      }
+      const banda = sitios[0].banda, dummy = new THREE.Object3D();
+      // la rampa: un cajón peraltado que levanta el borde de dentro, el que mira al muro
+      const poner = (geo, mat, alto, off, roll) => {
+        const m = new THREE.InstancedMesh(geo, mat, sitios.length);
+        sitios.forEach((q, k) => {
+          const sm = t.samples[q.i];
+          const lat = q.centro + off * q.lado;
+          dummy.position.set(sm.x + sm.nx * lat, sm.h + alto, sm.y + sm.ny * lat);
+          dummy.rotation.set(roll * q.lado, -sm.ang, 0, 'YXZ');
+          dummy.updateMatrix(); m.setMatrixAt(k, dummy.matrix);
+        });
+        world.add(m);
+        return m;
+      };
+      const rampa = poner(new THREE.BoxGeometry(150, 12, banda), toon(th.curb ? th.curb[0] : '#ffe600'), 8, 0, 0.42);
+      world.add(contornoInstanciado(rampa));
+      // el labio de despegue, pegado al muro y del color de los paneles: es lo que se busca al pasar
+      const labio = poner(new THREE.BoxGeometry(150, 26, 16), flat(th.pad || '#00ffd0'), 26, -banda / 2 - 2, 0);
+      world.add(contornoInstanciado(labio));
+      // dos galones en el suelo, delante de la rampa, que enseñan hacia dónde te va a tirar
+      const geoGalon = new THREE.BoxGeometry(34, 3, banda * 0.8);
+      const galones = new THREE.InstancedMesh(geoGalon, flat(th.pad || '#00ffd0'), sitios.length * 2);
+      sitios.forEach((q, k) => {
+        [0, 1].forEach((j) => {
+          const sm = t.samples[((q.i - 14 + j * 7) % t.N + t.N) % t.N];
+          dummy.position.set(sm.x + sm.nx * q.centro, sm.h + 2, sm.y + sm.ny * q.centro);
+          dummy.rotation.set(0, -sm.ang, 0);
+          dummy.updateMatrix(); galones.setMatrixAt(k * 2 + j, dummy.matrix);
+        });
+      });
+      world.add(galones);
     }
 
     // ---- arcos de aviso y bordillos altos ----
@@ -722,6 +774,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       const avisos = [];
       for (const r of t.ramps) avisos.push({ i: r.start, color: '#ffe600' });
       for (const i of t.pads) avisos.push({ i, color: th.pad });
+      for (const i of t.cruces || []) avisos.push({ i, color: '#ff2d95' });   // cambio de carril a la vista
       const porColor = new Map();
       for (const a of avisos) { if (!porColor.has(a.color)) porColor.set(a.color, []); porColor.get(a.color).push(a); }
       const geoPoste = new THREE.CylinderGeometry(4, 5, 76, 8);
@@ -1029,6 +1082,81 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         obj.rotation.y += rnd() * Math.PI * 2;
         world.add(obj);
         placed++;
+      }
+    }
+    /*
+     * La cordillera (`theme.montanas`): montañas de verdad —el modelo `montanas.glb`, hecho con
+     * `tools/blender/montanas.py`— por todo el hueco que deja la carretera. Van en mallas
+     * instanciadas, una por tipo y material, así que noventa montañas cuestan una docena de
+     * dibujados; y cada una se tiñe con `setColorAt` del color del bioma por el que cae: verdes en
+     * la jungla, blancas en el hielo, negras en la mina.
+     *
+     * Sin contorno a propósito: el contorno se hincha una distancia fija y en una montaña de dos
+     * mil unidades no se vería, así que serían doce dibujados por panel tirados a la basura.
+     */
+    if (th.montanas && modelos.montanas) {
+      const cfg = th.montanas;
+      const tipos = [];
+      for (const nombre of cfg.tipos || ['Pico', 'PicoDoble', 'Meseta', 'Aguja', 'Macizo', 'Colina']) {
+        const nodo = modelos.montanas.getObjectByName(nombre);
+        if (!nodo) continue;
+        const mallas = [];
+        nodo.traverse((o) => { if (o.isMesh) mallas.push(o); });
+        if (!mallas.length) continue;
+        // lo ancha que es por abajo: hace falta para no plantarla encima de la carretera
+        let radio = 0;
+        for (const m of mallas) {
+          m.geometry.computeBoundingBox();
+          const b = m.geometry.boundingBox;
+          radio = Math.max(radio, Math.abs(b.min.x), Math.abs(b.max.x), Math.abs(b.min.z), Math.abs(b.max.z));
+        }
+        tipos.push({ mallas, radio, sitios: [] });
+      }
+      const lejos = cfg.lejos || 700;
+      if (tipos.length) {
+        let puestas = 0, intentos = 0;
+        while (puestas < cfg.n && intentos < cfg.n * 80) {
+          intentos++;
+          /*
+           * Primero el tipo y el tamaño, y luego el sitio: lo que hay que dejar libre no es el
+           * centro de la montaña, es **su falda**. Midiendo solo el centro, un macizo del 2,8
+           * (1.200 px de radio) salía a 600 px de la carretera y la tapaba entera: la cámara
+           * empezaba la carrera dentro de la montaña.
+           */
+          const tipo = tipos[Math.floor(rnd() * tipos.length)];
+          const esc = (cfg.min || 0.8) + rnd() * ((cfg.max || 2.6) - (cfg.min || 0.8));
+          const falda = lejos + tipo.radio * esc;
+          const { x, y } = juntoALaPista(t, falda, cfg.banda || 2600);
+          if (x < 150 || y < 150 || x > t.W - 150 || y > t.H - 150) continue;
+          const cerca = t.nearest(x, y);
+          if (cerca.d < t.halfW + falda) continue;      // que no le salga una montaña en la cara a nadie
+          const bioma = biomaDeMuestra(t, cerca.i);
+          tipo.sitios.push({
+            x, y, esc, giro: rnd() * Math.PI * 2,
+            h: (t.terrainAt(x, y) || 0) - 18 * esc,      // un pelín enterradas: no se ve el corte de la base
+            roca: shade(bioma ? bioma.ground : th.ground, -0.14),
+            nieve: shade(bioma ? bioma.groundAlt : th.groundAlt, 0.4),
+          });
+          puestas++;
+        }
+        const dummy = new THREE.Object3D(), col = new THREE.Color();
+        for (const tipo of tipos) {
+          if (!tipo.sitios.length) continue;
+          for (const malla of tipo.mallas) {
+            const nieve = ((malla.material && malla.material.name) || '') === 'Nieve';
+            const inst = new THREE.InstancedMesh(malla.geometry, toon('#ffffff'), tipo.sitios.length);
+            tipo.sitios.forEach((q, k) => {
+              dummy.position.set(q.x, q.h, q.y);
+              dummy.rotation.set(0, q.giro, 0);
+              dummy.scale.setScalar(q.esc);
+              dummy.updateMatrix();
+              inst.setMatrixAt(k, dummy.matrix);
+              inst.setColorAt(k, col.set(nieve ? q.nieve : q.roca));
+            });
+            if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+            world.add(inst);
+          }
+        }
       }
     }
     // ---- nubes, sol, estrellas ----
@@ -1395,7 +1523,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     cargador.load(`/modelos/${nombre}.glb`, (gltf) => { modelos[nombre] = gltf.scene; },
       undefined, (e) => console.warn(`No se ha podido cargar el modelo ${nombre}; se usa el de siempre`, e));
   }
-  for (const n of ['kart', 'platano', 'caparazon', 'cabezas', 'arbitro']) cargarModelo(n);
+  for (const n of ['kart', 'platano', 'caparazon', 'cabezas', 'arbitro', 'montanas']) cargarModelo(n);
 
   /*
    * Una copia del modelo lista para meter en la escena: materiales `toon` (el del archivo se cambia
@@ -1585,6 +1713,180 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     });
   }
 
+  // ===================== Podio final =====================
+  /*
+   * El podio del final del torneo, en 3D y en grande: los tres karts de verdad —cada uno con su
+   * personaje, su color y su bandera— subidos a su cajón, con focos, la copa del campeón girando
+   * detrás y confeti cayendo del cielo. Va colgado de la cámara, igual que el escaparate de la
+   * sala: se ve siempre bien esté la cámara donde esté y no hay que buscarle sitio en el circuito.
+   *
+   * El confeti y los fuegos son **una sola malla instanciada** de 320 trocitos: un dibujado, no
+   * trescientos objetos. Como el grupo va girado con la cámara, «abajo» es abajo en la pantalla,
+   * así que el confeti cae bien aunque la cámara esté mirando de canto.
+   */
+  /*
+   * El encuadre se calcula, no se fija: la distancia a la que se planta el podio sale del campo de
+   * visión de la cámara, de modo que **siempre se ve entero** — en una tele 16:9, en un portátil
+   * 16:10 o en la ventana cuadrada de una prueba. Con una distancia fija, la copa se salía por
+   * arriba en cuanto la pantalla era menos alta.
+   */
+  const PODIO_ALTO = 450;              // lo que tiene que caber de alto (del suelo a la copa)
+  const PODIO_CENTRO = 150;            // qué altura del podio queda en el centro de la pantalla
+  const PODIO_ALTOS = [132, 88, 56];   // lo alto que es el cajón de cada puesto
+  const PODIO_XS = [0, -132, 132];     // el primero en medio, el segundo a la izquierda
+  const CONFETI_N = 320;
+  const CONFETI_COLORES = ['#ff2d95', '#ffe600', '#00e5ff', '#39ff88', '#b14bff', '#ff6a00', '#ffffff'];
+  const podio3d = new THREE.Group();
+  podio3d.visible = false;
+  scene.add(podio3d);
+  let podioDatos = null;
+
+  // La copa: cuerpo, boca, asas y peana. Se hace a mano porque es de las pocas cosas que solo se
+  // ven una vez por fiesta; no merece un modelo aparte.
+  function copaDeCampeon() {
+    const g = new THREE.Group();
+    const oro = toon('#ffd54a');
+    const vaso = new THREE.Mesh(new THREE.CylinderGeometry(26, 13, 36, 16), oro); vaso.position.y = 42;
+    const boca = new THREE.Mesh(new THREE.TorusGeometry(26, 3.4, 8, 22), oro); boca.rotation.x = Math.PI / 2; boca.position.y = 60;
+    const pie = new THREE.Mesh(new THREE.CylinderGeometry(5, 6, 16, 10), oro); pie.position.y = 16;
+    const peana = new THREE.Mesh(new THREE.CylinderGeometry(17, 20, 12, 16), toon('#7a4a12')); peana.position.y = 6;
+    g.add(vaso, boca, pie, peana);
+    for (const lado of [-1, 1]) {
+      const asa = new THREE.Mesh(new THREE.TorusGeometry(12, 2.8, 8, 16, Math.PI), oro);
+      asa.position.set(lado * 25, 44, 0);
+      asa.rotation.z = lado > 0 ? -Math.PI / 2 : Math.PI / 2;
+      g.add(asa);
+    }
+    ponerContorno(g, []);
+    return g;
+  }
+
+  function quitarPodio() {
+    for (const hijo of [...podio3d.children]) podio3d.remove(hijo);
+    podio3d.visible = false;
+    podioDatos = null;
+    resultsEl.classList.remove('con-podio');
+  }
+
+  function montarPodio(lista) {
+    quitarPodio();
+    const podio = lista.slice(0, 3);
+    if (!podio.length) return;
+    const karts = [], focos = [];
+    podio.forEach((f, i) => {
+      const ch = CHARS[f.char] || CHARS[0];
+      const alto = PODIO_ALTOS[i], x = PODIO_XS[i];
+      const color = ['#ffd54a', '#dbe3ef', '#e08a4a'][i];
+      const cajon = new THREE.Mesh(new THREE.BoxGeometry(108, alto, 98), toon(color));
+      cajon.position.set(x, alto / 2, 0);
+      ponerContorno(cajon, []);
+      podio3d.add(cajon);
+      const num = makeSprite(textTexture(String(i + 1), { w: 128, h: 128, font: `900 100px ${UI_FONT}`, color: '#3a2a00', stroke: '#ffffff', strokeW: 10 }), 11);
+      num.scale.set(46, 46, 1); num.position.set(x, alto * 0.6, 52);
+      podio3d.add(num);
+      const kart = kartDeExhibicion(ch);
+      kart.position.set(x, alto + 2, 0);
+      kart.scale.setScalar(1.35);
+      podio3d.add(kart);
+      karts.push({ obj: kart, giro: i * 1.3 });
+      // el foco: un cono de luz que se mueve despacio sobre cada cajón
+      const foco = new THREE.Mesh(new THREE.ConeGeometry(54, 300, 18, 1, true), new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false,
+        blending: THREE.AdditiveBlending, fog: false,
+      }));
+      foco.position.set(x, alto + 160, -20);
+      podio3d.add(foco);
+      focos.push({ obj: foco, fase: i * 2.1 });
+    });
+    const copa = copaDeCampeon();
+    const copaY = PODIO_ALTOS[0] + 78;
+    copa.position.set(0, copaY, -190);
+    copa.scale.setScalar(1.35);
+    podio3d.add(copa);
+    const cartel = makeSprite(textTexture('¡CAMPEÓN!', { w: 768, h: 160, font: `900 92px ${UI_FONT}`, color: '#ffe600', stroke: '#4a0a5e', strokeW: 14 }), 12);
+    cartel.scale.set(270, 56, 1); cartel.position.set(0, copaY + 96, -190);
+    podio3d.add(cartel);
+
+    // ---- confeti y fuegos: un solo montón de trocitos ----
+    const malla = new THREE.InstancedMesh(new THREE.BoxGeometry(7, 11, 1.6),
+      new THREE.MeshBasicMaterial({ fog: false, toneMapped: false }), CONFETI_N);
+    malla.frustumCulled = false;
+    const col = new THREE.Color();
+    const trozos = [];
+    for (let i = 0; i < CONFETI_N; i++) {
+      trozos.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rz: 0, vr: 0, vr2: 0 });
+      malla.setColorAt(i, col.set(CONFETI_COLORES[i % CONFETI_COLORES.length]));
+    }
+    if (malla.instanceColor) malla.instanceColor.needsUpdate = true;
+    podio3d.add(malla);
+    podioDatos = {
+      karts, focos, copa, copaY, malla, trozos, cursor: 0, fuego: 0.6,
+      altos: PODIO_ALTOS.slice(0, podio.length),
+    };
+    for (const p of trozos) soltarConfeti(p, true);
+    podio3d.visible = true;
+  }
+
+  // Un trocito de confeti nuevo, cayendo desde arriba (`repartido`: a media caída, para el arranque)
+  function soltarConfeti(p, repartido) {
+    p.x = (Math.random() - 0.5) * 900;
+    p.y = repartido ? Math.random() * 520 - 60 : 420 + Math.random() * 160;
+    p.z = (Math.random() - 0.5) * 340;
+    p.vx = (Math.random() - 0.5) * 26; p.vy = -60 - Math.random() * 90; p.vz = (Math.random() - 0.5) * 20;
+    p.rx = Math.random() * 6; p.ry = Math.random() * 6; p.rz = Math.random() * 6;
+    p.vr = 1 + Math.random() * 4; p.vr2 = 1 + Math.random() * 3;
+  }
+
+  // Un fuego artificial: un puñado de trozos salen disparados de un punto y luego caen
+  function fuegoDePodio(d) {
+    const px = (Math.random() - 0.5) * 620, py = 180 + Math.random() * 190, pz = -60 - Math.random() * 120;
+    for (let i = 0; i < 26; i++) {
+      const p = d.trozos[d.cursor++ % CONFETI_N];
+      const a = Math.random() * Math.PI * 2, e = Math.random() * Math.PI, v = 90 + Math.random() * 150;
+      p.x = px; p.y = py; p.z = pz;
+      p.vx = Math.cos(a) * Math.sin(e) * v; p.vy = Math.cos(e) * v; p.vz = Math.sin(a) * Math.sin(e) * v * 0.6;
+      p.vr = 3 + Math.random() * 6; p.vr2 = 2 + Math.random() * 5;
+    }
+    sfx('star');
+  }
+
+  const _podioDummy = new THREE.Object3D();
+  function moverPodio(dt) {
+    if (!podioDatos) return;
+    const d = podioDatos;
+    const cam = camActiva || camera;
+    const delante = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    const arriba = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+    const dist = (PODIO_ALTO / 2) / Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2);
+    podio3d.position.copy(cam.position).addScaledVector(delante, dist).addScaledVector(arriba, -PODIO_CENTRO);
+    podio3d.quaternion.copy(cam.quaternion);
+    podio3d.rotateX(-0.13);            // un poco desde arriba, para ver los cajones
+    d.karts.forEach((k, i) => {
+      k.giro += dt * (0.9 - i * 0.18);
+      k.obj.rotation.y = k.giro;
+      // el campeón da saltitos; los otros dos, un balanceo
+      k.obj.position.y = d.altos[i] + 2 + (i === 0 ? Math.abs(Math.sin(animT * 3.2)) * 16 : Math.sin(animT * 2 + i) * 3);
+    });
+    d.copa.rotation.y += dt * 0.7;
+    d.copa.position.y = d.copaY + Math.sin(animT * 1.5) * 7;
+    for (const f of d.focos) f.obj.rotation.z = Math.sin(animT * 0.8 + f.fase) * 0.15;
+    d.fuego -= dt;
+    if (d.fuego <= 0) { d.fuego = 0.7 + Math.random() * 0.8; fuegoDePodio(d); }
+    for (let i = 0; i < CONFETI_N; i++) {
+      const p = d.trozos[i];
+      p.vy -= 110 * dt;                                     // gravedad floja: el papel cae despacio
+      p.x += (p.vx + Math.sin(animT * 2 + i) * 14) * dt;
+      p.y += p.vy * dt; p.z += p.vz * dt;
+      p.rx += p.vr * dt; p.ry += p.vr2 * dt; p.rz += p.vr * 0.6 * dt;
+      if (p.y < -120) soltarConfeti(p, false);
+      _podioDummy.position.set(p.x, p.y, p.z);
+      _podioDummy.rotation.set(p.rx, p.ry, p.rz);
+      _podioDummy.updateMatrix();
+      d.malla.setMatrixAt(i, _podioDummy.matrix);
+    }
+    d.malla.instanceMatrix.needsUpdate = true;
+  }
+
   function makeKartModel(k) {
     const ch = CHARS[k.char];
     const g = new THREE.Group();
@@ -1740,15 +2042,33 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     // clasificación + votación del circuito siguiente
     T.votos = new Map();
     T.hasta = Date.now() + CLASIFICACION_SEG * 1000;
-    const lista = TRACKS.map((t, i) => ({ i, nombre: t.name, jugado: T.jugados.includes(i) }));
-    for (const p of state.players.values()) toPlayer(p.id, { t: 'votar', circuitos: lista, hasta: CLASIFICACION_SEG });
+    T.lista = TRACKS.map((t, i) => ({ i, nombre: t.name, jugado: T.jugados.includes(i) }));
+    repartirVotacion();
     pintarClasificacion();
     clearInterval(relojTorneo);
     relojTorneo = setInterval(() => {
       if (!state.torneo || state.phase !== 'results') { clearInterval(relojTorneo); return; }
+      repartirVotacion();
       pintarClasificacion();
       if (Date.now() >= state.torneo.hasta) { clearInterval(relojTorneo); siguienteCarrera(); }
     }, 250);
+  }
+
+  /*
+   * La lista de circuitos se manda **una y otra vez** mientras dura la votación, no solo al empezar:
+   * a quien entre en la sala entre carrera y carrera, o se le caiga el móvil y vuelva, también le
+   * tiene que salir la pantalla de votar. El móvil se queda con el voto que ya hubiera dado (ver
+   * `votar` en play.js), así que repetir el mensaje no le borra nada.
+   */
+  let ultimoReparto = 0;
+  function repartirVotacion() {
+    const T = state.torneo;
+    if (!T || !T.lista) return;
+    const ahora = Date.now();
+    if (ahora - ultimoReparto < 1500) return;
+    ultimoReparto = ahora;
+    const quedan = Math.max(1, Math.round((T.hasta - ahora) / 1000));
+    for (const p of state.players.values()) if (p.connected) toPlayer(p.id, { t: 'votar', circuitos: T.lista, hasta: quedan });
   }
 
   function siguienteCarrera() {
@@ -1793,20 +2113,23 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       <div class="circuitos">${listaCircuitos}</div>`;
   }
 
+  /*
+   * El podio: los tres primeros **en 3D**, cada uno en su cajón con su kart y su personaje (ver
+   * `montarPodio`). En HTML se queda solo lo que el 3D no puede decir bien: el título arriba y los
+   * puestos del cuarto para abajo abajo del todo, para no taparlo.
+   */
   function pintarPodio() {
     const T = state.torneo;
     const filas = Torneo.clasificacion(T.tabla, T.tablaAntes);
-    const podio = filas.slice(0, 3);
-    const medallas = ['🥇', '🥈', '🥉'];
-    const cajas = podio.map((f, i) => `<div class="cajon c${i + 1}">
-        <div class="medalla">${medallas[i]}</div>
-        <div class="emoji">${f.emoji}</div>
-        <div class="nombre">${esc(f.nombre)}</div>
-        <div class="pts">${f.puntos} pts</div>
-      </div>`).join('');
+    montarPodio(filas);
     const resto = filas.slice(3).map((f) => `<tr><td class="pos">${f.puesto}º</td><td class="emoji">${f.emoji}</td><td>${esc(f.nombre)}</td><td class="pts">${f.puntos}<small> pts</small></td></tr>`).join('');
+    // los nombres van en HTML y en el orden del podio (2º - 1º - 3º), que en 3D no se leen de lejos
+    const medallas = ['🥇', '🥈', '🥉'];
+    const ganador = (i) => (filas[i] ? `<span class="g${i + 1}">${medallas[i]} ${esc(filas[i].nombre)} <b>${filas[i].puntos}</b></span>` : '');
+    resultsEl.classList.add('con-podio');
+    hudEl.classList.add('hidden');    // el marcador de la carrera sobra: encima tapaba el título
     resultsEl.innerHTML = `<h1>🏆 ¡Fin del torneo!</h1>
-      <div class="podio">${cajas}</div>
+      <div class="ganadores">${ganador(1)}${ganador(0)}${ganador(2)}</div>
       ${resto ? `<table class="resto">${resto}</table>` : ''}
       <div class="again">El anfitrión pulsa <b>OTRA CARRERA</b> en su móvil (o <b>Intro</b> en el teclado) para empezar otro torneo</div>`;
     confeti();
@@ -2431,7 +2754,8 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const enSala = state.phase === 'lobby' || state.phase === 'warmup';
     lobbyEl.classList.toggle('hidden', !enSala);
     resultsEl.classList.toggle('hidden', state.phase !== 'results');
-    hudEl.classList.toggle('hidden', enSala || panelesPrev);
+    if (state.phase !== 'results' && podioDatos) quitarPodio();
+    hudEl.classList.toggle('hidden', enSala || panelesPrev || !!podioDatos);
     if (state.phase !== 'countdown' && state.phase !== 'race') bigEl.classList.add('hidden');
     if (state.phase !== 'countdown') { semaforoEl.classList.add('hidden'); semaforoEl.classList.remove('ya'); }
     if (enSala) renderLobby();
@@ -2468,6 +2792,13 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   function renderResults() {
     if (!state.results) return;
     if (state.torneo) return;      // en torneo manda la pantalla de clasificación
+    /*
+     * Con el podio puesto, esta pantalla no pinta nada: el torneo se cierra poniendo `state.torneo`
+     * a null (para que el siguiente EMPEZAR arranque uno nuevo), así que sin esto la primera cosa
+     * que llame a `updateOverlays` —un móvil que se reconecta, un cambio de sala— borraba el podio
+     * y dejaba la tabla de la última carrera encima de los cajones.
+     */
+    if (podioDatos) return;
     const rows = state.results.map((r) => `<tr><td class="pos">${r.pos}º</td><td class="emoji">${r.emoji}</td><td>${esc(r.name)}</td><td class="time">${r.finished ? fmtTime(r.time) : 'vuelta ' + r.lap}</td></tr>`).join('');
     resultsEl.innerHTML = `<h1>🏆 Resultados · ${esc(state.track.name)}</h1><table>${rows}</table><div class="again">El anfitrión pulsa <b>OTRA CARRERA</b> en su móvil (o <b>Intro</b> en el teclado)</div>`;
   }
@@ -2499,7 +2830,13 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     }
     // contador de fps: para comprobar en la fiesta que la pantalla dividida no se atraganta
     if (key === 'p' || key === 'P') { fpsEl.classList.toggle('hidden'); return; }
-    if (state.phase === 'lobby') {
+    /*
+     * En la sala **y en el calentamiento**: en cuanto entra alguien (o se añade el jugador del
+     * teclado) la fase pasa a `warmup`, y hasta ahora eso dejaba muertas todas las teclas de la
+     * tele — las mismas que la sala anuncia en su lista de ayuda. Así que ni se podía cambiar de
+     * circuito ni quitar el jugador del teclado sin echar a todo el mundo.
+     */
+    if (state.phase === 'lobby' || state.phase === 'warmup') {
       if (key === 'Enter') startRace();
       else if (key === 'k' || key === 'K') toggleKeyboardPlayer();
       else if (key === 'ArrowLeft') changeSetting('track', -1);
@@ -2739,7 +3076,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const paneles = modoPaneles();
     if (paneles !== panelesPrev) {
       panelesPrev = paneles;
-      hudEl.classList.toggle('hidden', paneles || state.phase === 'lobby' || state.phase === 'warmup');
+      hudEl.classList.toggle('hidden', paneles || state.phase === 'lobby' || state.phase === 'warmup' || !!podioDatos);
       timeChipEl.classList.toggle('hidden', !paneles);
       // con muchos paneles, dibujar la escena 8 veces cuesta: se baja la resolución interna
       renderer.setPixelRatio(paneles && personasEnCarrera().length > 4 ? 1 : Math.min(window.devicePixelRatio || 1, 2));
@@ -2756,6 +3093,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     actualizarMotores();
     actualizarMusica();
     moverEscaparate(dt);
+    moverPodio(dt);
     if (paneles) {
       renderPaneles(dt);
       updateCamera(dt);            // la general sigue al día para cuando se vuelva a ella

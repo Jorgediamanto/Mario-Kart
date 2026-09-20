@@ -1329,7 +1329,9 @@ const escenarios = [
       const t = s.state.track;
       if (!t.paredes.length) return 'este circuito no tiene paredes centrales';
       const w = t.paredes[0];
-      const i0 = (w.from + 30) % t.N;
+      // lejos de un cruce: ahí sí se puede cambiar de carril, y a propósito (ver el escenario de abajo)
+      const cruce = (t.cruces || []).find((c) => t.inRange(c, w.from, w.to));
+      const i0 = ((cruce != null ? cruce + 25 : w.from + 30) % t.N + t.N) % t.N;
       const sm = t.samples[i0];
       // entra de lado, apuntando al muro desde el carril de la derecha
       k.x = sm.x + sm.nx * 130; k.y = sm.y + sm.ny * 130;
@@ -1343,6 +1345,45 @@ const escenarios = [
         if (t.inRange(n.i, w.from, w.to) && n.lat < -w.ancho / 2) { cruzado = true; break; }
       }
       return cruzado ? 'ha atravesado la pared y se ha pasado al otro camino' : null;
+    },
+  },
+  {
+    /*
+     * Los cruces de carril: la rampa pegada al muro te tiene que dejar en el otro camino, y la
+     * misma curva por fuera te tiene que dejar donde estabas. Si saltara siempre, cambiar de
+     * carril dejaría de ser una decisión; si no saltara nunca, los dos caminos serían dos raíles.
+     */
+    nombre: 'la rampa del cruce salta al otro carril, y por fuera se pasa de largo',
+    run(sim) {
+      const salto = (lat0) => {
+        const s = carrera(sim, { bots: 0, trackIndex: pista('Last Dance'), laps: 1 });
+        const k = humano(s);
+        const t = s.state.track;
+        if (!(t.cruces || []).length) return { error: 'este circuito no tiene cruces de carril' };
+        const ci = t.cruces[0];
+        const i0 = (ci - 8 + t.N) % t.N;
+        const sm = t.samples[i0];
+        k.x = sm.x + sm.nx * lat0; k.y = sm.y + sm.ny * lat0;
+        k.z = sm.h; k.ground = sm.h; k.air = false; k.vz = 0;
+        k.angle = sm.ang; k.moveAngle = k.angle; k.speed = 430; k.dist = i0;
+        let volado = false, lat = lat0;
+        for (let f = 0; f < 75; f++) {
+          s.setInput(k, { s: 0, g: 1, b: 0, d: 0 });
+          s.update(DT);
+          if (k.air) { volado = true; continue; }
+          lat = t.nearest(k.x, k.y).lat;
+          if (volado) break;                 // ya ha aterrizado: este es el carril en el que se queda
+        }
+        return { volado, lat };
+      };
+      const dentro = salto(110);             // pegado al muro: por ahí pasa la rampa
+      if (dentro.error) return dentro.error;
+      if (!dentro.volado) return 'pasando pegado al muro no ha saltado';
+      if (dentro.lat > -20) return `ha saltado pero se ha quedado en su carril (lat ${dentro.lat.toFixed(0)})`;
+      const fuera = salto(180);              // por fuera, casi rozando el quitamiedos
+      if (fuera.volado) return 'pasando por fuera también le ha tirado por el aire';
+      if (fuera.lat < 40) return `pasando por fuera le ha cambiado de carril (lat ${fuera.lat.toFixed(0)})`;
+      return null;
     },
   },
   {

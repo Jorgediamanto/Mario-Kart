@@ -146,13 +146,20 @@
   #results .voto { font-size: 24px; padding: 8px 18px; border-radius: 14px; background: rgba(255,255,255,.12); }
   #results .voto.jugado { opacity: .45; }
   #results .voto b { color: var(--yellow); letter-spacing: 2px; }
-  #results .podio { display: flex; align-items: flex-end; gap: 40px; margin: 10px 0 18px; }
-  #results .cajon { border-radius: 22px 22px 0 0; padding: 20px 34px 26px; text-align: center; background: rgba(255,255,255,.14); }
-  #results .cajon .medalla { font-size: 64px; } #results .cajon .emoji { font-size: 58px; }
-  #results .cajon .nombre { font-size: 34px; font-weight: 900; } #results .cajon .pts { font-size: 28px; color: var(--yellow); }
-  #results .cajon.c1 { padding-bottom: 80px; background: rgba(255,230,0,.22); order: 2; }
-  #results .cajon.c2 { padding-bottom: 46px; order: 1; }
-  #results .cajon.c3 { padding-bottom: 26px; order: 3; }
+  /* El podio del final va en 3D (los karts de verdad, ver `montarPodio` en screen.js). Aquí solo
+     se oscurece la franja de arriba y la de abajo, que es donde van el título y el resto de
+     puestos: el medio se deja limpio para que se vea el podio. */
+  #results.con-podio { background: linear-gradient(rgba(20,4,60,.82) 0%, rgba(20,4,60,.22) 17%, rgba(20,4,60,0) 40%, rgba(20,4,60,0) 60%, rgba(20,4,60,.5) 82%, rgba(20,4,60,.8) 100%); justify-content: flex-start; padding: 28px 0 20px; }
+  #results.con-podio h1 { margin: 0; font-size: 62px; }
+  /* del cuarto para abajo, en una columna a un lado: el centro es para el podio */
+  #results.con-podio table.resto { position: absolute; left: 26px; top: 50%; transform: translateY(-50%); min-width: 0; font-size: 20px; margin: 0; }
+  #results.con-podio table.resto td { padding: 5px 14px; background: rgba(20,4,60,.62); }
+  #results.con-podio .again { margin-top: 8px; font-size: 22px; }
+  /* los tres del podio, en el mismo orden que los cajones de detrás: 2º - 1º - 3º */
+  #results.con-podio .ganadores { display: flex; gap: 18px; align-items: flex-end; justify-content: center; margin-top: auto; }
+  #results.con-podio .ganadores span { font-size: 30px; font-weight: 900; padding: 8px 22px; border-radius: 16px; background: rgba(20,4,60,.72); }
+  #results.con-podio .ganadores b { color: var(--yellow); }
+  #results.con-podio .ganadores .g1 { font-size: 40px; background: rgba(255,213,74,.28); }
   #results table.resto { font-size: 26px; min-width: 620px; }
   #results .confeti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
   #results .confeti i { position: absolute; top: -40px; width: 14px; height: 22px; border-radius: 3px; animation: caer linear infinite; }

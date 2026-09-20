@@ -185,14 +185,20 @@
         vibrate([40, 50, 40, 50, 120]);
         setView();
         break;
-      case 'votar':
-        // entre carreras del torneo: llega la lista de circuitos (o null para cerrar la votación)
+      case 'votar': {
+        /*
+         * Entre carreras del torneo: llega la lista de circuitos (o null para cerrar la votación).
+         * La tele la repite cada poco mientras dura la votación (así le llega también a quien entra
+         * a mitad), por eso **se conserva el voto ya dado** y solo vibra la primera vez.
+         */
+        const antes = votando;
         votando = Array.isArray(m.circuitos) && m.circuitos.length
-          ? { circuitos: m.circuitos, hasta: Date.now() + (m.hasta || 20) * 1000, elegido: null }
+          ? { circuitos: m.circuitos, hasta: Date.now() + (m.hasta || 20) * 1000, elegido: antes ? antes.elegido : null }
           : null;
-        if (votando) vibrate([30, 40, 30]);
+        if (votando && !antes) vibrate([30, 40, 30]);
         setView();
         break;
+      }
       case 'fx':
         if (m.kind === 'pausa') showRaceMsg('🐌 Alguien está eligiendo a quién frenar…');
         if (m.kind === 'sigue') { if (eligiendo) { eligiendo = null; setView(); } showRaceMsg(''); }

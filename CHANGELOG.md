@@ -3,6 +3,57 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 — Podio de campeón en 3D, y «Last Dance» con carriles anchos, cruces y cordillera
+
+**El podio del final del torneo ya no es una tabla: es un podio de verdad.** Los tres primeros
+salen en 3D, cada uno **en su kart y con su personaje** (su color, su cara y su bandera), subidos a
+su cajón —oro, plata y bronce, con el 1, el 2 y el 3 en la cara de delante—, con focos encima, la
+copa del campeón girando detrás bajo un «¡CAMPEÓN!» y **confeti cayendo del cielo**, con fuegos que
+estallan cada par de segundos. El campeón da saltitos y los tres van dando vueltas sobre su cajón.
+
+- El encuadre se calcula solo con el campo de visión de la cámara, así que se ve entero igual en
+  una tele 16:9 que en una ventana cuadrada.
+- Los nombres y los puntos siguen en HTML (de lejos, un texto plano se lee mucho mejor que uno
+  pegado a un objeto 3D), y del cuarto puesto para abajo van en una columna a un lado.
+- El confeti y los fuegos son **una sola malla instanciada** de 320 trocitos: un dibujado.
+
+**«Last Dance», la revisión gorda que pedía la fiesta:**
+
+- **Carriles el doble de anchos.** La carretera pasa de 280 a **400** y la pared del medio de 110 a
+  90: los dos caminos eran de 85 px (no cabía ni adelantar ni elegir nada, la pared te llevaba en
+  volandas) y ahora son de **155**. El validador comprueba a partir de ahora que ningún muro deje
+  carriles de menos de 120.
+- **Cruces de carril**: diez rampas peraltadas que **saltan por encima del muro** y te dejan en el
+  otro camino. Solo saltan si pasas pegado a la línea de en medio (`CRUCE_ANCHO`): por fuera se
+  pasa de largo, así que cambiar de carril es una decisión, no algo que te pase por ir por donde
+  ibas. El salto no regala velocidad: lo que ganas de lado lo pierdes de frente.
+- **Los muros, en diez tramos cortos en vez de cinco largos**, con hueco entre ellos: entre los
+  huecos y los cruces, los dos caminos se entrelazan y se puede ir cambiando toda la vuelta.
+- **Una cordillera de noventa montañas** hechas con Blender (`tools/blender/montanas.py` →
+  `public/modelos/montanas.glb`): seis tipos (pico, pico doble, meseta, aguja, macizo y colina)
+  repartidos por todo el hueco que deja la carretera, **cada una del color de su bioma** — verdes
+  en la jungla, blancas en el hielo, negras en la mina, rojas en el centro de la tierra. Van en
+  mallas instanciadas y se plantan midiendo su **falda**, no su centro, para que ninguna tape la
+  pista. Sigue yendo a 60 fps (tecla `P`).
+De paso, tres arreglos que salieron probando todo esto:
+
+- **Las teclas de la tele vuelven a funcionar con gente en la sala**. En cuanto entraba alguien, la
+  fase pasaba a «calentamiento» y se quedaban muertas todas las teclas que la propia sala anuncia
+  (◀ ▶ circuito, `L`, `B`/`N`, `T`, `K`, `V`).
+- **La tabla de la última carrera ya no se come el podio**: al cerrar el torneo, cualquier cosa que
+  repintara la pantalla (un móvil que se reconecta, alguien que entra) dejaba los resultados de la
+  carrera encima de los cajones.
+- **La votación del circuito se reparte cada poco**, no solo al empezar: quien entre en la sala (o
+  se le caiga el móvil y vuelva) entre carrera y carrera también puede votar, sin perder el voto que
+  ya hubiera dado.
+
+- **Cómo probarlo**: `npm start`. Elige Last Dance: la carretera es ancha de verdad, y en los
+  tramos partidos, si pasas pegado al muro por debajo del arco rosa, saltas al otro carril. Mira al
+  fondo en cada bioma: la cordillera cambia de color con él. Para el podio, deja el torneo en 2
+  carreras y llega al final.
+- **Pendiente de probar en fiesta**: si con siete personas los cruces se convierten en un choque
+  continuo, y si 400 de ancho hace Last Dance demasiado fácil.
+
 ## 2026-09-20 — Modo torneo: varias carreras, puntos, votación y podio
 
 Una sesión ya no es una carrera suelta: **son varias seguidas con los mismos karts**, y al final

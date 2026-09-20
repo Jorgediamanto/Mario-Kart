@@ -83,6 +83,24 @@ for (const def of TRACKS) {
     for (const p of def.pads || []) if (p > f.at - antes && p < end + despues) problems.push(`panel turbo en ${p} cae sobre ${f.type} (${f.at})`);
   }
   for (const b of def.barriers || []) { frac(b.from, 'barrera'); frac(b.to, 'barrera'); if (!['both', 'outer'].includes(b.side)) problems.push(`barrera con lado desconocido: ${b.side}`); }
+  for (const w of def.paredes || []) {
+    frac(w.from, 'muro central'); frac(w.to, 'muro central');
+    // la pared se come el centro de la carretera: si deja carriles de menos de 120 px, no se puede jugar
+    const carril = (def.width - (w.ancho || 90)) / 2;
+    if (carril < 120) problems.push(`el muro de ${w.from} deja carriles de ${carril.toFixed(0)}px (mínimo 120)`);
+  }
+  /*
+   * Los cruces de carril tienen que caer **dentro de un muro** (si no, no cruzan nada) y lejos de
+   * una rampa: las dos cosas te tiran por el aire y juntas mandan el kart a tomar viento.
+   */
+  for (const c of def.cruces || []) {
+    frac(c, 'cruce');
+    if (!(def.paredes || []).some((w) => c > w.from && c < w.to)) problems.push(`el cruce de ${c} no cae dentro de ningún muro`);
+    for (const f of def.features || []) {
+      const end = f.at + f.length / (N * SPACING);
+      if (c > f.at - 300 / (N * SPACING) && c < end + 700 / (N * SPACING)) problems.push(`el cruce de ${c} cae sobre ${f.type} (${f.at})`);
+    }
+  }
 
   const len = N * SPACING;
   const status = problems.length ? 'PROBLEMAS' : 'OK';
