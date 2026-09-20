@@ -147,6 +147,16 @@ console.log('Servidor');
       } else {
         bad(`el mando no cuadra: ${dosBotones ? '' : 'faltan objeto/gas; '}${girarSoloEnRespaldo ? '' : 'los ◀ ▶ no están solo en el respaldo; '}${mandaDerrape ? 'play.js manda derrape' : ''}`);
       }
+      /*
+       * Los dos botones de la carrera, **sin una sola letra**: con el pulgar apoyado, el móvil
+       * seleccionaba la palabra («GAS», el nombre del objeto) y se quedaba la pantalla rallada con
+       * el texto en azul y el menú de copiar. El de objeto lleva su icono y nada más.
+       */
+      const gasPelado = /<button class="ctl gas" data-k="g"[^>]*>\s*<\/button>/.test(html);
+      const objetoPelado = /<button class="ctl item" id="btn-item"[^>]*>\s*<span id="item-icon">[^<]*<\/span>\s*<\/button>/.test(html);
+      const sinSeleccion = /\.ctl[^{]*\{[^}]*user-select: none/.test(html) && /\.ctl > \*[^{]*\{[^}]*pointer-events: none/.test(html);
+      if (gasPelado && objetoPelado && sinSeleccion) ok('los botones de la carrera no llevan texto ni se pueden seleccionar');
+      else bad(`los botones de la carrera: ${gasPelado ? '' : 'el de gas lleva texto; '}${objetoPelado ? '' : 'el de objeto lleva texto; '}${sinSeleccion ? '' : 'se puede seleccionar lo que hay dentro'}`);
       // el volante: analógico y con permiso de iPhone
       const volanteBien = /deviceorientation/.test(js) && /requestPermission/.test(js)
         && /Math\.round\(volante\.s \* 100\)/.test(js) && /isSecureContext/.test(js);

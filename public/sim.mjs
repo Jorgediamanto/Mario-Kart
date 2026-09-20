@@ -91,6 +91,39 @@ export const CRUCE_ESPERA = 3;       // segundos antes de que el mismo cruce vue
 // solo salta el que va pegado a la línea de en medio: el que pasa por fuera sigue por su camino.
 // Cambiar de carril tiene que ser una decisión, no algo que te pase por ir por donde ibas.
 export const CRUCE_ANCHO = 0.45;
+/*
+ * Los objetos de la casa (Bajo la Cama) y del videojuego (Mundo Pixel). Como los de Last Dance, son
+ * gordos a propósito: solo salen en su circuito y cambian la carrera, no la adornan.
+ *
+ *  - **espuma** 🧼: una mancha de jabón que se queda en el suelo. Quien la pisa no se cae, pero el
+ *    kart deja de agarrar: sigue derecho aunque gires (por eso baja el `lag`, no la velocidad).
+ *  - **patito** 🦆: un patito de goma que sale disparado y **rebota en los quitamiedos**. No
+ *    persigue a nadie: va donde va, y por eso puede acabar volviendo a por ti.
+ *  - **glitch** 🔀: te **cambia el sitio** con el de delante, posición y progreso incluidos.
+ *  - **bicho** 👾: se le mete al primero y le pone **los mandos al revés** un rato.
+ */
+export const ESPUMA_TIME = 3.2;      // segundos resbalando después de pisar la espuma
+export const ESPUMA_VIDA = 16;       // lo que dura la mancha en el suelo
+export const ESPUMA_R = 62;          // el radio de la mancha (un plátano son 10)
+export const PATITO_SPEED = 540;
+export const PATITO_VIDA = 7;        // segundos rebotando
+export const BICHO_TIME = 4;         // segundos con los mandos al revés
+/*
+ * Los tramos de dos caminos no se abren de golpe: la franja de en medio crece desde cero y vuelve a
+ * cerrarse al final, como el pico de una bifurcación de autopista. Así, en los circuitos en los que
+ * los dos caminos **se separan de verdad** (`tipo: 'abierto'`), la carretera se parte en dos
+ * calzadas delante de ti en vez de aparecerte un agujero, y el empujón de la simulación coincide
+ * exactamente con lo que se ve. La tele dibuja la carretera con esta misma cuenta.
+ */
+export const PARED_RAMPA = 18;       // muestras que tarda en abrirse del todo (unos 145 px)
+export function anchoDePared(w, i, N) {
+  const dentro = ((i - w.from) % N + N) % N;
+  const largo = ((w.to - w.from) % N + N) % N;
+  if (dentro > largo) return 0;
+  const r = Math.min(PARED_RAMPA, largo / 2);
+  const u = Math.max(0, Math.min(dentro / r, (largo - dentro) / r, 1));
+  return w.ancho * u * u * (3 - 2 * u);
+}
 // Progreso: cuando un kart aparece de golpe muy por delante (ha volado por encima de un atajo), su
 // avance no se cuenta… pero solo durante este rato. Pasado eso se acepta, para no dejarle la
 // clasificación congelada media vuelta.
@@ -201,6 +234,10 @@ export const ITEMS = {
   liana: { icon: '🌿', name: 'Liana' },
   terremoto: { icon: '🌋', name: 'Terremoto' },
   portal: { icon: '🌀', name: 'Portal' },
+  espuma: { icon: '🧼', name: 'Espuma' },
+  patito: { icon: '🦆', name: 'Patito' },
+  glitch: { icon: '🔀', name: 'Glitch' },
+  bicho: { icon: '👾', name: 'Bicho' },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
 
@@ -367,7 +404,7 @@ export function buildTrack(def, index, geom) {
    * vueltas y los bots.
    */
   for (const w of def.paredes || []) {
-    t.paredes.push({ from: Math.floor(w.from * N) % N, to: Math.floor(w.to * N) % N, ancho: w.ancho || 90 });
+    t.paredes.push({ from: Math.floor(w.from * N) % N, to: Math.floor(w.to * N) % N, ancho: w.ancho || 90, abierto: w.tipo === 'abierto' });
   }
   /*
    * Cruces de carril (`cruces`): el punto exacto en el que una rampa salta por encima del muro
@@ -376,7 +413,7 @@ export function buildTrack(def, index, geom) {
    */
   for (const f of def.cruces || []) t.cruces.push(Math.floor(f * N) % N);
   // ¿cae este punto dentro de la franja del muro central (con un margen para el kart)?
-  const enMuro = (i, off) => t.paredes.some((w) => t.inRange(i, w.from, w.to) && Math.abs(off) < w.ancho / 2 + 34);
+  const enMuro = (i, off) => t.paredes.some((w) => t.inRange(i, w.from, w.to) && Math.abs(off) < anchoDePared(w, i, N) / 2 + 34);
   for (const f of def.boxes) {
     const i = Math.floor(f * N) % N, s = samples[i];
     // la caja del medio se salta donde hay muro: estaría metida dentro de la pared y no la cogría nadie
@@ -500,7 +537,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
   };
   // `itemsByPos[posición][objeto]` = cuántas veces ha salido ese objeto a quien iba en esa posición:
   // es la forma de comprobar que el reparto por posición hace lo que dice `rollItem`.
-  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, lianas: 0, terremotos: 0, portales: 0, boings: 0, bumps: 0, pads: 0, cruces: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
+  const stats = { jumps: 0, tricks: 0, rampBoosts: 0, rockets: 0, inks: 0, inkSelf: 0, lianas: 0, terremotos: 0, portales: 0, boings: 0, bumps: 0, pads: 0, cruces: 0, espumas: 0, patitos: 0, glitches: 0, bichos: 0, maxAir: 0, pickups: 0, itemsUsed: 0, hits: 0, rescues: 0, itemsByPos: {}, driftBoosts: [0, 0, 0] };
   let simTime = 0;
   let statusTimer = 0;
 
@@ -528,7 +565,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       lastRamp: -1, lastRampAt: -99, offT: 0,
       rocketUntil: 0, inkUntil: 0, liana: null,
       enderezaTrasGolpe: false,
-      wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastCruce: -1, lastCruceAt: 0, lastBoing: 0, dustT: 0,
+      wrongT: 0, wrongWay: false, zapUntil: 0, hitsTaken: 0, aheadT: 0, driftT: 0, driftDir: 0, driftLevel: 0, steerT: 0, steerDir: 0, trick: false, trickAngle: 0, sPrev: 0, stuckT: 0, rescueUntil: 0, airT: 0, lastPad: -1, lastPadAt: 0, lastCruce: -1, lastCruceAt: 0, resbalaUntil: 0, bichoUntil: 0, lastBoing: 0, dustT: 0,
       finished: false, finishTime: 0, finishRank: 0,
       input: { s: 0, g: 0, b: 0, d: 0 },
       view: null,
@@ -813,6 +850,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     // `inp.d` (el viejo botón de derrape) ya no se usa: el derrape sale solo. Se sigue aceptando en
     // el protocolo para no romper los móviles que lleven la página cargada de antes.
     let s = active ? inp.s : 0, g = active ? inp.g : 0, b = active ? inp.b : 0;
+    // el bicho de Mundo Pixel: mientras dura, girar a la derecha te lleva a la izquierda. Se le
+    // da la vuelta al mando entero (giro y derrape), que es lo que se entiende jugando.
+    if (k.bichoUntil > now) s = -s;
     /*
      * Modo fácil (ver EASY_AYUDA): el gas se pisa solo mientras no frenes, y al volante se le suma
      * una ayuda que apunta a la carretera unas muestras más adelante. Cuanto menos toques tú, más
@@ -889,7 +929,13 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     k.sPrev = dir;
 
     k.angle += s * turn * dt * (k.speed >= 0 ? 1 : -1);
-    const lag = drifting ? 3.2 : k.air ? 2 : 11;
+    /*
+     * La espuma de Bajo la Cama: no te tira, te deja sin agarre. `lag` es lo rápido que el kart va
+     * hacia donde apunta; bajándolo, el morro gira pero el kart sigue derecho un rato — que es
+     * exactamente lo que se siente al pisar jabón.
+     */
+    const resbala = k.resbalaUntil > now;
+    const lag = (drifting ? 3.2 : k.air ? 2 : 11) * (resbala ? 0.22 : 1);
     k.moveAngle = k.angle + wrapAngle(k.moveAngle - k.angle) * Math.exp(-lag * dt);
     k.x += Math.cos(k.moveAngle) * k.speed * dt;
     k.y += Math.sin(k.moveAngle) * k.speed * dt;
@@ -945,7 +991,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
         if (Math.abs(di) > 3) continue;
         if (k.lastCruce === ci && now - k.lastCruceAt < CRUCE_ESPERA) continue;
         const muro = t.paredes.find((q) => t.inRange(ci, q.from, q.to));
-        const desde = muro ? muro.ancho / 2 : 0;
+        const desde = muro ? anchoDePared(muro, ci, t.N) / 2 : 0;
         const lat = Math.abs(near2.lat);
         if (lat > desde + (t.halfW - desde) * CRUCE_ANCHO) continue;   // iba por fuera: sigue por su carril
         k.lastCruce = ci; k.lastCruceAt = now;
@@ -964,8 +1010,8 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     // muro central: si te metes en la franja de en medio, te saca al camino que tengas más cerca
     for (const w of t.paredes) {
       if (!t.inRange(near2.i, w.from, w.to)) continue;
-      const mitad = w.ancho / 2;
-      if (Math.abs(near2.lat) < mitad && !(k.z - k.ground > 40)) {
+      const mitad = anchoDePared(w, near2.i, t.N) / 2;
+      if (mitad > 4 && Math.abs(near2.lat) < mitad && !(k.z - k.ground > 40)) {
         const sm = t.samples[near2.i];
         const lado = near2.lat >= 0 ? 1 : -1;
         k.x = sm.x + sm.nx * mitad * lado; k.y = sm.y + sm.ny * mitad * lado;
@@ -1366,6 +1412,72 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
         hooks.onToast(`${k.emoji} ${k.name} sacude la jungla: ${sacudidos} por los aires 🌋`, 2.4);
         break;
       }
+      /*
+       * Espuma (Bajo la Cama): una mancha de jabón que se queda en el suelo. No tira a nadie —
+       * quien la pisa se queda sin agarre un rato (ver ESPUMA_TIME)— y no se gasta: es una trampa
+       * de zona, no un plátano. Puesta en la entrada de una curva, es una escabechina.
+       */
+      case 'espuma': {
+        const bn = { x: k.x - cos * 48, y: k.y - sin * 48, z: null, owner: k.id, bornAt: now, tipo: 'espuma', view: null };
+        state.bananas.push(bn);
+        hooks.onBananaAdded(bn);
+        if (state.bananas.length > 30) hooks.onBananaRemoved(state.bananas.shift());
+        stats.espumas++;
+        hooks.onSfx('espuma', k);
+        break;
+      }
+      /*
+       * Patito (Bajo la Cama): sale disparado y **rebota en los quitamiedos**. No persigue a nadie,
+       * así que en una recta se pierde y en un pasillo estrecho es una trituradora… y, si tienes
+       * mala suerte, vuelve a por ti: medio segundo después de soltarlo, a ti también te da.
+       */
+      case 'patito': {
+        const p = { type: 'patito', x: k.x + cos * 32, y: k.y + sin * 32, z: 0, angle: k.angle, speed: PATITO_SPEED, owner: k.id, bornAt: now, life: PATITO_VIDA, targetId: null, botes: 0, dead: false, view: null };
+        state.projectiles.push(p);
+        hooks.onProjectileAdded(p);
+        stats.patitos++;
+        hooks.onSfx('patito', k);
+        break;
+      }
+      /*
+       * Glitch (Mundo Pixel): **te cambia el sitio con el de delante**, con todo: dónde estás, hacia
+       * dónde vas y cuánto llevas de carrera. Es el objeto más bestia del juego y por eso solo sale
+       * de tercero para atrás; contra una estrella, no funciona.
+       */
+      case 'glitch': {
+        const delante = state.karts.find((o) => o.rank === k.rank - 1 && !o.finished);
+        if (!delante) { boost(k, 1.0); hooks.onToast(`${k.emoji} ${k.name}: el glitch no pilla a nadie… turbo de consolación 🔀`, 2); break; }
+        if (delante.starUntil > now) { hooks.onToast(`${k.emoji} ${k.name}: el glitch rebota en la estrella de ${delante.name} ⭐`, 2.5); break; }
+        for (const campo of ['x', 'y', 'z', 'ground', 'vz', 'air', 'angle', 'moveAngle', 'speed', 'dist', 'lapCount']) {
+          const tmp = k[campo]; k[campo] = delante[campo]; delante[campo] = tmp;
+        }
+        for (const o of [k, delante]) {
+          o.aheadT = 0; o.driftT = 0; o.driftLevel = 0;
+          hooks.onParticles(o.x, o.z + 20, o.y, { n: 20, color: ['#00e5ff', '#ff2d95', '#ffffff'], spread: 200, vy: 120, life: 0.6, size: 5 });
+          hooks.onFx(o, 'glitch');
+        }
+        updateRanking();
+        stats.glitches++;
+        hooks.onSfx('glitch', k);
+        hooks.onToast(`${k.emoji} ${k.name} se cambia el sitio con ${delante.emoji} ${delante.name} 🔀`, 2.5);
+        break;
+      }
+      /*
+       * Bicho (Mundo Pixel): se le mete al primero y le pone **los mandos al revés** unos segundos.
+       * No le quita velocidad: le quita el circuito, que es peor.
+       */
+      case 'bicho': {
+        const lider = state.karts.find((o) => o.rank === 1 && o !== k && !o.finished);
+        if (!lider) { boost(k, 1.0); hooks.onToast(`${k.emoji} ${k.name}: el bicho no encuentra a nadie… turbo de consolación 👾`, 2); break; }
+        if (lider.starUntil > now) { hooks.onToast(`${k.emoji} ${k.name}: el bicho se estrella contra la estrella de ${lider.name} ⭐`, 2.5); break; }
+        lider.bichoUntil = now + BICHO_TIME;
+        stats.bichos++;
+        hooks.onFx(lider, 'bicho');
+        hooks.onSfx('bicho', lider);
+        hooks.onParticles(lider.x, lider.z + 24, lider.y, { n: 16, color: ['#39ff88', '#00e5ff', '#ffffff'], spread: 170, vy: 110, life: 0.7, size: 5 });
+        hooks.onToast(`${k.emoji} ${k.name} le suelta un bicho a ${lider.emoji} ${lider.name}: ¡mandos al revés! 👾`, 3);
+        break;
+      }
       case 'portal': {
         const t2 = state.track;
         const saltos = Math.round(PORTAL_SALTO / SAMPLE_SPACING);
@@ -1505,6 +1617,23 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       p.x += Math.cos(p.angle) * p.speed * dt;
       p.y += Math.sin(p.angle) * p.speed * dt;
       p.z = t.groundAt(p.x, p.y) + 8;
+      if (p.type === 'patito') {
+        // el patito no se muere al salirse: **rebota** en el quitamiedos y sigue dando guerra
+        const cerca = t.nearest(p.x, p.y);
+        if (cerca.d > t.halfW - 16) {
+          const sm = t.samples[cerca.i];
+          const lado = cerca.lat >= 0 ? 1 : -1;
+          p.x = sm.x + sm.nx * (t.halfW - 22) * lado;
+          p.y = sm.y + sm.ny * (t.halfW - 22) * lado;
+          const vx = Math.cos(p.angle), vy = Math.sin(p.angle);
+          const vn = vx * sm.nx + vy * sm.ny;
+          p.angle = Math.atan2(vy - 2 * vn * sm.ny, vx - 2 * vn * sm.nx);
+          p.botes++;
+          hooks.onSfx('boing');
+          hooks.onParticles(p.x, p.z, p.y, { n: 6, color: ['#ffd400', '#ffffff'], spread: 120, life: 0.4, size: 4 });
+        }
+        homing = true;      // ya se encarga él de no salirse
+      }
       const age = now - p.bornAt;
       if (age > p.life || p.x < 0 || p.x > t.W || p.y < 0 || p.y > t.H) { p.dead = true; continue; }
       if (!homing && t.nearest(p.x, p.y).d > t.halfW + 30) { p.dead = true; hooks.onParticles(p.x, p.z, p.y, { n: 8, color: '#ffffff', spread: 120, life: 0.4, size: 4 }); continue; }
@@ -1522,6 +1651,7 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
       if (p.dead) continue;
       for (let i = state.bananas.length - 1; i >= 0; i--) {
         const bn = state.bananas[i];
+        if (bn.tipo === 'espuma') continue;      // la espuma no se quita de en medio de un caparazonazo
         const dx = bn.x - p.x, dy = bn.y - p.y;
         if (dx * dx + dy * dy < 22 * 22) { hooks.onBananaRemoved(bn); state.bananas.splice(i, 1); p.dead = true; hooks.onParticles(p.x, p.z, p.y, { n: 8, color: '#ffe600', spread: 140, life: 0.5, size: 4 }); break; }
       }
@@ -1534,9 +1664,20 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     const now = simTime;
     for (let i = state.bananas.length - 1; i >= 0; i--) {
       const bn = state.bananas[i];
+      // la espuma se seca sola al rato; el plátano se queda hasta que alguien lo pisa
+      if (bn.tipo === 'espuma' && now - bn.bornAt > ESPUMA_VIDA) { hooks.onBananaRemoved(bn); state.bananas.splice(i, 1); continue; }
       for (const k of state.karts) {
         if (bn.owner === k.id && now < bn.bornAt + 0.7) continue;
         if (k.z - k.ground > 22) continue;
+        if (bn.tipo === 'espuma') {
+          const ex = bn.x - k.x, ey = bn.y - k.y;
+          if (ex * ex + ey * ey > (KART_R + ESPUMA_R) * (KART_R + ESPUMA_R)) continue;
+          if (k.starUntil > now || k.resbalaUntil > now + ESPUMA_TIME * 0.5) continue;
+          k.resbalaUntil = now + ESPUMA_TIME;
+          hooks.onFx(k, 'espuma');
+          hooks.onParticles(k.x, k.z + 8, k.y, { n: 8, color: ['#ffffff', '#dff3f7'], spread: 130, vy: 70, life: 0.5, size: 4 });
+          continue;         // la mancha no se gasta: la pisa quien pase, y a quien pase
+        }
         const dx = bn.x - k.x, dy = bn.y - k.y;
         if (dx * dx + dy * dy < (KART_R + 10) * (KART_R + 10)) {
           if (k.starUntil > now || hitKart(k, { id: bn.owner, tipo: 'banana' })) { hooks.onBananaRemoved(bn); state.bananas.splice(i, 1); hooks.onParticles(bn.x, k.z + 6, bn.y, { n: 8, color: '#ffe600', spread: 140, life: 0.5, size: 4 }); break; }

@@ -1301,22 +1301,144 @@ const escenarios = [
     },
   },
   {
-    nombre: 'las habilidades de la jungla solo salen en la jungla',
+    nombre: 'cada circuito monstruo reparte solo sus habilidades',
     run(sim) {
-      const propias = ['liana', 'terremoto', 'portal'];
-      // en Last Dance salen…
-      const s = carrera(sim, { bots: 0, trackIndex: pista('Last Dance'), laps: 1 });
-      const vistas = new Set();
-      for (let i = 0; i < 20000; i++) vistas.add(s.rollItem(4, 7));
-      if (!propias.every((id) => vistas.has(id))) return `en Last Dance no salen todas: ${propias.filter((id) => !vistas.has(id)).join(', ')}`;
-      // …y en los demás, no
+      const deCasa = { 'Last Dance': ['liana', 'terremoto', 'portal'], 'Bajo la Cama': ['espuma', 'patito'], 'Mundo Pixel': ['glitch', 'bicho'] };
+      const todas = Object.values(deCasa).flat();
+      for (const [circuito, propias] of Object.entries(deCasa)) {
+        // en el suyo salen todas…
+        const s = carrera(sim, { bots: 0, trackIndex: pista(circuito), laps: 1 });
+        const vistas = new Set();
+        for (let i = 0; i < 20000; i++) vistas.add(s.rollItem(4, 7));
+        if (!propias.every((id) => vistas.has(id))) return `en ${circuito} no salen todas: ${propias.filter((id) => !vistas.has(id)).join(', ')}`;
+        // …y las de los otros dos, no
+        const ajenas = todas.filter((id) => !propias.includes(id));
+        for (let i = 0; i < 12000; i++) {
+          const id = s.rollItem(1 + (i % 7), 7);
+          if (ajenas.includes(id)) return `en ${circuito} ha salido ${id}, que es de otro circuito`;
+        }
+      }
+      // y en los pequeños no sale ninguna
       for (const nombre of ['Arcoíris', 'Chicle']) {
         const s2 = carrera(sim, { bots: 0, trackIndex: pista(nombre) });
         for (let i = 0; i < 8000; i++) {
           const id = s2.rollItem(1 + (i % 7), 7);
-          if (propias.includes(id)) return `en ${nombre} ha salido ${id}, que es de la jungla`;
+          if (todas.includes(id)) return `en ${nombre} ha salido ${id}, que es de un circuito monstruo`;
         }
       }
+      return null;
+    },
+  },
+  {
+    /*
+     * La espuma de Bajo la Cama: es una trampa de **zona**, no un plátano. Ni tira al que la pisa
+     * ni se gasta al pisarla: se queda ahí, y lo que hace es dejar el kart sin agarre (sigue
+     * derecho aunque gires). Si algún día se gastara al primer contacto, dejaría de ser lo que es.
+     */
+    nombre: 'la espuma deja sin agarre a quien la pisa y se queda ahí para el siguiente',
+    run(sim) {
+      const s = carrera(sim, { bots: 1, trackIndex: pista('Bajo la Cama'), laps: 1 });
+      const k = humano(s);
+      const bot = s.state.karts.find((q) => q.isBot);
+      k.item = 'espuma';
+      s.useItem(k);
+      const mancha = s.state.bananas[0];
+      if (!mancha || mancha.tipo !== 'espuma') return 'no ha soltado la mancha de espuma';
+      // el bot pasa por encima
+      bot.x = mancha.x; bot.y = mancha.y; bot.z = k.z; bot.ground = k.ground; bot.air = false;
+      s.setInput(bot, { s: 0, g: 1, b: 0, d: 0 });
+      s.update(DT);
+      if (!(bot.resbalaUntil > s.state.simTime)) return 'ha pasado por la espuma y no resbala';
+      if (!s.state.bananas.includes(mancha)) return 'la espuma se ha gastado con el primero que la pisa';
+      // y resbalar es resbalar: con el volante a tope, el kart tarda más en ir hacia donde apunta
+      const medir = (conEspuma) => {
+        const s2 = carrera(sim, { bots: 0, trackIndex: pista('Bajo la Cama'), laps: 1 });
+        const q = humano(s2);
+        q.speed = 360; q.moveAngle = q.angle;
+        if (conEspuma) q.resbalaUntil = s2.state.simTime + 3;
+        for (let f = 0; f < 30; f++) {
+          if (conEspuma) q.resbalaUntil = s2.state.simTime + 3;
+          s2.setInput(q, { s: 1, g: 1, b: 0, d: 0 });
+          s2.update(DT);
+        }
+        return Math.abs(((q.moveAngle - q.angle + Math.PI) % (2 * Math.PI)) - Math.PI);
+      };
+      const conEspuma = medir(true), sinEspuma = medir(false);
+      if (!(conEspuma > sinEspuma * 1.5)) return `con espuma derrapa igual que sin ella (${conEspuma.toFixed(2)} vs ${sinEspuma.toFixed(2)} rad)`;
+      return null;
+    },
+  },
+  {
+    /*
+     * El patito: no persigue a nadie, **rebota**. Si al tocar el quitamiedos se muriera como los
+     * demás proyectiles, sería un caparazón verde malo; lo que lo hace divertido es que sigue.
+     */
+    nombre: 'el patito rebota en el quitamiedos en vez de morirse',
+    run(sim) {
+      const s = carrera(sim, { bots: 0, trackIndex: pista('Bajo la Cama'), laps: 1 });
+      const k = humano(s);
+      const t = s.state.track;
+      const sm = t.samples[((Math.round(k.dist) % t.N) + t.N) % t.N];
+      k.angle = sm.ang + 0.9; k.moveAngle = k.angle;     // apuntando al quitamiedos
+      k.item = 'patito';
+      s.useItem(k);
+      const p = s.state.projectiles[0];
+      if (!p || p.type !== 'patito') return 'no ha salido el patito';
+      let botes = 0, vivoHasta = 0;
+      for (let f = 0; f < 60 * 3; f++) {
+        s.setInput(k, { s: 0, g: 0, b: 0, d: 0 });
+        s.update(DT);
+        if (p.dead) break;
+        botes = p.botes; vivoHasta = f / 60;
+      }
+      if (botes < 1) return `el patito no ha rebotado ninguna vez (vivió ${vivoHasta.toFixed(1)} s)`;
+      if (vivoHasta < 1) return `el patito solo ha durado ${vivoHasta.toFixed(1)} s`;
+      return null;
+    },
+  },
+  {
+    /*
+     * El glitch de Mundo Pixel: cambia el sitio con el de delante, **con progreso y todo**. Si
+     * cambiara solo la posición en el mapa y no el progreso, la clasificación diría una cosa y la
+     * pantalla otra, que es peor que no hacer nada.
+     */
+    nombre: 'el glitch te cambia el sitio (y el puesto) con el de delante',
+    run(sim) {
+      const s = carrera(sim, { bots: 2, trackIndex: pista('Mundo Pixel'), laps: 1 });
+      const usuario = s.state.karts.find((o) => o.rank === 2);
+      const delante = s.state.karts.find((o) => o.rank === 1);
+      if (!usuario || !delante) return 'no hay dos karts en carrera';
+      const antes = { miDist: usuario.dist, suDist: delante.dist, miX: usuario.x, suX: delante.x };
+      if (Math.abs(antes.miDist - antes.suDist) < 1) return 'los dos karts van pegadísimos: la prueba no mide nada';
+      usuario.item = 'glitch';
+      s.useItem(usuario);
+      if (Math.abs(usuario.dist - antes.suDist) > 0.001) return 'el que usa el glitch no se ha quedado con el progreso del de delante';
+      if (Math.abs(delante.dist - antes.miDist) > 0.001) return 'el de delante no se ha quedado con el progreso del que usa el glitch';
+      if (Math.abs(usuario.x - antes.suX) > 0.001) return 'no se han cambiado de sitio en el mapa';
+      if (usuario.rank !== 1 || delante.rank !== 2) return `los puestos no se han cambiado (${usuario.rank} y ${delante.rank})`;
+      return null;
+    },
+  },
+  {
+    // El bicho: al primero se le da la vuelta al mando. Girar a la derecha tiene que llevarle a la izquierda.
+    nombre: 'el bicho le pone los mandos al revés al primero',
+    run(sim) {
+      const s = carrera(sim, { bots: 2, trackIndex: pista('Mundo Pixel'), laps: 1 });
+      const lider = s.state.karts.find((o) => o.rank === 1);
+      const usuario = s.state.karts.find((o) => o.rank > 1);
+      usuario.item = 'bicho';
+      s.useItem(usuario);
+      if (!(lider.bichoUntil > s.state.simTime)) return 'el bicho no le ha entrado al primero';
+      const ang0 = lider.angle;
+      lider.speed = 320;
+      for (let f = 0; f < 20; f++) {
+        for (const q of s.state.karts) s.setInput(q, q === lider ? { s: 1, g: 1, b: 0, d: 0 } : { s: 0, g: 0, b: 0, d: 0 });
+        s.update(DT);
+      }
+      const giro = ((lider.angle - ang0 + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      if (giro >= 0) return `girando a la derecha se ha ido a la derecha (${giro.toFixed(2)} rad)`;
+      // y al usuario no le pasa nada
+      if (usuario.bichoUntil > s.state.simTime) return 'el bicho se lo ha comido también el que lo usa';
       return null;
     },
   },

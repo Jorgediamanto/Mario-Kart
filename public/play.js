@@ -211,6 +211,10 @@
         if (m.kind === 'rocket') { vibrate([30, 30, 30, 30, 200]); flashBody('#b86a1f'); showRaceMsg('🚀 ¡Agárrate!', 1800); }
         if (m.kind === 'ink') { vibrate([90, 60, 90]); flashBody('#241046'); showRaceMsg('🦑 ¡Te han pintado la pantalla!', 2000); }
         if (m.kind === 'blue') { vibrate([40, 40, 40]); showRaceMsg('🔵 ¡Va a por el primero!', 1500); }
+        // los de la casa y los del videojuego (Bajo la Cama y Mundo Pixel)
+        if (m.kind === 'espuma') { vibrate([50, 40, 50]); flashBody('#3a6a7a'); showRaceMsg('🧼 ¡Espuma! No agarras', 1800); }
+        if (m.kind === 'glitch') { vibrate([20, 30, 20, 30, 20]); flashBody('#6a1f8a'); showRaceMsg('🔀 ¡Te han cambiado el sitio!', 1800); }
+        if (m.kind === 'bicho') { vibrate([120, 60, 120, 60, 120]); flashBody('#1f8a4a'); showRaceMsg('👾 ¡Mandos al revés!', 4000); }
         // derrape automático: drift0 = se ha soltado; drift1..3 = nivel cargado
         if (typeof m.kind === 'string' && m.kind.startsWith('drift')) pintarDerrape(Number(m.kind.slice(5)) || 0);
         break;
@@ -456,10 +460,6 @@
     const pad = $('pad'); if (pad) pad.classList.toggle('con-volante', con);
     const bar = $('vbar'); if (bar) bar.classList.toggle('show', con);
     const centrar = $('btn-centrar'); if (centrar) centrar.classList.toggle('hidden', !con);
-    const gas = $('gas-hint');
-    // en modo fácil el kart acelera solo, así que el botón deja de ser «el que hace que te muevas»
-    if (gas) gas.textContent = me.easy ? '🦺 acelera solo · el GAS es un empujón'
-      : con ? 'gira el móvil para girar' : 'los dos giros a la vez = marcha atrás';
     const estado = $('volante-estado'), btnV = $('btn-volante'), btnB = $('btn-botones');
     if (!estado) return;
     const saltar = !volantePosible() && !!urlVolante;   // estamos en la dirección normal y hay otra cifrada
@@ -591,18 +591,16 @@
       $('st-pos').textContent = `${status.pos}º`;
       $('st-lap').textContent = `de ${status.n} · Vuelta ${status.lap}/${status.laps}`;
     }
-    const iconEl = $('item-icon'), nameEl = $('item-name');
+    // solo el icono: el botón no lleva texto (ver play.html), que con el dedo encima se seleccionaba
+    const iconEl = $('item-icon');
     clearInterval(rouletteTimer); rouletteTimer = null;
     if (status.rolling) {
       let i = 0;
       rouletteTimer = setInterval(() => { iconEl.textContent = ITEMS[ITEM_IDS[i++ % ITEM_IDS.length]].icon; }, 90);
-      nameEl.textContent = '…';
     } else if (status.item && ITEMS[status.item]) {
       iconEl.textContent = ITEMS[status.item].icon;
-      nameEl.textContent = ITEMS[status.item].name;
     } else {
       iconEl.textContent = '·';
-      nameEl.textContent = 'sin objeto';
     }
   }
   /*

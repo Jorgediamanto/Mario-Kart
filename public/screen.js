@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import {
   createSim, MAP_W, MAP_H, DT, MAX_KARTS, SPIN_TIME, RESCUE_TIME, BASE_MAX_SPEED, CHARS, ITEMS, ITEM_IDS,
-  clamp, lerp, smoothstep, mulberry32, ordinal, CRUCE_ANCHO,
+  clamp, lerp, smoothstep, mulberry32, ordinal, CRUCE_ANCHO, anchoDePared,
 } from './sim.mjs';
 import { panelLayout, panelEnPixeles } from './layout.mjs';
 import * as Torneo from './torneo.mjs';
@@ -372,11 +372,16 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     }
 
     // ---- carretera, bordillos ----
+    // Los bordes pueden ser un número o una función de la muestra: así la carretera se puede partir
+    // en dos calzadas (los tramos de dos caminos «abiertos») sin cambiar nada más.
     const ribbon = (lat0, lat1, colorFn, dy, opacidad) => {
+      const f0 = typeof lat0 === 'function' ? lat0 : () => lat0;
+      const f1 = typeof lat1 === 'function' ? lat1 : () => lat1;
       const pos = [], col = [], idx = [];
       for (let i = 0; i < t.N; i++) {
         const s = t.samples[i];
-        pos.push(s.x + s.nx * lat0, s.h + dy, s.y + s.ny * lat0, s.x + s.nx * lat1, s.h + dy, s.y + s.ny * lat1);
+        const a0 = f0(i), a1 = f1(i);
+        pos.push(s.x + s.nx * a0, s.h + dy, s.y + s.ny * a0, s.x + s.nx * a1, s.h + dy, s.y + s.ny * a1);
         const c = colorFn(i);
         col.push(c.r, c.g, c.b, c.r, c.g, c.b);
         const a = i * 2, b = ((i + 1) % t.N) * 2;
@@ -408,10 +413,32 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
           return _bio2;
         }
         : (i) => (Math.floor(i / 6) % 2 ? roadC : roadC2);
-    world.add(ribbon(-t.halfW, t.halfW, colorCarretera, 1.0, cielo ? 0.72 : 1));
+    /*
+     * Tramos de dos caminos **abiertos** (`tipo: 'abierto'` en tracks.js): la carretera no lleva una
+     * pared por el medio, se **parte en dos calzadas de verdad** y por el hueco se ve el terreno.
+     * `media(i)` es medio hueco en cada muestra, con la misma cuenta que usa la simulación para
+     * echarte de en medio (`anchoDePared`): lo que se ve es exactamente lo que hay.
+     */
+    const abiertas = (t.paredes || []).filter((w) => w.abierto);
+    const media = (i) => { let m = 0; for (const w of abiertas) m = Math.max(m, anchoDePared(w, i, t.N) / 2); return m; };
+    const opacidadPista = cielo ? 0.72 : 1;
+    if (abiertas.length) {
+      world.add(ribbon(-t.halfW, (i) => -media(i), colorCarretera, 1.0, opacidadPista));
+      world.add(ribbon((i) => media(i), t.halfW, colorCarretera, 1.0, opacidadPista));
+    } else {
+      world.add(ribbon(-t.halfW, t.halfW, colorCarretera, 1.0, opacidadPista));
+    }
     const cA = new THREE.Color(th.curb[0]), cB = new THREE.Color(th.curb[1]);
-    world.add(ribbon(t.halfW, t.halfW + 12, (i) => (Math.floor(i / 3) % 2 ? cA : cB), 1.0));
-    world.add(ribbon(-t.halfW - 12, -t.halfW, (i) => (Math.floor(i / 3) % 2 ? cA : cB), 1.0));
+    const rayas = (i) => (Math.floor(i / 3) % 2 ? cA : cB);
+    world.add(ribbon(t.halfW, t.halfW + 12, rayas, 1.0));
+    world.add(ribbon(-t.halfW - 12, -t.halfW, rayas, 1.0));
+    if (abiertas.length) {
+      // bordillo por dentro, en el filo de cada calzada: donde no hay hueco, la cinta se queda sin
+      // ancho (los dos bordes en el mismo sitio) y no se dibuja nada
+      const dentro = (lado, fuera) => (i) => { const m = media(i); return m > 4 ? (m + (fuera ? 11 : 0)) * lado : 0; };
+      world.add(ribbon(dentro(1, true), dentro(1, false), rayas, 1.02));
+      world.add(ribbon(dentro(-1, false), dentro(-1, true), rayas, 1.02));
+    }
 
     // ---- decoración de la carretera: flechas, meta, paneles turbo, carteles ----
     const decal = (i, w, len, mat, dy) => {
@@ -475,6 +502,24 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
      * como la decoración. El grupo se gira con la carretera, así que dentro de él **+X es hacia
      * donde se corre y +Z es hacia el lado**: todo se coloca en esas coordenadas.
      */
+    // La textura del bloque de interrogación de Mundo Pixel: la usan el prop gigante (se pasa por
+    // debajo) y los bloques sueltos de la decoración, así que se hace una vez.
+    let _texBloque = null;
+    const texBloque = () => {
+      if (_texBloque) return _texBloque;
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const x = c.getContext('2d');
+      x.fillStyle = '#e8a24a'; x.fillRect(0, 0, 64, 64);
+      x.fillStyle = '#8a4a12';
+      x.fillRect(0, 0, 64, 6); x.fillRect(0, 58, 64, 6); x.fillRect(0, 0, 6, 64); x.fillRect(58, 0, 6, 64);
+      for (const [a, b] of [[8, 8], [50, 8], [8, 50], [50, 50]]) x.fillRect(a, b, 6, 6);
+      x.font = '900 42px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText('?', 32, 35);
+      _texBloque = new THREE.CanvasTexture(c);
+      _texBloque.colorSpace = THREE.SRGBColorSpace;
+      _texBloque.magFilter = THREE.NearestFilter;
+      return _texBloque;
+    };
     const props = {
       // Castillo con dos torreones a los lados y un arco enorme por el que se pasa. Encima, el
       // árbol de cristal que pidió el dueño: es el punto de referencia del circuito.
@@ -596,6 +641,51 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
           }
           const luz = new THREE.PointLight('#ff5e00', 0, 800, 1.6);
           luz.position.y = alto; luz.intensity = 360000; g.add(luz);
+        } else if (remate === 'sofa') {
+          // el sofá del salón, a tamaño de casa: se pasa por debajo, entre las patas
+          const c = '#b0303a';
+          const asiento = new THREE.Mesh(new THREE.BoxGeometry(210, 70, sep * 2 + 60), toon(c));
+          asiento.position.y = alto + 84; g.add(asiento);
+          const respaldo = new THREE.Mesh(new THREE.BoxGeometry(70, 160, sep * 2 + 60), toon(shade(c, -0.08)));
+          respaldo.position.set(-100, alto + 190, 0); g.add(respaldo);
+          for (const lado of [-1, 1]) {
+            const brazo = new THREE.Mesh(new THREE.BoxGeometry(210, 130, 64), toon(shade(c, 0.06)));
+            brazo.position.set(0, alto + 150, (sep + 28) * lado); g.add(brazo);
+            const cojin = new THREE.Mesh(new THREE.BoxGeometry(150, 46, sep * 0.78), toon(shade(c, 0.14)));
+            cojin.position.set(24, alto + 140, lado * sep * 0.5); g.add(cojin);
+          }
+        } else if (remate === 'tostadora') {
+          // la tostadora: se pasa por dentro, por debajo de las dos ranuras, con las tostadas fuera
+          const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(230, 180, sep * 2 + 40), toon('#dde6ee'));
+          cuerpo.position.y = alto + 108; g.add(cuerpo);
+          const palanca = new THREE.Mesh(new THREE.BoxGeometry(26, 60, 18), toon('#ff3d3d'));
+          palanca.position.set(126, alto + 150, sep * 0.8); g.add(palanca);
+          for (const lado of [-1, 1]) {
+            const ranura = new THREE.Mesh(new THREE.BoxGeometry(170, 22, 76), toon('#23262c'));
+            ranura.position.set(0, alto + 196, lado * sep * 0.52); g.add(ranura);
+            const tostada = new THREE.Mesh(new THREE.BoxGeometry(150, 110, 36), toon('#c98a4b'));
+            tostada.position.set(0, alto + 250, lado * sep * 0.52); g.add(tostada);
+            anim({ kind: 'bob', obj: tostada, amp: 16, phase: lado > 0 ? 0 : 1.4 });
+          }
+        } else if (remate === 'bloque') {
+          // el bloque de interrogación, flotando y dando botes por encima de la carretera
+          const cubo = new THREE.Mesh(new THREE.BoxGeometry(210, 210, 210), new THREE.MeshToonMaterial({ map: texBloque(), gradientMap: toonGradient }));
+          cubo.position.y = alto + 200; g.add(cubo);
+          anim({ kind: 'bob', obj: cubo, amp: 16, phase: 0.4 });
+        } else if (remate === 'pantalla') {
+          // la pantalla del GAME OVER: se pasa por dentro del marco
+          const marco = new THREE.Mesh(new THREE.BoxGeometry(60, 280, sep * 2 + 140), toon('#2a2f65'));
+          marco.position.y = alto + 160; g.add(marco);
+          const c = document.createElement('canvas'); c.width = 512; c.height = 160;
+          const x = c.getContext('2d');
+          x.fillStyle = '#05050f'; x.fillRect(0, 0, 512, 160);
+          x.fillStyle = '#ff2d95'; x.font = `900 62px ${UI_FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle';
+          x.fillText('GAME OVER', 256, 86);
+          const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+          const panel = new THREE.Mesh(new THREE.PlaneGeometry(sep * 2, 150), new THREE.MeshBasicMaterial({ map: tex }));
+          panel.position.set(-31, alto + 160, 0);
+          panel.rotation.y = -Math.PI / 2;
+          g.add(panel);
         } else if (remate === 'cupula') {
           const cupula = new THREE.Mesh(new THREE.SphereGeometry(140, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), flat('#8ee3ff'));
           cupula.position.y = alto + 40; g.add(cupula);
@@ -636,6 +726,12 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       // Luna Loca: el anillo de un planeta y la base lunar
       anillo: () => props.aroDe({ color: '#8ee3ff', dentro: '#ff00ff', adorno: 'chispa', adornoColor: ['#ffffff', '#8ee3ff'], n: 20, gordo: 16, girar: 0.4 }),
       base: () => props.porticoDe({ pilar: '#c9d4ff', techo: '#8fa4e8', remate: 'cupula', alto: 240, forma: 'palo' }),
+      // Bajo la Cama: el sofá del salón y la tostadora de la cocina
+      sofa: () => props.porticoDe({ pilar: '#7a2028', techo: '#8d2530', remate: 'sofa', alto: 250 }),
+      tostadora: () => props.porticoDe({ pilar: '#b9c4cd', techo: '#9aa6b5', remate: 'tostadora', alto: 250, forma: 'palo' }),
+      // Mundo Pixel: el bloque de interrogación y la pantalla de GAME OVER
+      bloque: () => props.porticoDe({ pilar: '#8a4a12', techo: '#c87a3a', remate: 'bloque', alto: 250 }),
+      pantalla: () => props.porticoDe({ pilar: '#2a2f65', techo: '#1a1a2e', remate: 'pantalla', alto: 260 }),
     };
     for (const pr of th.props || []) {
       const hacer = props[pr.kind];
@@ -687,10 +783,13 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       const trozos = [], luces = [];
       const dummy = new THREE.Object3D();
       for (const w of t.paredes) {
+        if (w.abierto) continue;            // este no lleva pared: la carretera se parte de verdad
         let n = 0;
         for (let i = w.from; i !== w.to; i = (i + 1) % t.N) {
           if (n++ % 4) continue;
           if (enUnCruce(i, 9)) continue;      // el hueco por donde se salta al otro carril
+          // en los picos (donde la franja se está abriendo o cerrando) no hay pared que valga
+          if (anchoDePared(w, i, t.N) < w.ancho * 0.6) continue;
           const sm = t.samples[i];
           trozos.push({ x: sm.x, y: sm.y, h: sm.h, ang: sm.ang });
           if (n % 16 === 1) luces.push({ x: sm.x, y: sm.y, h: sm.h, ang: sm.ang });
@@ -711,6 +810,58 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
           dummy.updateMatrix(); faro.setMatrixAt(i, dummy.matrix);
         });
         world.add(faro);
+      }
+    }
+
+    /*
+     * Las bifurcaciones abiertas: por dentro, cada calzada lleva su quitamiedos (que es contra lo
+     * que rebotas si te metes en el medio), y en la punta —donde se abre y donde se vuelve a
+     * juntar— un cartel y una isleta a rayas, para que se vea venir la decisión desde lejos.
+     */
+    if (abiertas.length) {
+      const bloques = [];
+      for (const w of abiertas) {
+        for (let i = w.from, n = 0; i !== w.to; i = (i + 1) % t.N, n++) {
+          if (n % 5) continue;
+          const m = anchoDePared(w, i, t.N) / 2;
+          if (m < 18) continue;
+          const sm = t.samples[i];
+          for (const lado of [-1, 1]) {
+            const lat = (m + 9) * lado;
+            bloques.push({ x: sm.x + sm.nx * lat, y: sm.y + sm.ny * lat, h: sm.h, ang: sm.ang, c: (n / 5) % 2 | 0 });
+          }
+        }
+        // la isleta de la punta (entrada) y la de la unión (salida), con su cartel
+        for (const [muestra, texto, giro] of [[w.from, '↰ ELIGE ↱', 0], [w.to, 'SE JUNTAN', Math.PI]]) {
+          const sm = t.samples[((muestra % t.N) + t.N) % t.N];
+          const isleta = new THREE.Mesh(new THREE.ConeGeometry(w.ancho * 0.36, 16, 3), toon(th.curb ? th.curb[0] : '#ffe600'));
+          isleta.position.set(sm.x, sm.h + 8, sm.y);
+          isleta.rotation.set(0, -sm.ang + giro + Math.PI / 2, 0);
+          ponerContorno(isleta, []);
+          world.add(isleta);
+          const cartel = makeSprite(textTexture(texto, { w: 320, h: 96, font: `900 52px ${UI_FONT}`, color: '#ffffff', stroke: '#2a0a3a', strokeW: 10 }), 5);
+          cartel.material.depthTest = true;
+          cartel.position.set(sm.x, sm.h + 76, sm.y);
+          cartel.scale.set(104, 31, 1);
+          const poste = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 62, 8), toon('#ffffff'));
+          poste.position.set(sm.x, sm.h + 31, sm.y);
+          world.add(cartel, poste);
+        }
+      }
+      if (bloques.length) {
+        const geoTope = new THREE.BoxGeometry(30, 22, 16);
+        const dummy = new THREE.Object3D();
+        for (const c of [0, 1]) {
+          const lista = bloques.filter((q) => q.c === c);
+          if (!lista.length) continue;
+          const mesh = new THREE.InstancedMesh(geoTope, toon(th.bumper[c]), lista.length);
+          lista.forEach((q, k) => {
+            dummy.position.set(q.x, q.h + 11, q.y);
+            dummy.rotation.set(0, -q.ang, 0);
+            dummy.updateMatrix(); mesh.setMatrixAt(k, dummy.matrix);
+          });
+          world.add(mesh, contornoInstanciado(mesh));
+        }
       }
     }
 
@@ -775,6 +926,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       for (const r of t.ramps) avisos.push({ i: r.start, color: '#ffe600' });
       for (const i of t.pads) avisos.push({ i, color: th.pad });
       for (const i of t.cruces || []) avisos.push({ i, color: '#ff2d95' });   // cambio de carril a la vista
+      for (const w of abiertas) avisos.push({ i: w.from, color: '#00e5ff' });   // la carretera se parte en dos
       const porColor = new Map();
       for (const a of avisos) { if (!porColor.has(a.color)) porColor.set(a.color, []); porColor.get(a.color).push(a); }
       const geoPoste = new THREE.CylinderGeometry(4, 5, 76, 8);
@@ -1023,6 +1175,208 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 50, 6), toon('#ffffff')); pole.position.y = 25; g.add(pole);
         const f = new THREE.Mesh(new THREE.PlaneGeometry(24, 15), new THREE.MeshToonMaterial({ color: pick(th.palette), gradientMap: toonGradient, side: THREE.DoubleSide }));
         f.position.set(12, 42, 0); g.add(f);
+        return g;
+      },
+      // ---- Bajo la Cama: los trastos de la casa, a tamaño de kart ----
+      caja: () => {
+        const g = new THREE.Group();
+        const c = pick(['#c98a4b', '#b87a3e', '#d79a5c']);
+        const alto = 26 + rnd() * 30, ancho = 38 + rnd() * 22;
+        const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(ancho, alto, ancho * 0.9), toon(c));
+        cuerpo.position.y = alto / 2; g.add(cuerpo);
+        const cinta = new THREE.Mesh(new THREE.BoxGeometry(ancho + 1, 4, 11), toon('#e8d9a8'));
+        cinta.position.y = alto; g.add(cinta);
+        return g;
+      },
+      bombilla: () => {
+        const g = new THREE.Group();
+        const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 130, 4), flat('#15100c'));
+        cable.position.y = 125; g.add(cable);
+        const casquillo = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 11, 8), toon('#9aa0b5'));
+        casquillo.position.y = 62; g.add(casquillo);
+        const bulbo = new THREE.Mesh(new THREE.SphereGeometry(12, 12, 10), flat('#fff3b0'));
+        bulbo.position.y = 50; g.add(bulbo);
+        anim({ kind: 'bob', obj: g, phase: rnd() * 6, amp: 5 });
+        return g;
+      },
+      sofa: () => {
+        const g = new THREE.Group();
+        const c = pick(['#b0303a', '#8d2530', '#6a2f5a', '#2f5a6a']);
+        const asiento = new THREE.Mesh(new THREE.BoxGeometry(74, 16, 40), toon(c));
+        asiento.position.y = 18; g.add(asiento);
+        const respaldo = new THREE.Mesh(new THREE.BoxGeometry(74, 30, 12), toon(shade(c, -0.06)));
+        respaldo.position.set(0, 38, -16); g.add(respaldo);
+        for (const lado of [-1, 1]) {
+          const brazo = new THREE.Mesh(new THREE.BoxGeometry(12, 26, 40), toon(shade(c, 0.05)));
+          brazo.position.set(35 * lado, 32, 0); g.add(brazo);
+        }
+        for (const lado of [-1, 1]) {
+          const cojin = new THREE.Mesh(new THREE.BoxGeometry(30, 10, 32), toon(shade(c, 0.12)));
+          cojin.position.set(17 * lado, 30, 2); g.add(cojin);
+        }
+        return g;
+      },
+      cojin: () => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(26 + rnd() * 14, 9, 26 + rnd() * 14), toon(pick(th.palette)));
+        m.position.y = 5; m.rotation.y = rnd() * 3; m.rotation.z = (rnd() - 0.5) * 0.3;
+        return m;
+      },
+      lampara: () => {
+        const g = new THREE.Group();
+        const pie = new THREE.Mesh(new THREE.CylinderGeometry(3, 10, 74, 8), toon('#5a4632'));
+        pie.position.y = 37; g.add(pie);
+        const pantalla = new THREE.Mesh(new THREE.ConeGeometry(24, 30, 12, 1, true), new THREE.MeshToonMaterial({ color: '#ffe0a8', gradientMap: toonGradient, side: THREE.DoubleSide }));
+        pantalla.position.y = 86; g.add(pantalla);
+        const luz = new THREE.Mesh(new THREE.SphereGeometry(9, 10, 8), flat('#fff3b0'));
+        luz.position.y = 74; g.add(luz);
+        return g;
+      },
+      tarro: () => {
+        const g = new THREE.Group();
+        const alto = 26 + rnd() * 22;
+        const cristal = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, alto, 12), new THREE.MeshToonMaterial({ color: '#dff3f7', gradientMap: toonGradient, transparent: true, opacity: 0.75 }));
+        cristal.position.y = alto / 2; g.add(cristal);
+        const dentro = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, alto * 0.55, 12), toon(pick(['#ff8a00', '#ff2d95', '#39ff88', '#b14bff'])));
+        dentro.position.y = alto * 0.3; g.add(dentro);
+        const tapa = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 6, 12), toon('#c9a227'));
+        tapa.position.y = alto + 2; g.add(tapa);
+        return g;
+      },
+      fogon: () => {
+        const g = new THREE.Group();
+        const placa = new THREE.Mesh(new THREE.CylinderGeometry(22, 24, 8, 16), toon('#2a2a2e'));
+        placa.position.y = 4; g.add(placa);
+        const corona = new THREE.Mesh(new THREE.TorusGeometry(13, 3.5, 6, 16), toon('#4a4a52'));
+        corona.rotation.x = Math.PI / 2; corona.position.y = 9; g.add(corona);
+        for (let k = 0; k < 6; k++) {
+          const llama = new THREE.Mesh(new THREE.ConeGeometry(4.5, 16, 6), flat(k % 2 ? '#00b4ff' : '#ff8a00'));
+          llama.position.set(Math.cos(k * 1.05) * 13, 18, Math.sin(k * 1.05) * 13);
+          g.add(llama);
+        }
+        anim({ kind: 'pulse', obj: g, phase: rnd() * 6 });
+        return g;
+      },
+      cubito: () => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(18 + rnd() * 12, 18 + rnd() * 10, 18 + rnd() * 12),
+          new THREE.MeshToonMaterial({ color: '#dff1ff', gradientMap: toonGradient, transparent: true, opacity: 0.85 }));
+        m.position.y = 10; m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 0.4);
+        return m;
+      },
+      patito: () => {
+        const g = new THREE.Group();
+        const cuerpo = new THREE.Mesh(new THREE.SphereGeometry(16, 14, 10), toon('#ffd400'));
+        cuerpo.scale.set(1.25, 0.95, 1); cuerpo.position.y = 15; g.add(cuerpo);
+        const cola = new THREE.Mesh(new THREE.ConeGeometry(9, 16, 8), toon('#ffd400'));
+        cola.position.set(-18, 20, 0); cola.rotation.z = 1.1; g.add(cola);
+        const cabeza = new THREE.Mesh(new THREE.SphereGeometry(10, 12, 9), toon('#ffd400'));
+        cabeza.position.set(13, 30, 0); g.add(cabeza);
+        const pico = new THREE.Mesh(new THREE.ConeGeometry(4.5, 10, 7), toon('#ff8a00'));
+        pico.position.set(22, 29, 0); pico.rotation.z = -Math.PI / 2; g.add(pico);
+        for (const lado of [-1, 1]) {
+          const ojo = new THREE.Mesh(new THREE.SphereGeometry(2.2, 8, 6), flat('#1a1a1a'));
+          ojo.position.set(17, 33, 4 * lado); g.add(ojo);
+        }
+        anim({ kind: 'bob', obj: g, phase: rnd() * 6, amp: 4 });
+        return g;
+      },
+      espuma: () => {
+        const g = new THREE.Group();
+        const n = 3 + Math.floor(rnd() * 4);
+        for (let k = 0; k < n; k++) {
+          const r = 9 + rnd() * 13;
+          const b = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap: toonGradient, transparent: true, opacity: 0.85 }));
+          b.position.set((rnd() - 0.5) * 30, r * 0.8, (rnd() - 0.5) * 30);
+          g.add(b);
+        }
+        anim({ kind: 'bob', obj: g, phase: rnd() * 6, amp: 3 });
+        return g;
+      },
+      // ---- Mundo Pixel: los cacharros del videojuego ----
+      bloque: () => {
+        const g = new THREE.Group();
+        const m = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshToonMaterial({ map: texBloque(), gradientMap: toonGradient }));
+        m.position.y = 40 + rnd() * 40; g.add(m);
+        anim({ kind: 'bob', obj: g, phase: rnd() * 6, amp: 6 });
+        return g;
+      },
+      tuberia: () => {
+        const g = new THREE.Group();
+        const alto = 34 + rnd() * 40;
+        const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, alto, 12), toon('#1ea81e'));
+        cuerpo.position.y = alto / 2; g.add(cuerpo);
+        const boca = new THREE.Mesh(new THREE.CylinderGeometry(19, 19, 12, 12), toon('#39d139'));
+        boca.position.y = alto; g.add(boca);
+        return g;
+      },
+      nube8: () => {
+        const g = new THREE.Group();
+        for (const [dx, dy, w] of [[0, 0, 34], [-20, -8, 22], [20, -8, 22], [0, 12, 20]]) {
+          const b = new THREE.Mesh(new THREE.BoxGeometry(w, 14, 16), toon('#ffffff'));
+          b.position.set(dx, 90 + dy + rnd() * 40, 0); g.add(b);
+        }
+        anim({ kind: 'drift', obj: g, speed: 5 + rnd() * 8 });
+        return g;
+      },
+      pieza: () => {
+        const g = new THREE.Group();
+        const c = pick(['#00e5ff', '#ffe600', '#b14bff', '#39ff88', '#ff2d95', '#ff6a00']);
+        const formas = [[[0, 0], [1, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [2, 0], [3, 0]], [[0, 0], [1, 0], [2, 0], [1, 1]], [[0, 0], [0, 1], [0, 2], [1, 2]]];
+        for (const [a, b] of pick(formas)) {
+          const cubo = new THREE.Mesh(new THREE.BoxGeometry(17, 17, 17), toon(c));
+          cubo.position.set(a * 18, b * 18 + 9, 0); g.add(cubo);
+        }
+        g.rotation.y = rnd() * 3;
+        anim({ kind: 'spinY', obj: g, speed: 0.2 + rnd() * 0.5 });
+        return g;
+      },
+      fallo: () => {
+        const g = new THREE.Group();
+        const n = 3 + Math.floor(rnd() * 4);
+        for (let k = 0; k < n; k++) {
+          const cubo = new THREE.Mesh(new THREE.BoxGeometry(14 + rnd() * 26, 10 + rnd() * 20, 14 + rnd() * 20),
+            flat(pick(['#00ffa8', '#ff2d95', '#00e5ff', '#ffe600', '#ffffff'])));
+          cubo.position.set((rnd() - 0.5) * 40, 10 + k * 16, (rnd() - 0.5) * 30);
+          g.add(cubo);
+        }
+        anim({ kind: 'glitch', obj: g, t: rnd() });
+        return g;
+      },
+      chip: () => {
+        const g = new THREE.Group();
+        const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(34, 10, 24), toon('#12131a'));
+        cuerpo.position.y = 9; g.add(cuerpo);
+        const punto = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 2, 8), toon('#3a3f52'));
+        punto.position.set(-12, 15, -8); g.add(punto);
+        for (let k = -2; k <= 2; k++) for (const lado of [-1, 1]) {
+          const pata = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 8), toon('#c9c9a8'));
+          pata.position.set(k * 8, 6, 15 * lado); g.add(pata);
+        }
+        const led = new THREE.Mesh(new THREE.SphereGeometry(3, 8, 6), flat(pick(['#39ff88', '#ff2d95', '#ffe600'])));
+        led.position.set(14, 16, 6); g.add(led);
+        anim({ kind: 'pulse', obj: led, phase: rnd() * 6 });
+        return g;
+      },
+      boton: () => {
+        const g = new THREE.Group();
+        const c = pick(['#5a6cff', '#39ff88', '#ff6a00', '#ff2d95']);
+        const base = new THREE.Mesh(new THREE.BoxGeometry(56, 16, 22), toon(shade(c, -0.12)));
+        base.position.y = 8; g.add(base);
+        const tapa = new THREE.Mesh(new THREE.BoxGeometry(52, 8, 19), toon(c));
+        tapa.position.y = 18; g.add(tapa);
+        const brillo = new THREE.Mesh(new THREE.BoxGeometry(40, 2, 5), flat('#ffffff'));
+        brillo.position.set(0, 23, -4); g.add(brillo);
+        anim({ kind: 'bob', obj: g, phase: rnd() * 6, amp: 3 });
+        return g;
+      },
+      barra: () => {
+        const g = new THREE.Group();
+        const marco = new THREE.Mesh(new THREE.BoxGeometry(78, 14, 10), toon('#2a2f65'));
+        marco.position.y = 30; g.add(marco);
+        const relleno = new THREE.Mesh(new THREE.BoxGeometry(70 * (0.2 + rnd() * 0.7), 9, 11), flat(pick(['#39ff88', '#00e5ff', '#ffe600'])));
+        relleno.position.set(-35 + relleno.geometry.parameters.width / 2, 30, 0); g.add(relleno);
+        const poste = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 30, 6), toon('#8f96b5'));
+        poste.position.y = 15; g.add(poste);
+        anim({ kind: 'pulse', obj: relleno, phase: rnd() * 6 });
         return g;
       },
       rocket: () => {
@@ -1352,9 +1706,9 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       },
       onSquash: (k, dv) => { if (k.view) k.view.sq.vel -= dv; },
       onStretch: (k, dv) => { if (k.view) k.view.st.vel += dv; },
-      onProjectileAdded: (pr) => { pr.view = shellMesh(pr.type); },
+      onProjectileAdded: (pr) => { pr.view = pr.type === 'patito' ? patitoMesh() : shellMesh(pr.type); },
       onProjectileRemoved: (pr) => { if (pr.view) { scene.remove(pr.view); pr.view = null; } },
-      onBananaAdded: (b) => { b.view = bananaMesh(); },
+      onBananaAdded: (b) => { b.view = b.tipo === 'espuma' ? espumaMesh() : bananaMesh(); },
       onBananaRemoved: (b) => { if (b.view) { scene.remove(b.view); b.view = null; } },
     },
   });
@@ -2252,6 +2606,47 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     scene.add(g);
     return g;
   }
+  /*
+   * El patito de goma que rebota (Bajo la Cama). Va dando tumbos por la carretera, así que se le
+   * pone cara: de frente se ve venir y da risa, que es de lo que se trata.
+   */
+  function patitoMesh() {
+    const g = new THREE.Group();
+    const cuerpo = new THREE.Mesh(new THREE.SphereGeometry(13, 14, 10), toon('#ffd400'));
+    cuerpo.scale.set(1.25, 0.95, 1); cuerpo.position.y = 11;
+    const cola = new THREE.Mesh(new THREE.ConeGeometry(7, 13, 8), toon('#ffd400'));
+    cola.position.set(-14, 15, 0); cola.rotation.z = 1.1;
+    const cabeza = new THREE.Mesh(new THREE.SphereGeometry(8, 12, 9), toon('#ffd400'));
+    cabeza.position.set(10, 23, 0);
+    const pico = new THREE.Mesh(new THREE.ConeGeometry(3.6, 8, 7), toon('#ff8a00'));
+    pico.position.set(17, 22, 0); pico.rotation.z = -Math.PI / 2;
+    g.add(cuerpo, cola, cabeza, pico);
+    for (const lado of [-1, 1]) {
+      const ojo = new THREE.Mesh(new THREE.SphereGeometry(1.9, 8, 6), flat('#1a1a1a'));
+      ojo.position.set(13, 26, 3.2 * lado); g.add(ojo);
+    }
+    ponerContorno(g, []);
+    scene.add(g);
+    return g;
+  }
+  /*
+   * La mancha de espuma (Bajo la Cama): un charco de burbujas a ras de suelo. Se ve blanca y
+   * gorda a propósito — es lo bastante grande como para que haya que decidir por dónde pasas.
+   */
+  function espumaMesh() {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap: toonGradient, transparent: true, opacity: 0.82 });
+    for (let i = 0; i < 9; i++) {
+      const r = 16 + Math.random() * 20;
+      const b = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), mat);
+      const a = Math.random() * Math.PI * 2, d = Math.random() * 40;
+      b.position.set(Math.cos(a) * d, r * 0.35, Math.sin(a) * d);
+      b.scale.y = 0.45;
+      g.add(b);
+    }
+    scene.add(g);
+    return g;
+  }
   function bananaMesh() {
     if (modelos.platano) {
       const g = new THREE.Group();
@@ -2543,6 +2938,17 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         else if (a.kind === 'pad') a.tex.offset.x -= dt * 1.5;
         else if (a.kind === 'pulse') { const s = 1 + Math.sin(animT * 3 + a.phase) * 0.08; a.obj.scale.set(s, s, s); }
         else if (a.kind === 'pool') { const s = 1 + Math.sin(animT * 1.2 + a.phase) * 0.03; a.obj.scale.set(s, 1, s); }
+        else if (a.kind === 'glitch') {
+          // el fallo del sistema: cada poco se descoloca de golpe y a veces desaparece
+          if (a.x === undefined) { a.x = a.obj.position.x; a.z = a.obj.position.z; }
+          a.t -= dt;
+          if (a.t <= 0) {
+            a.t = 0.08 + Math.random() * 0.25;
+            a.obj.position.x = a.x + (Math.random() - 0.5) * 34;
+            a.obj.position.z = a.z + (Math.random() - 0.5) * 20;
+            a.obj.visible = Math.random() > 0.12;
+          }
+        }
         else if (a.kind === 'volcano') { a.t -= dt; if (a.t <= 0) { a.t = 0.15; particles.emit(a.obj.position.x, a.obj.position.y + 150, a.obj.position.z, { n: 2, color: ['#ff5e00', '#ffd000', '#ff2d95'], spread: 90, vy: 220, life: 1.4, size: 6, g: 260 }); } }
       }
     }
@@ -3042,6 +3448,11 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       case 'snail': [660, 520, 400, 300].forEach((f, i) => tone(f, 0.22, { when: i * 0.1, type: 'sine', vol: 0.12 })); break;
       case 'snailHit': tone(240, 0.7, { type: 'triangle', to: 70, vol: 0.14 }); break;
       case 'rescue': [880, 660, 990].forEach((f, i) => tone(f, 0.14, { when: i * 0.09, type: 'sine', vol: 0.09 })); break;
+      // los de la casa y los del videojuego
+      case 'espuma': tone(900, 0.4, { type: 'sine', to: 320, vol: 0.09 }); break;
+      case 'patito': [700, 900].forEach((f, i) => tone(f, 0.12, { when: i * 0.08, type: 'square', vol: 0.09 })); break;
+      case 'glitch': [1200, 300, 900, 200].forEach((f, i) => tone(f, 0.07, { when: i * 0.05, type: 'square', vol: 0.11 })); break;
+      case 'bicho': [220, 180, 260, 150].forEach((f, i) => tone(f, 0.1, { when: i * 0.07, type: 'sawtooth', vol: 0.1 })); break;
       default: break;
     }
   }

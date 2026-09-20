@@ -141,7 +141,10 @@ function generar({ spec, ancho, esc = 1, ey = 0.58, margen = 220, espaciado = 12
   points = rotarAMeta(points, { ancho, W, H });
 
   const v = validar(points, { width: ancho, W, H });
-  return { points, W, H, V, geomV, info, v, paso, len, ancho };
+  // `dx`/`dy`: lo que se ha movido todo para meterlo en su mundo. Hace falta para saber en qué
+  // fracción de vuelta cae cada esquina **después** de girar la lista para poner la meta en la
+  // recta más larga (es lo que se usa para repartir biomas, rampas y cajas por sectores).
+  return { points, W, H, V, geomV, info, v, paso, len, ancho, dx: -minX + margen, dy: -minY + margen };
 }
 
 // La meta va en mitad de la recta más larga: rotamos los puntos para que el punto 0 caiga ahí.

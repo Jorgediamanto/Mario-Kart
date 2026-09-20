@@ -3,6 +3,53 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 — Dos circuitos monstruo más: «Bajo la Cama» y «Mundo Pixel»
+
+Los hermanos de Last Dance: otras dos vueltas únicas de unos tres minutos, cinco biomas cada una y
+sus propias habilidades. Con ellos, la baraja pasa a ocho circuitos.
+
+- **Bajo la Cama** (71.800 px): la casa a tamaño de juguete. Se sale del **desván**, se baja al
+  **salón** por la alfombra, se trepa a la **encimera de la cocina**, se entra en la **nevera**, se
+  cae al **baño** (el punto más bajo, −260) y se vuelve a subir al desván (+620). Por el camino:
+  cajas, bombillas colgando, sofás, tarros, fogones encendidos, cubitos, patitos de goma y espuma.
+  Se pasa **por debajo del sofá** y **por dentro de la tostadora**.
+- **Mundo Pixel** (72.400 px): por dentro de un videojuego. Se sale del **menú** (el limbo blanco de
+  la pantalla de carga), se cae a un juego de **8 bits** (cielo azul, tuberías, bloques de
+  interrogación), se sube por el **tetris**, se atraviesa el **glitch** —donde el circuito sube y
+  baja sin ninguna lógica y las cosas parpadean y se descolocan— y se baja a la **placa base**. Se
+  pasa **por debajo del bloque de interrogación** y **por dentro de la pantalla de GAME OVER**.
+- **Los dos caminos, aquí, se abren de verdad.** En Last Dance hay una pared por el medio; en estos
+  dos la carretera **se parte en dos calzadas** de 150 con 200 de suelo (o de vacío) por el medio.
+  Se abre y se cierra poco a poco, como el pico de una bifurcación de autopista, con **isleta y
+  cartel** en la punta («↰ ELIGE ↱») y en la unión («SE JUNTAN»), quitamiedos por dentro de cada
+  calzada y un arco de aviso antes. Para cambiarte de calzada tienes que **volar el hueco** por uno
+  de los cruces.
+- **Cuatro habilidades nuevas**, dos por circuito:
+  - 🧼 **Espuma** (Bajo la Cama): una mancha de jabón que se queda en el suelo. No tira a nadie: al
+    que la pisa le deja el kart **sin agarre** unos segundos. Y no se gasta — la pisa todo el que
+    pase. Puesta en la entrada de una curva, es una escabechina.
+  - 🦆 **Patito** (Bajo la Cama): sale disparado y **rebota en los quitamiedos**. No persigue a
+    nadie, así que en una recta se pierde… y en un pasillo estrecho puede volver a por ti.
+  - 🔀 **Glitch** (Mundo Pixel): **te cambia el sitio con el de delante**, con posición, rumbo y
+    progreso. Es lo más bestia del juego: solo sale de tercero para atrás y contra una estrella no
+    funciona.
+  - 👾 **Bicho** (Mundo Pixel): se le mete al primero y le pone **los mandos al revés** cuatro
+    segundos. No le quita velocidad: le quita el circuito.
+- La carretera de los dos mide **500** (la más ancha del juego): con las dos calzadas partidas hacía
+  falta sitio para que cada camino fuera un camino y no un pasillo.
+
+- De paso, **los botones del mando se quedan sin texto**: con el pulgar apoyado en el GAS, el móvil
+  seleccionaba la palabra y se quedaba la pantalla rallada con el texto en azul y el menú de copiar.
+  Ahora el botón de objeto enseña solo el icono de lo que llevas, el del gas es la mancha verde y
+  nada dentro de un botón se puede seleccionar. Lo que hace cada uno sigue explicado en la sala.
+
+- **Cómo probarlo**: `npm start` y elige «Bajo la Cama» o «Mundo Pixel» en la sala. Los tramos de
+  dos caminos se ven venir por el arco azul y el cartel «↰ ELIGE ↱». Las habilidades nuevas solo
+  salen en su circuito.
+- **Pendiente de probar en fiesta**: si tres circuitos de tres minutos son demasiados para un torneo
+  de cuatro carreras (puede irse a veinte minutos), y si el bicho de los mandos al revés es
+  divertido o solo cruel.
+
 ## 2026-09-20 — Podio de campeón en 3D, y «Last Dance» con carriles anchos, cruces y cordillera
 
 **El podio del final del torneo ya no es una tabla: es un podio de verdad.** Los tres primeros

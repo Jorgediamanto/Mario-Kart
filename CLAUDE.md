@@ -22,8 +22,13 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   bajadas, votación del circuito siguiente). Sin navegador y probado en `npm test`; el hilo de la
   sesión (cuándo se enseña qué) está en `screen.js`.
 - `public/tracks.js` — circuitos (puntos de control, `relieve` con el sube y baja de la vuelta,
-  rampas y lomos, cajas, paneles, bumpers, tema de colores). `tools/traza-arcoiris.js` genera el
-  trazado de Arcoíris (polígono con las esquinas redondeadas) y lo valida antes de pegarlo.
+  rampas y lomos, cajas, paneles, bumpers, tema de colores). Los trazados se generan con un script y
+  se validan antes de pegarlos: `tools/traza-arcoiris.js` (Arcoíris), `tools/traza-circuitos.js`
+  (los cuatro pequeños), `tools/traza-lastdance.js` y `tools/traza-mundos.js` (los monstruos).
+  Los tramos de **dos caminos** son `paredes`: con `tipo: 'abierto'` la carretera se parte en dos
+  calzadas de verdad (Bajo la Cama, Mundo Pixel) y si no, va una pared por el medio (Last Dance);
+  `anchoDePared` (sim.mjs) dice lo ancha que es la franja en cada muestra y **la tele dibuja con esa
+  misma cuenta**, así que lo que se ve es lo que empuja.
   `public/geom.js` — spline Catmull-Rom y remuestreo (compartido con Node).
 - `tools/check-tracks.js` — validador de circuitos. `tools/check-sim.js` — carreras de bots sin
   navegador (fase 4 de `npm test`), con una lista de «escenarios» a la que cada punto nuevo suma el
