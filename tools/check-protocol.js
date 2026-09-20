@@ -166,6 +166,31 @@ async function recorrido(PORT) {
     moviles[2] = otroSitio; otroSitio.id = w && w.id; otroSitio.token = w && w.token;
   }
 
+  // ---- torneo: la tele pide el voto del circuito y el móvil contesta ----
+  {
+    const m = moviles[1];
+    m.olvida(); tele.olvida();
+    tele.manda({ t: 'to', id: m.id, m: { t: 'votar', circuitos: [{ i: 0, nombre: 'Arcoíris', jugado: true }, { i: 2, nombre: 'Chicle', jugado: false }], hasta: 20 } });
+    const pide = await m.espera('votar');
+    check(pide && Array.isArray(pide.circuitos) && pide.circuitos.length === 2 && pide.hasta === 20,
+      'la pantalla pide al móvil que vote circuito, con la lista y el tiempo');
+    m.manda({ t: 'voto', i: 2 });
+    const voto = await tele.espera('voto');
+    check(voto && voto.i === 2 && voto.id === m.id, 'el voto vuelve a la pantalla con quién vota y qué circuito');
+    tele.olvida();
+    m.manda({ t: 'voto', i: 'trampa' });
+    const basura = await tele.espera('voto');
+    check(basura && basura.i === -1, 'un voto con basura llega marcado como inválido (-1), no rompe el relé');
+    // y el ajuste del torneo viaja como los demás
+    tele.olvida();
+    moviles[0].manda({ t: 'set', settings: { carreras: 6 } });
+    const set = await tele.espera('set');
+    check(set && set.settings && set.settings.carreras === 6, 'el anfitrión puede fijar cuántas carreras tiene el torneo');
+    moviles[0].manda({ t: 'set', settings: { carreras: 99 } });
+    const tope = await tele.espera('set');
+    check(tope && tope.settings.carreras <= 8, 'y no se pueden pedir más de ocho');
+  }
+
   // ---- al conectarse, un móvil recibe los personajes que hay para elegir ----
   {
     const mirón = cliente(PORT, 'mirón');

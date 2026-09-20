@@ -569,7 +569,9 @@ export function createSim({ geom, trackDefs, hooks: userHooks = {}, random = Mat
     state.phase = 'results';
     updateRanking();
     const sorted = state.karts.slice().sort((a, b) => a.rank - b.rank);
-    state.results = sorted.map((k) => ({ pos: k.rank, name: k.name, emoji: k.emoji, color: k.color, finished: k.finished, time: k.finishTime, lap: displayLap(k) }));
+    // `char` va en los resultados porque es la clave del torneo: el personaje no se repite en la
+    // parrilla y aguanta que los karts se creen de nuevo en cada carrera
+    state.results = sorted.map((k) => ({ pos: k.rank, name: k.name, emoji: k.emoji, color: k.color, char: k.char, isBot: k.isBot, finished: k.finished, time: k.finishTime, lap: displayLap(k) }));
     hooks.onResults(state.results);
     hooks.onPhase('results');
     for (const k of state.karts) hooks.onStatus(k);

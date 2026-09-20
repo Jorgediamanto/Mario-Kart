@@ -134,6 +134,7 @@
       <div class="setting"><span class="lbl">Circuito</span><button class="btn" data-set="track" data-d="-1">◀</button><span class="val" id="set-track">—</span><button class="btn" data-set="track" data-d="1">▶</button></div>
       <div class="setting"><span class="lbl">Vueltas</span><button class="btn" data-set="laps" data-d="-1">−</button><span class="val" id="set-laps">3</span><button class="btn" data-set="laps" data-d="1">+</button></div>
       <div class="setting"><span class="lbl">Bots</span><button class="btn" data-set="bots" data-d="-1">−</button><span class="val" id="set-bots">2</span><button class="btn" data-set="bots" data-d="1">+</button></div>
+      <div class="setting"><span class="lbl">Torneo</span><button class="btn" data-set="carreras" data-d="-1">−</button><span class="val" id="set-carreras">4</span><button class="btn" data-set="carreras" data-d="1">+</button></div>
       <button id="btn-start" class="big go">¡EMPEZAR!</button>
     </div>
     <div id="guest-settings" class="hint" style="margin-top:6px"></div>
@@ -198,6 +199,14 @@
     <h2>🐌 ¿A quién frenas?</h2>
     <p class="hint" id="pick-reloj">Todo está parado esperándote…</p>
     <div id="pick-lista" class="picks"></div>
+  </div>
+
+  <!-- Torneo: entre carrera y carrera se vota el circuito siguiente (aquí sí hay pantalla táctil
+       normal: la regla de volante y dos botones es solo para mientras se corre) -->
+  <div class="view" id="v-vote">
+    <h2>🗳️ ¿Dónde corremos?</h2>
+    <p class="hint" id="vote-reloj">Elige circuito…</p>
+    <div id="vote-lista" class="picks"></div>
   </div>
 
   <div class="view" id="v-results">

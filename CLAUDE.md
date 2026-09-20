@@ -18,6 +18,9 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   simulación y le pone lo que se ve y se oye: mundo 3D, modelos de kart, partículas, cámara, HUD,
   audio sintetizado y la conexión con los móviles. La sala y los resultados son HTML encima del canvas.
 - `public/play.html` + `public/play.js` — el mando del móvil: botones táctiles, sala, estado de carrera.
+- `public/torneo.mjs` — las cuentas del **modo torneo** (puntos por puesto, tabla con subidas y
+  bajadas, votación del circuito siguiente). Sin navegador y probado en `npm test`; el hilo de la
+  sesión (cuándo se enseña qué) está en `screen.js`.
 - `public/tracks.js` — circuitos (puntos de control, `relieve` con el sube y baja de la vuelta,
   rampas y lomos, cajas, paneles, bumpers, tema de colores). `tools/traza-arcoiris.js` genera el
   trazado de Arcoíris (polígono con las esquinas redondeadas) y lo valida antes de pegarlo.
@@ -49,8 +52,9 @@ elegir (`public/modelos/retratos/*.png`) los genera `tools/blender/personajes.py
 Protocolo móvil ↔ servidor ↔ pantalla (JSON por WebSocket): `hello/welcome` (con `easy`: el **modo fácil** por jugador, que un mando viejo no manda y se queda en normal), `lobby`, `roster`,
 `phase`, `i` (botones: s analógico de -1 a 1, g, b, d), `use`, `start`, `again`, `set`, `st`
 (estado al móvil), `fx`, `spectate`, `vaciar` (la tele echa a todos), `kicked` (al móvil: te han
-echado, deja de reconectarte solo), `pick` (al móvil: elige víctima del caracol) y `picked` (del
-móvil: a quién ha elegido). Si cambias un mensaje, cambia las tres partes, añade su comprobación en
+echado, deja de reconectarte solo), `pick` (al móvil: elige víctima del caracol), `picked` (del
+móvil: a quién ha elegido), `votar` (al móvil: elige circuito entre carreras del torneo) y `voto`
+(del móvil: qué circuito). Si cambias un mensaje, cambia las tres partes, añade su comprobación en
 `tools/check-protocol.js` y mantén compatibilidad con móviles que lleven la página cargada de antes
 (recarga automática no hay).
 

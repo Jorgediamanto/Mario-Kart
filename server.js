@@ -242,7 +242,8 @@ let trackNames = [];
  */
 let charList = [];
 let itemList = [];   // los objetos (icono y nombre), para que el móvil los enseñe bien
-const settings = { track: 0, laps: 3, bots: 2 };
+// `carreras` es el modo torneo: cuántas carreras seguidas se juegan (1 = una suelta)
+const settings = { track: 0, laps: 3, bots: 2, carreras: 4 };
 let nextId = 1;
 
 function send(ws, obj) {
@@ -485,6 +486,8 @@ wss.on('connection', (ws) => {
       case 'use': toScreen({ t: 'use', id }); break;
       // caracol: a quién le planta el freno quien lo está usando (`kart` es el id del kart)
       case 'picked': toScreen({ t: 'picked', id, kart: typeof m.kart === 'string' ? m.kart.slice(0, 24) : '' }); break;
+      // torneo: el voto de circuito entre carrera y carrera
+      case 'voto': toScreen({ t: 'voto', id, i: Number.isInteger(m.i) ? m.i : -1 }); break;
       case 'start': if (id === hostId) toScreen({ t: 'start' }); break;
       case 'again': if (id === hostId) toScreen({ t: 'again' }); break;
       case 'set': if (id === hostId && m.settings) applySettings(m.settings); break;
@@ -518,6 +521,8 @@ function applySettings(s) {
   if (Number.isInteger(s.track)) settings.track = ((s.track % nTracks) + nTracks) % nTracks;
   if (Number.isInteger(s.laps)) settings.laps = Math.min(9, Math.max(1, s.laps));
   if (Number.isInteger(s.bots)) settings.bots = Math.min(7, Math.max(0, s.bots));
+  // torneo: cuántas carreras seguidas se juegan (1 = una suelta, como siempre)
+  if (Number.isInteger(s.carreras)) settings.carreras = Math.min(8, Math.max(1, s.carreras));
   toScreen({ t: 'set', settings });
   broadcastLobby();
 }

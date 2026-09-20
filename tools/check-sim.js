@@ -66,6 +66,10 @@ async function main() {
   const layout = await import(pathToFileURL(path.join(ROOT, 'public/layout.mjs')).href);
   comprobarPaneles(layout);
 
+  console.log('Torneo');
+  const torneo = await import(pathToFileURL(path.join(ROOT, 'public/torneo.mjs')).href);
+  comprobarTorneo(torneo);
+
   console.log('Escenarios');
   for (const esc of escenarios) {
     try {
@@ -377,6 +381,50 @@ function comprobarDuracionDeVuelta(tiempos) {
 // ---------------------------------------------------------------- paneles de la pantalla dividida
 // La tabla que manda (IDEAS.md): 1 → completa, 2 → dos anchos, 3-4 → 2×2, 5-6 → 3×2, 7-8 → 4×2.
 const FILAS_ESPERADAS = { 1: [1], 2: [1, 1], 3: [2, 1], 4: [2, 2], 5: [3, 2], 6: [3, 3], 7: [4, 3], 8: [4, 4] };
+
+/*
+ * El modo torneo: varias carreras seguidas, puntos por puesto, la última doble, y entre carrera y
+ * carrera se vota el circuito siguiente. Las cuentas viven en public/torneo.mjs.
+ */
+function comprobarTorneo(T) {
+  const corredor = (char, nombre) => ({ char, nombre, emoji: '🏎️', color: '#fff' });
+  const A = corredor(0, 'Ana'), B = corredor(1, 'Bea'), C = corredor(2, 'Cris');
+
+  check(T.PUNTOS.join('-') === '10-8-6-4-3-2-1', `los puntos por puesto son 10-8-6-4-3-2-1 (${T.PUNTOS.join('-')})`);
+  check(T.puntosDe(1) === 10 && T.puntosDe(7) === 1 && T.puntosDe(8) === 0,
+    'del primero al séptimo puntúan, del octavo para abajo no');
+  check(T.puntosDe(1, true) === 20 && T.puntosDe(4, true) === 8, 'la última carrera vale el doble');
+  check(T.esUltima(3, 4) && !T.esUltima(2, 4), 'la última carrera de cuatro es la cuarta');
+
+  // dos carreras: Ana gana la primera, Bea la segunda
+  let tabla = T.sumarCarrera(new Map(), [A, B, C]);
+  const tras1 = T.clasificacion(tabla);
+  check(tras1[0].char === 0 && tras1[0].puntos === 10 && tras1[2].puntos === 6,
+    `tras la primera carrera manda Ana con 10 puntos (${tras1.map((f) => f.nombre + ' ' + f.puntos).join(', ')})`);
+  const antes = tabla;
+  tabla = T.sumarCarrera(tabla, [B, C, A]);
+  const tras2 = T.clasificacion(tabla, antes);
+  check(tras2[0].char === 1 && tras2[0].puntos === 18, `Bea se pone primera con 18 (${tras2[0].nombre} ${tras2[0].puntos})`);
+  check(tras2[0].sube === 1 && tras2.find((f) => f.char === 0).sube === -1,
+    'la tabla dice quién sube y quién baja de puesto');
+  // la última, doble: Cris gana y se lleva 20
+  const tras3 = T.clasificacion(T.sumarCarrera(tabla, [C, A, B], true));
+  check(tras3.find((f) => f.char === 2).puntos === 6 + 8 + 20, 'la última carrera dobla los puntos de verdad');
+
+  // votación del circuito
+  const votos = new Map([[1, 3], [2, 3], [3, 0]]);
+  const g = T.circuitoGanador(votos, [], 6, () => 0);
+  check(g.indice === 3 && g.votos === 2 && !g.porSorteo, `gana el más votado (salió ${g.indice} con ${g.votos} votos)`);
+  const empate = T.circuitoGanador(new Map([[1, 2], [2, 5]]), [], 6, () => 0.99);
+  check([2, 5].includes(empate.indice) && empate.porSorteo, 'con empate se echa a suertes entre los empatados');
+  const sinVotos = T.circuitoGanador(new Map(), [0, 1, 2], 5, () => 0);
+  check([3, 4].includes(sinVotos.indice) && sinVotos.porSorteo,
+    `sin votos sale uno de los que no se han jugado (salió ${sinVotos.indice})`);
+  const todosJugados = T.circuitoGanador(new Map(), [0, 1, 2, 3, 4], 5, () => 0.5);
+  check(todosJugados.indice >= 0 && todosJugados.indice < 5, 'si ya se han jugado todos, vale cualquiera');
+  const basura = T.circuitoGanador(new Map([[1, 99], [2, -3]]), [0], 4, () => 0);
+  check(basura.indice >= 0 && basura.indice < 4, 'los votos con basura no rompen la votación');
+}
 
 function comprobarPaneles(layout) {
   for (let n = 1; n <= 8; n++) {

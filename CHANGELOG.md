@@ -3,6 +3,30 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 — Modo torneo: varias carreras, puntos, votación y podio
+
+Una sesión ya no es una carrera suelta: **son varias seguidas con los mismos karts**, y al final
+hay campeón.
+
+- **Cuántas**: se elige en la sala (por defecto 4; con la tecla `T` en la tele o el ± del móvil del
+  anfitrión). Con 1 se juega como siempre, sin torneo.
+- **Puntos** por puesto: 10-8-6-4-3-2-1. **La última carrera puntúa doble** y se anuncia antes de
+  la salida, con cartelón en la tele.
+- **Entre carreras**, una pantalla de clasificación de 20 segundos: la tabla con los puntos, lo que
+  se ha ganado en esa carrera y las **subidas y bajadas de puesto** (▲/▼, con la fila animada).
+- **Cada móvil vota el circuito siguiente** tocando en una lista (fuera de carrera el mando sí tiene
+  pantalla normal; lo de volante y dos botones es solo mientras se corre). Gana el más votado; si
+  hay empate o no vota nadie, se sortea entre los que aún no se han jugado.
+- **Podio final** con los tres primeros en su cajón, medallas, puntos y **confeti**.
+- Las cuentas (puntos, tabla, votación) viven en `public/torneo.mjs`, aparte y sin navegador, y se
+  prueban en `npm test` como las del volante o los paneles.
+
+- **Cómo probarlo**: `npm start`, en la sala deja «Torneo: 4 carreras» y dale a EMPEZAR. Al acabar
+  cada carrera sale la clasificación y en los móviles la lista para votar. La cuarta avisa de que
+  vale doble, y al final salen el podio y el confeti.
+- **Pendiente de probar en fiesta**: si 20 segundos entre carreras son muchos o pocos, y si cuatro
+  carreras es la medida buena (con Last Dance en la baraja, una sesión se puede ir a 15 minutos).
+
 ## 2026-09-20 — «Last Dance»: el circuito monstruo, con cinco biomas y tres habilidades propias
 
 El circuito del final de la fiesta. Una vuelta única de **72.900 px** (casi cinco veces Arcoíris,

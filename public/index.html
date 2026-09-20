@@ -132,6 +132,31 @@
   #results table { border-collapse: separate; border-spacing: 0 8px; font-size: 34px; min-width: 900px; }
   #results td { padding: 10px 26px; background: rgba(255,255,255,.12); }
   #results td:first-child { border-radius: 16px 0 0 16px; } #results td:last-child { border-radius: 0 16px 16px 0; }
+  /* ---- modo torneo: clasificación entre carreras, podio y confeti ---- */
+  #results .mov { font-size: .8em; }
+  #results .sube { color: #39ff88; } #results .baja { color: #ff5d6e; } #results .igual { opacity: .35; }
+  #results .pts { color: var(--yellow); font-weight: 900; } #results .pts small { font-size: .5em; opacity: .8; }
+  #results .gana { color: #9fe8ff; font-size: .7em; }
+  #results tr.mejora td { background: rgba(57,255,136,.18); animation: subir .8s ease-out; }
+  #results tr.empeora td { background: rgba(255,93,110,.15); }
+  @keyframes subir { from { transform: translateY(26px); opacity: .2; } to { transform: none; opacity: 1; } }
+  #results .votacion { margin-top: 22px; font-size: 30px; color: #ffd6f2; }
+  #results .votacion .doble { color: var(--yellow); }
+  #results .circuitos { margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; max-width: 1500px; }
+  #results .voto { font-size: 24px; padding: 8px 18px; border-radius: 14px; background: rgba(255,255,255,.12); }
+  #results .voto.jugado { opacity: .45; }
+  #results .voto b { color: var(--yellow); letter-spacing: 2px; }
+  #results .podio { display: flex; align-items: flex-end; gap: 40px; margin: 10px 0 18px; }
+  #results .cajon { border-radius: 22px 22px 0 0; padding: 20px 34px 26px; text-align: center; background: rgba(255,255,255,.14); }
+  #results .cajon .medalla { font-size: 64px; } #results .cajon .emoji { font-size: 58px; }
+  #results .cajon .nombre { font-size: 34px; font-weight: 900; } #results .cajon .pts { font-size: 28px; color: var(--yellow); }
+  #results .cajon.c1 { padding-bottom: 80px; background: rgba(255,230,0,.22); order: 2; }
+  #results .cajon.c2 { padding-bottom: 46px; order: 1; }
+  #results .cajon.c3 { padding-bottom: 26px; order: 3; }
+  #results table.resto { font-size: 26px; min-width: 620px; }
+  #results .confeti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  #results .confeti i { position: absolute; top: -40px; width: 14px; height: 22px; border-radius: 3px; animation: caer linear infinite; }
+  @keyframes caer { from { transform: translateY(-40px) rotate(0); } to { transform: translateY(1200px) rotate(720deg); } }
   #results tr:first-child td { background: rgba(255, 230, 0, .35); }
   #results tr:nth-child(2) td { background: rgba(0, 229, 255, .28); }
   #results tr:nth-child(3) td { background: rgba(255, 45, 149, .28); }
@@ -184,12 +209,13 @@
             <div class="box" id="setTrack">Circuito: <b>—</b></div>
             <div class="box" style="margin-top:12px" id="setLaps">Vueltas: <b>3</b></div>
             <div class="box" style="margin-top:12px" id="setBots">Bots: <b>2</b></div>
+            <div class="box" style="margin-top:12px" id="setTorneo">Torneo: <b>4 carreras</b></div>
           </div>
           <div class="box" style="font-size:22px;max-width:520px;line-height:1.5">El circuito elegido se ve girando detrás de esta pantalla. Rampas ↗ para saltar, paneles ➤ de turbo y bumpers que rebotan.</div>
         </div>
       </div>
       <div class="teclas">
-        Teclado: <kbd>Intro</kbd> empezar · <kbd>←</kbd><kbd>→</kbd> circuito · <kbd>L</kbd> vueltas · <kbd>B</kbd>/<kbd>N</kbd> más/menos bots · <kbd>K</kbd> jugar con el teclado · <kbd>F</kbd> pantalla completa · <kbd>P</kbd> ver los fps · <kbd>M</kbd> callar el sonido · <kbd>V</kbd> vaciar la sala
+        Teclado: <kbd>Intro</kbd> empezar · <kbd>←</kbd><kbd>→</kbd> circuito · <kbd>L</kbd> vueltas · <kbd>T</kbd> torneo · <kbd>B</kbd>/<kbd>N</kbd> más/menos bots · <kbd>K</kbd> jugar con el teclado · <kbd>F</kbd> pantalla completa · <kbd>P</kbd> ver los fps · <kbd>M</kbd> callar el sonido · <kbd>V</kbd> vaciar la sala
       </div>
     </div>
     <div id="elegir" class="hidden"></div>

@@ -70,7 +70,7 @@
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const views = { join: $('v-join'), lobby: $('v-lobby'), race: $('v-race'), pick: $('v-pick'), results: $('v-results') };
+  const views = { join: $('v-join'), lobby: $('v-lobby'), race: $('v-race'), pick: $('v-pick'), vote: $('v-vote'), results: $('v-results') };
   const store = {
     get(k, d) { try { const v = localStorage.getItem('kp.' + k); return v == null ? d : v; } catch (_) { return d; } },
     set(k, v) { try { localStorage.setItem('kp.' + k, v); } catch (_) { /* privado */ } },
@@ -82,6 +82,8 @@
   // calentamiento: mientras el anfitrión no empieza, tu kart ya está en la pista y puedes probarlo
   let probando = false;
   let eligiendo = null;      // caracol: { opciones, hasta } mientras nos toca elegir víctima
+  // torneo: { circuitos, hasta, elegido } mientras hay que votar el circuito siguiente
+  let votando = null;
   let phase = 'lobby', lobby = null, status = null, currentView = 'join';
   let takenChars = new Set();
   let ws = null, connected = false, retry = 500;
@@ -183,6 +185,14 @@
         vibrate([40, 50, 40, 50, 120]);
         setView();
         break;
+      case 'votar':
+        // entre carreras del torneo: llega la lista de circuitos (o null para cerrar la votación)
+        votando = Array.isArray(m.circuitos) && m.circuitos.length
+          ? { circuitos: m.circuitos, hasta: Date.now() + (m.hasta || 20) * 1000, elegido: null }
+          : null;
+        if (votando) vibrate([30, 40, 30]);
+        setView();
+        break;
       case 'fx':
         if (m.kind === 'pausa') showRaceMsg('🐌 Alguien está eligiendo a quién frenar…');
         if (m.kind === 'sigue') { if (eligiendo) { eligiendo = null; setView(); } showRaceMsg(''); }
@@ -207,6 +217,7 @@
     let v;
     if (!joined || editing) v = 'join';
     else if (eligiendo) v = 'pick';
+    else if (votando && phase === 'results') v = 'vote';
     else if (phase === 'warmup') v = probando ? 'race' : 'lobby';
     else if (phase === 'lobby') v = 'lobby';
     else if (phase === 'results') v = spectating ? 'lobby' : 'results';
@@ -217,6 +228,7 @@
     if (v === 'lobby') renderLobby();
     if (v === 'results') renderResults();
     if (v === 'pick') { releaseAll(); renderPick(); }
+    if (v === 'vote') { releaseAll(); renderVote(); }
     if (v === 'race') {
       releaseAll(); renderStatus();
       if (phase === 'countdown') showRaceMsg('¡Preparados!');
@@ -283,6 +295,8 @@
     $('set-track').textContent = trackName;
     $('set-laps').textContent = s.laps;
     $('set-bots').textContent = s.bots;
+    const c = s.carreras || 1;
+    $('set-carreras').textContent = c > 1 ? c : 'no';
     $('guest-settings').textContent = me.host ? '' : `Circuito: ${trackName} · ${s.laps} vueltas · ${s.bots} bots`;
     pintarFacil();
     // el kart solo está en la pista cuando la tele lo dice (fase «warmup»)
@@ -300,6 +314,8 @@
       if (key === 'track') s.track = ((s.track + d) % n + n) % n;
       if (key === 'laps') s.laps = Math.min(9, Math.max(1, s.laps + d));
       if (key === 'bots') s.bots = Math.min(7, Math.max(0, s.bots + d));
+      // torneo: 1 = una carrera suelta; de 2 en adelante, campeonato con puntos y podio
+      if (key === 'carreras') s.carreras = Math.min(8, Math.max(1, (s.carreras || 1) + d));
       send({ t: 'set', settings: s });
       vibrate(15);
     });
@@ -583,6 +599,39 @@
       nameEl.textContent = 'sin objeto';
     }
   }
+  /*
+   * Votación del circuito siguiente (modo torneo). Fuera de carrera el móvil puede tener pantalla
+   * normal: botones grandes, uno por circuito, y se marca el elegido. Se puede cambiar el voto
+   * hasta que se acabe el tiempo.
+   */
+  function renderVote() {
+    const cont = $('vote-lista');
+    cont.innerHTML = '';
+    for (const c of votando.circuitos) {
+      const b = document.createElement('button');
+      const esElegido = votando.elegido === c.i;
+      b.style.borderColor = esElegido ? '#39ff88' : '#2a2f65';
+      b.innerHTML = `<span class="em">${c.jugado ? '✔️' : '🏁'}</span><span>${esc(c.nombre)}${c.jugado ? ' <small>(ya jugado)</small>' : ''}</span>`;
+      b.addEventListener('click', () => {
+        if (!votando) return;
+        votando.elegido = c.i;
+        send({ t: 'voto', i: c.i });
+        vibrate(40);
+        renderVote();
+      });
+      cont.appendChild(b);
+    }
+    pintarRelojVoto();
+  }
+  function pintarRelojVoto() {
+    if (!votando) return;
+    const quedan = Math.max(0, Math.ceil((votando.hasta - Date.now()) / 1000));
+    const el = $('vote-reloj');
+    if (el) el.textContent = votando.elegido == null
+      ? `Elige circuito… empieza en ${quedan} s`
+      : `Votado ✔ · puedes cambiarlo · empieza en ${quedan} s`;
+  }
+
   function renderPick() {
     const cont = $('pick-lista');
     cont.innerHTML = '';
@@ -600,6 +649,8 @@
       cont.appendChild(b);
     }
   }
+  // cuenta atrás de la votación del torneo
+  setInterval(() => { if (votando && currentView === 'vote') pintarRelojVoto(); }, 250);
   // cuenta atrás de la elección: si se acaba, la pantalla elige sola y nos manda `sigue`
   setInterval(() => {
     if (!eligiendo || currentView !== 'pick') return;

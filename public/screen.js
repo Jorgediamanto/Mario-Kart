@@ -11,6 +11,7 @@ import {
   clamp, lerp, smoothstep, mulberry32, ordinal,
 } from './sim.mjs';
 import { panelLayout, panelEnPixeles } from './layout.mjs';
+import * as Torneo from './torneo.mjs';
 import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
 
 (() => {
@@ -1160,6 +1161,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         if (phase === 'lobby' || phase === 'countdown') clearToasts();
         sendPhase();
         updateOverlays();
+        if (phase === 'results') finDeCarrera();
       },
       /*
        * Salida parada con semáforo, como en las carreras de verdad: con cada segundo de la cuenta
@@ -1233,7 +1235,14 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   // lo que solo existe en la tele: la simulación no mira nada de esto
   state.players = new Map();
   state.hostId = null;
-  state.settings = { track: 0, laps: 3, bots: 2 };
+  state.settings = { track: 0, laps: 3, bots: 2, carreras: 4 };
+  /*
+   * Modo torneo: varias carreras seguidas con los mismos karts. Entre carrera y carrera sale la
+   * clasificación con los puntos y cada móvil vota el circuito siguiente; la última puntúa doble y
+   * al final hay podio. Las cuentas están en `torneo.mjs` (y se prueban en `npm test`); aquí solo
+   * vive el hilo de la sesión.
+   */
+  state.torneo = null;
   state.kb = null;
   state.replaced = false;
   state.joinUrl = '';
@@ -1324,7 +1333,13 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         break;
       }
       case 'start': startRace(); break;
-      case 'again': if (state.phase === 'results') sim.backToLobby(); break;
+      case 'again': if (state.phase === 'results') { state.torneo = null; sim.backToLobby(); } break;
+      case 'voto':
+        if (state.torneo && state.phase === 'results' && Number.isInteger(m.i)) {
+          state.torneo.votos.set(m.id, m.i);
+          pintarClasificacion();
+        }
+        break;
       case 'set': applySettings(m.settings); updateOverlays(); break;
       case 'replaced':
         state.replaced = true;
@@ -1340,6 +1355,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     if (Number.isInteger(s.track)) state.settings.track = ((s.track % TRACKS.length) + TRACKS.length) % TRACKS.length;
     if (Number.isInteger(s.laps)) state.settings.laps = clamp(s.laps, 1, 9);
     if (Number.isInteger(s.bots)) state.settings.bots = clamp(s.bots, 0, 7);
+    if (Number.isInteger(s.carreras)) state.settings.carreras = clamp(s.carreras, 1, 8);
     if (state.phase === 'lobby' || state.phase === 'warmup') sim.setTrack(state.settings.track);
   }
   function changeSetting(key, delta) {
@@ -1348,6 +1364,8 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     if (key === 'track') s.track = (s.track + delta + TRACKS.length) % TRACKS.length;
     if (key === 'bots') s.bots = clamp(s.bots + delta, 0, 7);
     if (key === 'laps') { const opts = [1, 2, 3, 4, 5]; s.laps = opts[(opts.indexOf(s.laps) + 1) % opts.length] || 3; }
+    // torneo: 1 carrera = una suelta de siempre; de 2 en adelante, campeonato con puntos
+    if (key === 'carreras') { const opts = [1, 2, 3, 4, 5, 6, 8]; s.carreras = opts[(opts.indexOf(s.carreras || 1) + 1) % opts.length] || 1; }
     applySettings(s);
     wsSend({ t: 'set', settings: s });
     updateOverlays();
@@ -1686,6 +1704,134 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   }
 
   // Monta la parrilla con quien esté conectado (+ bots) y arranca la carrera en la simulación
+  /*
+   * ===================== Modo torneo =====================
+   *
+   * Varias carreras seguidas con los mismos karts: puntos por puesto (10-8-6-4-3-2-1), la última
+   * vale doble, y entre carrera y carrera sale la clasificación con las subidas y bajadas mientras
+   * cada móvil vota el circuito siguiente. Al final, podio con confeti.
+   *
+   * Las cuentas están en `torneo.mjs` (probadas en `npm test`); aquí solo vive el hilo: cuándo se
+   * enseña qué, a quién se le pide el voto y cuándo arranca la siguiente.
+   */
+  const CLASIFICACION_SEG = 20;      // lo que dura la pantalla de entre carreras
+  let relojTorneo = null;
+
+  function empezarTorneo() {
+    const carreras = clamp(state.settings.carreras || 1, 1, 8);
+    state.torneo = {
+      carreras, actual: 0, tabla: new Map(), tablaAntes: null,
+      jugados: [], votos: new Map(), hasta: 0, siguiente: null,
+    };
+  }
+
+  function finDeCarrera() {
+    const T = state.torneo;
+    if (!T || !state.results) return;
+    // los puntos de esta carrera (la última, dobles)
+    const doble = Torneo.esUltima(T.actual, T.carreras);
+    T.tablaAntes = T.tabla;
+    // los resultados de la simulación traen `name`; el torneo habla de `nombre`
+    const llegada = state.results.map((r) => ({ char: r.char, nombre: r.name, emoji: r.emoji, color: r.color }));
+    T.tabla = Torneo.sumarCarrera(T.tabla, llegada, doble);
+    T.jugados.push(state.settings.track);
+    T.actual++;
+    if (T.actual >= T.carreras) { pintarPodio(); return; }
+    // clasificación + votación del circuito siguiente
+    T.votos = new Map();
+    T.hasta = Date.now() + CLASIFICACION_SEG * 1000;
+    const lista = TRACKS.map((t, i) => ({ i, nombre: t.name, jugado: T.jugados.includes(i) }));
+    for (const p of state.players.values()) toPlayer(p.id, { t: 'votar', circuitos: lista, hasta: CLASIFICACION_SEG });
+    pintarClasificacion();
+    clearInterval(relojTorneo);
+    relojTorneo = setInterval(() => {
+      if (!state.torneo || state.phase !== 'results') { clearInterval(relojTorneo); return; }
+      pintarClasificacion();
+      if (Date.now() >= state.torneo.hasta) { clearInterval(relojTorneo); siguienteCarrera(); }
+    }, 250);
+  }
+
+  function siguienteCarrera() {
+    const T = state.torneo;
+    if (!T) return;
+    const g = Torneo.circuitoGanador(T.votos, T.jugados, TRACKS.length, Math.random);
+    state.settings.track = g.indice;
+    wsSend({ t: 'set', settings: { track: g.indice } });
+    for (const p of state.players.values()) toPlayer(p.id, { t: 'votar', circuitos: null });
+    sim.backToLobby();
+    // un respiro para que la sala se pinte y los móviles cambien de pantalla
+    setTimeout(() => {
+      if (Torneo.esUltima(T.actual, T.carreras)) {
+        showBig('¡ÚLTIMA!');
+        toast('🏁 Última carrera del torneo: los puntos valen DOBLE', 5);
+        setTimeout(() => hideBig('¡ÚLTIMA!'), 2200);
+      }
+      startRace();
+    }, 900);
+  }
+
+  function pintarClasificacion() {
+    const T = state.torneo;
+    if (!T) return;
+    const filas = Torneo.clasificacion(T.tabla, T.tablaAntes);
+    const quedan = Math.max(0, Math.ceil((T.hasta - Date.now()) / 1000));
+    const votados = new Map();
+    for (const i of T.votos.values()) votados.set(i, (votados.get(i) || 0) + 1);
+    const flecha = (n) => (n > 0 ? `<span class="sube">▲${n}</span>` : n < 0 ? `<span class="baja">▼${-n}</span>` : '<span class="igual">–</span>');
+    const tabla = filas.map((f) => `<tr class="${f.sube > 0 ? 'mejora' : f.sube < 0 ? 'empeora' : ''}">
+        <td class="pos">${f.puesto}º</td><td class="emoji">${f.emoji}</td><td>${esc(f.nombre)}</td>
+        <td class="mov">${flecha(f.sube)}</td>
+        <td class="pts">${f.puntos}<small> pts</small></td>
+        <td class="gana">${f.ultimosPuntos ? '+' + f.ultimosPuntos : ''}</td></tr>`).join('');
+    const listaCircuitos = TRACKS.map((t, i) => {
+      const n = votados.get(i) || 0;
+      return `<span class="voto ${T.jugados.includes(i) ? 'jugado' : ''}">${esc(t.name)}${n ? ` <b>${'●'.repeat(Math.min(n, 7))}</b>` : ''}</span>`;
+    }).join('');
+    resultsEl.innerHTML = `<h1>🏆 Torneo · carrera ${T.actual} de ${T.carreras}</h1>
+      <table>${tabla}</table>
+      <div class="votacion"><b>Votad el circuito en el móvil</b> · empieza en ${quedan} s${Torneo.esUltima(T.actual, T.carreras) ? ' · <b class="doble">¡la próxima vale DOBLE!</b>' : ''}</div>
+      <div class="circuitos">${listaCircuitos}</div>`;
+  }
+
+  function pintarPodio() {
+    const T = state.torneo;
+    const filas = Torneo.clasificacion(T.tabla, T.tablaAntes);
+    const podio = filas.slice(0, 3);
+    const medallas = ['🥇', '🥈', '🥉'];
+    const cajas = podio.map((f, i) => `<div class="cajon c${i + 1}">
+        <div class="medalla">${medallas[i]}</div>
+        <div class="emoji">${f.emoji}</div>
+        <div class="nombre">${esc(f.nombre)}</div>
+        <div class="pts">${f.puntos} pts</div>
+      </div>`).join('');
+    const resto = filas.slice(3).map((f) => `<tr><td class="pos">${f.puesto}º</td><td class="emoji">${f.emoji}</td><td>${esc(f.nombre)}</td><td class="pts">${f.puntos}<small> pts</small></td></tr>`).join('');
+    resultsEl.innerHTML = `<h1>🏆 ¡Fin del torneo!</h1>
+      <div class="podio">${cajas}</div>
+      ${resto ? `<table class="resto">${resto}</table>` : ''}
+      <div class="again">El anfitrión pulsa <b>OTRA CARRERA</b> en su móvil (o <b>Intro</b> en el teclado) para empezar otro torneo</div>`;
+    confeti();
+    sfx('finish');
+    state.torneo = null;      // el próximo EMPEZAR arranca un torneo nuevo
+  }
+
+  // Confeti del podio: trozos de papel que caen por delante de todo, con CSS
+  function confeti() {
+    const capa = document.createElement('div');
+    capa.className = 'confeti';
+    const colores = ['#ff2d95', '#ffe600', '#00e5ff', '#39ff88', '#b14bff', '#ff6a00'];
+    for (let i = 0; i < 120; i++) {
+      const p = document.createElement('i');
+      p.style.left = Math.random() * 100 + '%';
+      p.style.background = colores[i % colores.length];
+      p.style.animationDelay = (Math.random() * 2.5).toFixed(2) + 's';
+      p.style.animationDuration = (2.6 + Math.random() * 2.4).toFixed(2) + 's';
+      p.style.transform = `rotate(${Math.random() * 360}deg)`;
+      capa.appendChild(p);
+    }
+    resultsEl.appendChild(capa);
+    setTimeout(() => capa.remove(), 9000);
+  }
+
   function startRace() {
     if (state.phase !== 'lobby' && state.phase !== 'warmup') return;
     const { humans, libre } = participantes();
@@ -1694,6 +1840,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const nBots = Math.min(state.settings.bots, MAX_KARTS - entries.length);
     for (let i = 0; i < nBots; i++) { const c = libre(); entries.push({ playerId: null, bot: true, name: CHARS[c].name + ' (bot)', char: c }); }
 
+    if (!state.torneo && (state.settings.carreras || 1) > 1) empezarTorneo();
     if (!sim.startRace({ entries, trackIndex: state.settings.track, laps: state.settings.laps })) return;
     buildHud();
     camStart();
@@ -2312,10 +2459,15 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     $('setTrack').innerHTML = `Circuito: <b>${esc(TRACKS[state.settings.track].name)}</b>`;
     $('setLaps').innerHTML = `Vueltas: <b>${state.settings.laps}</b>`;
     $('setBots').innerHTML = `Bots: <b>${state.settings.bots}</b>`;
+    const nCarreras = state.settings.carreras || 1;
+    $('setTorneo').innerHTML = nCarreras > 1
+      ? `Torneo: <b>${nCarreras} carreras</b>`
+      : 'Torneo: <b>no</b>';
   }
 
   function renderResults() {
     if (!state.results) return;
+    if (state.torneo) return;      // en torneo manda la pantalla de clasificación
     const rows = state.results.map((r) => `<tr><td class="pos">${r.pos}º</td><td class="emoji">${r.emoji}</td><td>${esc(r.name)}</td><td class="time">${r.finished ? fmtTime(r.time) : 'vuelta ' + r.lap}</td></tr>`).join('');
     resultsEl.innerHTML = `<h1>🏆 Resultados · ${esc(state.track.name)}</h1><table>${rows}</table><div class="again">El anfitrión pulsa <b>OTRA CARRERA</b> en su móvil (o <b>Intro</b> en el teclado)</div>`;
   }
@@ -2355,6 +2507,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       else if (key === 'b' || key === 'B') changeSetting('bots', 1);
       else if (key === 'n' || key === 'N') changeSetting('bots', -1);
       else if (key === 'l' || key === 'L') changeSetting('laps', 1);
+      else if (key === 't' || key === 'T') changeSetting('carreras', 1);
       else if (key === 'v' || key === 'V') vaciarSala();
     } else if (state.phase === 'results') {
       if (key === 'Enter') sim.backToLobby();
