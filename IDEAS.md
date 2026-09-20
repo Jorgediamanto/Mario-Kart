@@ -496,9 +496,20 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         8 karts (160 de 900) y la cuenta del peor caso está escrita junto a las constantes (≈700).
       - ⏳ **Falta medirlo en la fiesta**: la tecla `P` con 4 y 8 paneles. Si baja de 60, lo primero
         que hay que subir es `MARCA_CADA` (menos marcas).
-- [ ] **Sonido de motor por kart.** Oscilador por kart con tono según velocidad y turbo, mezclado sin saturar
+- [x] **Sonido de motor por kart.** Oscilador por kart con tono según velocidad y turbo, mezclado sin saturar
       con 8 karts (compresor). Comprobación: código sin errores, tecla `M` silencia todo, volumen global
       constante; «pendiente de probar en fiesta».
+      - ✅ **Hecho la noche del 2026-09-20.** Lo primero que hacía falta era un **bus**: hasta hoy
+        cada tono se conectaba directo a la salida, así que no había ni volumen general ni manera de
+        callar el juego. Ahora todo pasa por un volumen general y un **compresor**
+        (`createDynamicsCompressor`), y la tecla **`M`** lo calla y lo enciende. Encima de eso, un
+        oscilador de sierra por kart con el tono siguiendo la velocidad (42-190 Hz, ×1,28 con
+        turbo); los bots suenan a un tercio, porque el motor que importa es el tuyo. Los motores se
+        paran al quitar un kart y al acabar la carrera, que es la fuga fácil. Cinco comprobaciones
+        estáticas en la fase «Pantalla» de `npm test` (no se puede escuchar desde aquí, pero sí
+        exigir que nada vuelva a ir suelto a la salida).
+      - ⏳ **Falta oírlo**: con 8 karts puede sonar a sartén. Lo primero que se toca es `MOTOR_VOL`
+        (0,05) y `MOTOR_BOT` (0,34) en `screen.js`; con `M` se calla del todo.
 - [ ] **Música sintetizada.** Tema alegre en la sala, tema rápido en carrera, versión acelerada en la última
       vuelta y fanfarria de podio; todo generado con WebAudio (sin archivos). Tecla `M` para silenciar.
       Comprobación: código sin errores; «pendiente de probar en fiesta».

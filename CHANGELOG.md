@@ -41,6 +41,26 @@ llevan la fecha en que se hicieron.
 
 - **Cómo probarlo**: `npm start`, abre el mando en el móvil y mira la pantalla de entrar: siete
   caras, las cogidas apagadas. Elige una y entra: la misma cara sale arriba, en la tele y en tu kart.
+## 2026-09-20 (noche) — Cada kart con su motor, y por fin se puede callar el juego
+
+- **Tecla `M`**: calla y enciende todo el sonido de la tele. Hasta hoy no se podía, y en una fiesta
+  eso hace falta más de lo que parece.
+- **Un motor por kart**: un zumbido que sube de tono con la velocidad y se afila con el turbo. Los
+  bots suenan a un tercio de volumen: el motor que tiene que oírse es el tuyo.
+- **Todo el sonido pasa ahora por un compresor.** Antes cada pitido se conectaba directo a la salida
+  de audio; con ocho motores sonando a la vez eso habría sonado a sartén. Ahora hay un volumen
+  general (el que apaga la `M`) y un compresor detrás, que es lo que aguanta ocho motores más un
+  rayo sin reventar los altavoces de la tele.
+- Los motores se apagan solos al acabar la carrera y al quitar un kart, que es donde se quedan
+  osciladores sueltos si uno se descuida. `npm test` lo comprueba, junto con que nada vuelva a
+  conectarse directo a la salida.
+
+- **Cómo probarlo en la fiesta**: `npm start`, haz clic una vez en la pantalla (el navegador no deja
+  sonar nada hasta que le haces clic) y corre una carrera. Prueba la `M`.
+  **Pendiente de probar en fiesta**: **esto no se ha podido escuchar**. Si con 8 karts suena a
+  sartén, baja `MOTOR_VOL` (0,05) y `MOTOR_BOT` (0,34) en `public/screen.js`; si molesta del todo,
+  `MOTOR_VOL` a 0 deja el juego como estaba.
+
 ## 2026-09-20 (noche) — Estelas, marcas de neumático y humo al aterrizar
 
 Tres cosas que se ven y ninguna que se juegue distinto (`public/sim.mjs` sigue sin tocarse).
