@@ -994,13 +994,14 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         state.hostId = m.hostId;
         applySettings(m.settings);
         sendPhase();
-        for (const p of state.players.values()) if (state.phase !== 'lobby' && !state.karts.some((k) => k.playerId === p.id)) toPlayer(p.id, { t: 'spectate' });
+        for (const p of state.players.values()) if (state.phase !== 'lobby' && state.phase !== 'warmup' && !state.karts.some((k) => k.playerId === p.id)) toPlayer(p.id, { t: 'spectate' });
         for (const k of state.karts) sendStatus(k);
         updateOverlays();
         break;
       case 'join': {
         upsertPlayer(m.player);
-        if (state.phase !== 'lobby') {
+        // calentando todavía no ha empezado nada: quien llega se mete en la pista como los demás
+        if (state.phase !== 'lobby' && state.phase !== 'warmup') {
           const k = state.karts.find((q) => q.playerId === m.player.id);
           if (k) sendStatus(k); else toPlayer(m.player.id, { t: 'spectate' });
         }
@@ -1047,7 +1048,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     if (Number.isInteger(s.track)) state.settings.track = ((s.track % TRACKS.length) + TRACKS.length) % TRACKS.length;
     if (Number.isInteger(s.laps)) state.settings.laps = clamp(s.laps, 1, 9);
     if (Number.isInteger(s.bots)) state.settings.bots = clamp(s.bots, 0, 7);
-    if (state.phase === 'lobby') sim.setTrack(state.settings.track);
+    if (state.phase === 'lobby' || state.phase === 'warmup') sim.setTrack(state.settings.track);
   }
   function changeSetting(key, delta) {
     if (state.phase !== 'lobby') return;
@@ -1235,8 +1236,16 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       enEscaparate.set(q.id, { char: q.char, obj, giro: Math.random() * Math.PI * 2 });
     }
   }
+  /*
+   * ¿Está alguien calentando de verdad? Mientras nadie toque el mando, la sala se ve como siempre:
+   * el desfile de karts delante de la cámara y la vista general dando vueltas al circuito. En
+   * cuanto alguien se mueve, el desfile se aparta y la cámara se va con los karts, que es lo que
+   * hace falta para aprenderse los botones. Si todos paran, a los pocos segundos vuelve el desfile.
+   */
+  let calentando = 0;
+  const hayCalentamiento = () => state.phase === 'warmup' && calentando > 0;
   function moverEscaparate(dt) {
-    const visible = state.phase === 'lobby';
+    const visible = (state.phase === 'lobby' || state.phase === 'warmup') && !hayCalentamiento();
     escaparate.visible = visible;
     if (!visible || !enEscaparate.size) return;
     const cam = camActiva || camera;
@@ -1357,19 +1366,40 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   }
 
 
-  // Monta la parrilla con quien esté conectado (+ bots) y arranca la carrera en la simulación
-  function startRace() {
-    if (state.phase !== 'lobby') return;
+  /*
+   * Quién juega: los móviles conectados (+ el teclado, si lo hay), cada uno con su personaje. El
+   * del teclado no elige, así que se le da el primero libre. Lo usan la carrera y el calentamiento.
+   */
+  function participantes() {
     const humans = [];
     for (const p of state.players.values()) if (p.connected) humans.push({ playerId: p.id, name: p.name, char: p.char, easy: !!p.easy });
     if (state.kb) humans.push({ playerId: null, kb: true, name: 'Teclado', char: -1 });
-    if (!humans.length) { toast('Hace falta al menos un jugador conectado'); return; }
     const used = new Set(humans.filter((h) => h.char >= 0).map((h) => h.char));
-    const freeChar = () => { for (let c = 0; c < CHARS.length; c++) if (!used.has(c)) { used.add(c); return c; } return 0; };
-    for (const h of humans) if (h.char < 0) h.char = freeChar();
+    const libre = () => { for (let c = 0; c < CHARS.length; c++) if (!used.has(c)) { used.add(c); return c; } return 0; };
+    for (const h of humans) if (h.char < 0) h.char = libre();
+    return { humans, libre };
+  }
+
+  /*
+   * Calentamiento: mientras el anfitrión no pulsa EMPEZAR, el kart de quien ya ha entrado está en
+   * la parrilla y se puede conducir, para aprenderse los botones sin que nadie te adelante. Se
+   * vuelve a llamar cada vez que cambia quién está en la sala o qué circuito se va a correr.
+   */
+  function sincronizarCalentamiento() {
+    if (state.phase !== 'lobby' && state.phase !== 'warmup') return;
+    const { humans } = participantes();
+    if (!humans.length) { if (state.phase === 'warmup') sim.backToLobby(); return; }
+    sim.warmup({ entries: humans.slice(0, MAX_KARTS), trackIndex: state.settings.track });
+  }
+
+  // Monta la parrilla con quien esté conectado (+ bots) y arranca la carrera en la simulación
+  function startRace() {
+    if (state.phase !== 'lobby' && state.phase !== 'warmup') return;
+    const { humans, libre } = participantes();
+    if (!humans.length) { toast('Hace falta al menos un jugador conectado'); return; }
     const entries = humans.slice(0, MAX_KARTS);
     const nBots = Math.min(state.settings.bots, MAX_KARTS - entries.length);
-    for (let i = 0; i < nBots; i++) { const c = freeChar(); entries.push({ playerId: null, bot: true, name: CHARS[c].name + ' (bot)', char: c }); }
+    for (let i = 0; i < nBots; i++) { const c = libre(); entries.push({ playerId: null, bot: true, name: CHARS[c].name + ' (bot)', char: c }); }
 
     if (!sim.startRace({ entries, trackIndex: state.settings.track, laps: state.settings.laps })) return;
     buildHud();
@@ -1481,7 +1511,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   function updateCamera(dt) {
     const t = state.track;
     let fx, fz, dist, angle = 0, pitch = CAM_PITCH;
-    if (state.phase === 'lobby') {
+    if (state.phase === 'lobby' || (state.phase === 'warmup' && !hayCalentamiento())) {
       cam.orbit += dt * 0.12;
       fx = t.W / 2; fz = t.H / 2 + 40; dist = 2300 * Math.max(1, Math.max(t.W / MAP_W, t.H / MAP_H)); angle = cam.orbit; pitch = THREE.MathUtils.degToRad(38);
       cam.fx = fx; cam.fz = fz; cam.dist = dist;
@@ -1858,13 +1888,21 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   function hideBig(ifText) { if (!ifText || bigEl.textContent === ifText) bigEl.classList.add('hidden'); }
 
   function updateOverlays() {
-    lobbyEl.classList.toggle('hidden', state.phase !== 'lobby');
+    // en el calentamiento la sala sigue puesta: el anfitrión tiene que poder pulsar EMPEZAR
+    const enSala = state.phase === 'lobby' || state.phase === 'warmup';
+    lobbyEl.classList.toggle('hidden', !enSala);
     resultsEl.classList.toggle('hidden', state.phase !== 'results');
-    hudEl.classList.toggle('hidden', state.phase === 'lobby' || panelesPrev);
+    hudEl.classList.toggle('hidden', enSala || panelesPrev);
     if (state.phase !== 'countdown' && state.phase !== 'race') bigEl.classList.add('hidden');
-    if (state.phase === 'lobby') renderLobby();
+    if (enSala) renderLobby();
     if (state.phase === 'results') renderResults();
+    // los karts del calentamiento siguen a quien esté en la sala: aquí se pasa cada vez que cambia
+    if (enSala && !sincronizando) {
+      sincronizando = true;
+      try { sincronizarCalentamiento(); } finally { sincronizando = false; }
+    }
   }
+  let sincronizando = false;
 
   function renderLobby() {
     actualizarEscaparate();     // los karts que dan vueltas delante de la cámara
@@ -2018,12 +2056,16 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const paneles = modoPaneles();
     if (paneles !== panelesPrev) {
       panelesPrev = paneles;
-      hudEl.classList.toggle('hidden', paneles || state.phase === 'lobby');
+      hudEl.classList.toggle('hidden', paneles || state.phase === 'lobby' || state.phase === 'warmup');
       timeChipEl.classList.toggle('hidden', !paneles);
       // con muchos paneles, dibujar la escena 8 veces cuesta: se baja la resolución interna
       renderer.setPixelRatio(paneles && personasEnCarrera().length > 4 ? 1 : Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(viewW, viewH, false);
     }
+    if (state.phase === 'warmup') {
+      const alguien = state.karts.some((k) => Math.abs(k.speed) > 30);
+      calentando = alguien ? 6 : Math.max(0, calentando - dt);
+    } else calentando = 0;
     enPaneles = paneles;
     camActiva = paneles ? (chases.get(personasEnCarrera()[0]) || {}).cam || camera : camera;
     altoActivo = paneles ? viewH / panelLayout(personasEnCarrera().length).length : viewH;
@@ -2039,7 +2081,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       renderer.render(scene, camera);
     }
     if (eligiendoAhora) refrescarReloj();
-    if (state.phase !== 'lobby') updateHud(dt);
+    if (state.phase !== 'lobby' && state.phase !== 'warmup') updateHud(dt);
     pintarHudPaneles(dt);
     contarFps(dt, paneles ? panelesActivos.length : 1);
     requestAnimationFrame(frame);

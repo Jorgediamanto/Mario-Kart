@@ -36,6 +36,8 @@
   const me = { id: null, token: store.get('token', ''), name: store.get('name', ''), char: parseInt(store.get('char', '-1'), 10), host: false, easy: store.get('facil', '0') === '1' };
   if (!(me.char >= 0 && me.char < CHARS.length)) me.char = -1;
   let joined = false, wantJoin = false, editing = false, spectating = false;
+  // calentamiento: mientras el anfitrión no empieza, tu kart ya está en la pista y puedes probarlo
+  let probando = false;
   let eligiendo = null;      // caracol: { opciones, hasta } mientras nos toca elegir víctima
   let phase = 'lobby', lobby = null, status = null, currentView = 'join';
   let takenChars = new Set();
@@ -108,7 +110,8 @@
       case 'phase':
         if (m.phase !== 'race') eligiendo = null;
         phase = m.phase;
-        if (phase === 'lobby') { spectating = false; status = null; }
+        if (phase === 'lobby' || phase === 'warmup') { spectating = false; status = null; }
+        if (phase !== 'warmup') probando = false;
         if (phase === 'countdown') { showRaceMsg('¡Preparados!'); centrarVolante(); }
         if (phase === 'race') showRaceMsg('');
         setView();
@@ -154,6 +157,7 @@
     let v;
     if (!joined || editing) v = 'join';
     else if (eligiendo) v = 'pick';
+    else if (phase === 'warmup') v = probando ? 'race' : 'lobby';
     else if (phase === 'lobby') v = 'lobby';
     else if (phase === 'results') v = spectating ? 'lobby' : 'results';
     else v = spectating ? 'lobby' : 'race';
@@ -163,7 +167,12 @@
     if (v === 'lobby') renderLobby();
     if (v === 'results') renderResults();
     if (v === 'pick') { releaseAll(); renderPick(); }
-    if (v === 'race') { releaseAll(); renderStatus(); if (phase === 'countdown') showRaceMsg('¡Preparados!'); }
+    if (v === 'race') {
+      releaseAll(); renderStatus();
+      if (phase === 'countdown') showRaceMsg('¡Preparados!');
+      if (phase === 'warmup') showRaceMsg('Calentamiento: conduce a tu aire 🕹️', 2500);
+    }
+    $('btn-volver').classList.toggle('hidden', phase !== 'warmup');
     if (v !== 'race') showRaceMsg('');
   }
 
@@ -221,6 +230,8 @@
     $('set-bots').textContent = s.bots;
     $('guest-settings').textContent = me.host ? '' : `Circuito: ${trackName} · ${s.laps} vueltas · ${s.bots} bots`;
     pintarFacil();
+    // el kart solo está en la pista cuando la tele lo dice (fase «warmup»)
+    $('btn-probar').classList.toggle('hidden', phase !== 'warmup' || spectating);
     $('lobby-players').innerHTML = lobby
       ? lobby.players.map((p) => `<li class="${p.connected ? '' : 'off'}">${(CHARS[p.char] || CHARS[0]).emoji} ${esc(p.name)}${p.host ? ' 👑' : ''}${p.easy ? ' 🦺' : ''}${p.id === me.id ? ' <b style="color:#39ff88">(tú)</b>' : ''}${p.connected ? '' : ' <span style="opacity:.7">(sin conexión)</span>'}</li>`).join('')
       : '';
@@ -258,6 +269,8 @@
     vibrate(15);
     if (joined) sendHello();
   });
+  $('btn-probar').addEventListener('click', () => { probando = true; releaseAll(); setView(); requestWakeLock(); vibrate(20); });
+  $('btn-volver').addEventListener('click', () => { probando = false; releaseAll(); setView(); });
   $('btn-change').addEventListener('click', () => { editing = true; setView(); });
   $('btn-leave').addEventListener('click', () => {
     send({ t: 'leave' });
@@ -489,7 +502,11 @@
   function renderStatus() {
     if (!status) { $('st-pos').textContent = '—'; $('st-lap').textContent = ''; $('st-name').textContent = me.name; return; }
     $('st-name').textContent = me.name;
-    if (status.fin) {
+    // calentando no hay posición ni vueltas que enseñar: solo estás dando vueltas de prueba
+    if (phase === 'warmup') {
+      $('st-pos').textContent = '🕹️';
+      $('st-lap').textContent = 'calentamiento';
+    } else if (status.fin) {
       $('st-pos').textContent = `${status.finPos}º`;
       $('st-lap').textContent = '🏁 ¡Meta!';
       if (currentView === 'race') showRaceMsg(`🏁 ¡Has terminado ${status.finPos}º!`);

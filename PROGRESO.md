@@ -7,20 +7,17 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 01:42
+- último latido (UTC): 2026-09-20 01:50
 - rama: noche/2026-09-20
 
 ## Punto en curso
 - IDEAS.md: Fase 3 — «Calentamiento en la sala»
-- hecho: la fase `warmup` en `sim.mjs` (`sim.warmup({entries, trackIndex})`): se conduce y se
-  choca, te recogen si te clavas, y ni vueltas ni cajas ni objetos ni clasificación. Quien entra
-  nuevo no mueve de su sitio a quien ya conducía, cambiar de circuito devuelve a la parrilla nueva
-  y `startRace` arranca desde el calentamiento poniendo a todos otra vez en la parrilla. Escenario
-  en `check-sim.js`. `npm test` en verde.
-- siguiente paso: la tele (`screen.js`): llamar a `sim.warmup` cuando cambia la sala, dejar la
-  sala HTML visible en fase `warmup`, y que el desfile de karts del dueño siga saliendo mientras
-  nadie conduce (en cuanto alguien toca el mando, la cámara se va con los karts). Luego el móvil:
-  un botón «probar el mando» en la sala.
+- hecho: la fase `warmup` en `sim.mjs` con su escenario; la tele (sala HTML visible, karts en la
+  parrilla, el desfile del dueño se mantiene mientras nadie conduce y la cámara se va con los
+  karts en cuanto alguien se mueve); el móvil (botón «🕹️ Probar el mando» y «↩ sala»); aviso en
+  la sala de la tele; comprobación de la fase en `check-protocol.js`. `npm test` en verde.
+- siguiente paso: releer el diff de `screen.js` con calma (no tiene pruebas de navegador), y cerrar
+  el punto: IDEAS.md, CHANGELOG.md y fusión a main.
 - intentos fallidos en este punto: 0
 
 ## Última sesión
