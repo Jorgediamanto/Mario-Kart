@@ -7,18 +7,18 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 00:35
+- último latido (UTC): 2026-09-20 00:40
 - rama: noche/2026-09-20
 
 ## Punto en curso
 - IDEAS.md: Fase 2 — «Mejorar los circuitos para la vista en tercera persona» (los cuatro circuitos
   que siguen en 9-12 s de vuelta: Costa, Volcán, Bosque, Ciudad… el que toque según `tracks.js`).
-- hecho: el motor de trazados ya es de todos: `tools/traza.js` (polígono redondeado + remuestreo +
-  validación + informe) y `traza-arcoiris.js` se queda con su tabla de vértices. Comprobado que
-  genera Arcoíris **clavado** (mismos 133 puntos, mismo mundo 6650x4100).
-- siguiente paso: `tools/traza-circuitos.js` con los vértices de Chicle, Playa Neón, Volcán Disco y
-  Luna Loca; rehacer **uno por commit** (mundo propio, carretera más ancha, relieve) midiendo la
-  vuelta con `npm run race` hasta dejarla entre 25 y 60 s.
+- hecho: `tools/traza.js` (motor compartido, Arcoíris sale clavado) y `tools/traza-circuitos.js` con
+  los cuatro trazados nuevos ya validados (12.000 px cada uno, sin problemas). La decoración y los
+  charcos se plantan ahora **junto a la carretera**, que es lo que pide un mundo grande.
+- siguiente paso: pegar circuito a circuito en `tracks.js` (mundo, ancho, relieve, cajas, paneles,
+  barreras), medir la vuelta con `npm run race` y rehacer `tools/referencia.json` a propósito.
+  Empezando por Chicle.
 - intentos fallidos en este punto: 0
 
 ## Última sesión
