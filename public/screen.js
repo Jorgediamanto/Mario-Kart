@@ -236,6 +236,20 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const th = t.def.theme;
     const rnd = mulberry32(999 + t.index * 17);
     const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+    /*
+     * Un sitio al azar **junto a la carretera**, a un lado o al otro: se elige un punto del
+     * recorrido y se sale de lado. Antes la decoración se sorteaba por todo el mundo, y eso valía
+     * cuando el mundo medía 1920x1080; con los circuitos grandes (Arcoíris mide 6650x4100, o sea
+     * ocho veces más superficie) la mitad de los árboles caían donde no pasa nadie y las curvas se
+     * quedaban sin referencias para la vista de detrás. Mismas mallas que antes —los fps mandan—,
+     * pero todas donde se juega.
+     */
+    function juntoALaPista(t, margen, banda) {
+      const s = t.samples[Math.floor(rnd() * t.N)];
+      const lado = rnd() < 0.5 ? -1 : 1;
+      const fuera = (t.halfW + margen + 20 + rnd() * banda) * lado;
+      return { x: s.x + s.nx * fuera, y: s.y + s.ny * fuera };
+    }
     const world = new THREE.Group();
     world.userData.animated = [];
     const anim = (o) => { world.userData.animated.push(o); };
@@ -544,7 +558,8 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       while (placed < th.pools.count && tries < 4000) {
         tries++;
         const r = th.pools.minR + rnd() * (th.pools.maxR - th.pools.minR);
-        const x = 60 + r + rnd() * (t.W - 120 - 2 * r), y = 60 + r + rnd() * (t.H - 120 - 2 * r);
+        const { x, y } = juntoALaPista(t, r + 50, 520);
+        if (x < 60 + r || y < 60 + r || x > t.W - 60 - r || y > t.H - 60 - r) continue;
         if (t.nearest(x, y).d < t.halfW + r + 50) continue;
         const h = t.terrainAt(x, y);
         const grp = new THREE.Group();
@@ -749,9 +764,10 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       let placed = 0, tries = 0;
       while (placed < d.n && tries < 3000) {
         tries++;
-        const x = 30 + rnd() * (t.W - 60), y = 30 + rnd() * (t.H - 60);
         const obj = maker();
         const margin = obj.userData && obj.userData.big ? 190 : 46;
+        const { x, y } = juntoALaPista(t, margin, obj.userData && obj.userData.big ? 900 : 620);
+        if (x < 30 || y < 30 || x > t.W - 30 || y > t.H - 30) continue;
         if (t.nearest(x, y).d < t.halfW + margin) continue;
         obj.position.x = x; obj.position.z = y;
         // sin terreno no hay dónde apoyarla: flota, unas por encima y otras por debajo de la pista

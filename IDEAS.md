@@ -327,7 +327,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 
 ## Fase 2 — Iterar sobre la versión final
 
-- [ ] **Mejorar los circuitos para la vista en tercera persona.** Ahora se juega viendo desde detrás: las
+- [x] **Mejorar los circuitos para la vista en tercera persona.** Ahora se juega viendo desde detrás: las
       rampas, paneles turbo, cajas y bumpers deben verse venir con antelación (carteles, arcos, luces); las
       curvas deben tener referencias visuales (bordillos altos, decoración en el exterior) y ninguna curva ciega
       peligrosa. Añade variedad: chicanes, curvas largas para derrapar al nivel 3, algún atajo con riesgo (más
@@ -361,6 +361,30 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         los otros cuatro, que siguen en 9-12 s.
         Mientras no haya respuesta, lo que sí se puede hacer sin decidir nada: chicanes y curvas
         largas para el nivel 3 del derrape reaprovechando la longitud de ahora, y repasar el ancho.
+      - ✅ **Terminado la noche del 2026-09-20.** Los **cinco** circuitos están rehechos con el
+        molde de Arcoíris (mundo propio por circuito, trazado generado con `tools/traza.js` y
+        validado antes de pegarlo), una entrada de CHANGELOG por circuito:
+        | circuito | antes | ahora | mundo | ancho | vuelta |
+        |---|---|---|---|---|---|
+        | Chicle | 3.984 px | 12.832 px | 5400x3600 | 110 → 200 | 9,4 → 29,2 s |
+        | Playa Neón | 4.088 px | 13.592 px | 5700x3650 | 110 → 200 | 10,7 → 30,6 s |
+        | Volcán Disco | 4.544 px | 13.512 px | 5600x3600 | 110 → 180 | 12,7 → 30,4 s |
+        | Luna Loca | 4.080 px | 13.152 px | 5450x3650 | 110 → 220 | 10,9 → 28,3 s |
+        | Arcoíris | (ya estaba) | 15.936 px | 6650x4100 | 260 | 33,5 s |
+        Todos con **cuestas** (`relieve`), dos o tres saltos, el doble de cajas y paneles, y
+        quitamiedos por fuera de las curvas. `npm run check` en verde, los siete bots terminan en
+        los cinco y casi no se sale nadie. La vuelta de 25-60 s la vigila ahora `npm test`, y que
+        el **nivel 3 de derrape** se alcance, también (con un conductor que sostiene el volante:
+        con bots no sale ni uno, ni antes ni ahora).
+      - ⏭ **Lo único que no se ha hecho: el atajo con riesgo**, y está medido, no abandonado. La
+        idea era una rampa que volara por encima de una curva. Con la física de ahora un kart vuela
+        **entre 270 y 490 px** (`2·v²·(alto/largo)/gravedad`, con el turbo de salto incluido), y en
+        los cinco circuitos **no hay ni una curva que se pueda cortar con ese alcance ganando algo**
+        (se buscó a lo largo de todo el trazado, tirando una recta desde cada punto: cero sitios con
+        ahorro positivo). No es mala suerte, es la consecuencia de lo que pidió el dueño: curvas
+        abiertas y carretera ancha, donde la cuerda ya es casi la recta. Para tener atajos de verdad
+        hacen falta **caminos alternativos en la simulación** (hoy `nearest` + `lat` define una sola
+        carretera, sin ramas). Se apunta en el punto de Fase 6, que ya existía.
       - Nota para quien lo haga: **la simulación no sabe de caminos alternativos** (`nearest` + `lat`
         define la carretera, no hay ramas). Un «atajo con riesgo» se puede hacer con una **rampa que
         salte por encima de una curva**: si llegas rápido, caes más adelante y el contador de
@@ -471,6 +495,12 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 - [ ] **Trucos con estilo.** Turbo del truco proporcional al tiempo en el aire (mínimo 0,4 s), con nombres en
       pantalla. Comprobación: prueba en simulación con distintos tiempos de vuelo.
 - [ ] **Atajos con riesgo** en al menos dos circuitos (Fase 2 los define; aquí se pulen con obstáculos).
+      - ⚠️ **Medido la noche del 2026-09-20**: con los circuitos rehechos no sale con una rampa. Un
+        kart vuela 270-490 px y no hay ninguna curva de los cinco circuitos que se pueda cortar por
+        el aire ganando terreno. Para esto hace falta que la simulación entienda **ramas** (hoy
+        `nearest` + `lat` define una sola carretera): un atajo sería un segundo trazado corto con su
+        entrada y su salida, y el contador de progreso tendría que aceptar las dos. Es un cambio de
+        `sim.mjs`, no de `tracks.js`, y conviene decidirlo con el dueño antes de meterse.
 
 ## Fase 7 — Gráficos
 

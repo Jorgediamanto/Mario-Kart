@@ -1,12 +1,12 @@
 {
   "que": "Vuelta media de los bots en la fase 4 de npm test, circuito a circuito (segundos).",
   "comoRehacerlo": "KART_REFERENCIA=escribir node tools/check-sim.js",
-  "fecha": "2026-09-19",
+  "fecha": "2026-09-20",
   "vueltaMedia": {
     "Arcoíris": 33.49,
-    "Chicle": 9.42,
-    "Playa Neón": 10.65,
-    "Volcán Disco": 12.74,
-    "Luna Loca": 10.86
+    "Chicle": 29.22,
+    "Playa Neón": 30.57,
+    "Volcán Disco": 30.4,
+    "Luna Loca": 28.34
   }
 }

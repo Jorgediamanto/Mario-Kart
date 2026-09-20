@@ -50,6 +50,7 @@ async function main() {
   check(total < 20, `las ${trackDefs.length} carreras tardan ${total.toFixed(1)} s (< 20 s)`);
 
   compararConLaReferencia(tiempos);
+  comprobarDuracionDeVuelta(tiempos);
 
   console.log('Determinismo');
   {
@@ -332,6 +333,26 @@ function compararConLaReferencia(tiempos) {
   }
 }
 
+/*
+ * Una vuelta tiene que durar entre 25 y 60 s (IDEAS.md, «Mejorar los circuitos para la vista en
+ * tercera persona»). Los cinco circuitos se rehicieron por esto: con vueltas de 9-12 s el circuito
+ * se acababa antes de aprendértelo, y con la cámara de detrás no daba tiempo ni a mirar el paisaje.
+ *
+ * Esto no es lo mismo que la referencia de arriba: la referencia vigila que la física no empeore
+ * (un 10 % de margen sobre lo medido), y esto vigila que un circuito nuevo —o un retoque de uno de
+ * ahora— no vuelva a dejar vueltas de bolsillo. Se mide sobre los tiempos que ya se han corrido,
+ * así que no cuesta ni un segundo más.
+ */
+const VUELTA_MIN = 25, VUELTA_MAX = 60;
+
+function comprobarDuracionDeVuelta(tiempos) {
+  console.log('Duración de la vuelta');
+  for (const t of tiempos) {
+    check(t.vueltaMedia >= VUELTA_MIN && t.vueltaMedia <= VUELTA_MAX,
+      `${t.nombre}: vuelta media ${t.vueltaMedia.toFixed(1)} s (tiene que estar entre ${VUELTA_MIN} y ${VUELTA_MAX} s)`);
+  }
+}
+
 // ---------------------------------------------------------------- paneles de la pantalla dividida
 // La tabla que manda (IDEAS.md): 1 → completa, 2 → dos anchos, 3-4 → 2×2, 5-6 → 3×2, 7-8 → 4×2.
 const FILAS_ESPERADAS = { 1: [1], 2: [1, 1], 3: [2, 1], 4: [2, 2], 5: [3, 2], 6: [3, 3], 7: [4, 3], 8: [4, 4] };
@@ -374,8 +395,8 @@ function comprobarPaneles(layout) {
 
 // ---------------------------------------------------------------- escenarios sueltos
 // Monta una carrera ya empezada (sin cuenta atrás) para poder forzar situaciones concretas.
-function carrera(sim, { bots = 1, laps = 3, trackIndex = pista('Chicle'), seed = 7, hooks } = {}) {
-  const s = sim.createSim({ geom, trackDefs, random: mulberry32(seed), hooks });
+function carrera(sim, { bots = 1, laps = 3, trackIndex = pista('Chicle'), seed = 7, hooks, defs = trackDefs } = {}) {
+  const s = sim.createSim({ geom, trackDefs: defs, random: mulberry32(seed), hooks });
   const entries = [{ playerId: 1, name: 'Humano', char: 0 }];
   for (let i = 1; i <= bots; i++) entries.push({ playerId: null, bot: true, name: 'Bot ' + i, char: i });
   s.startRace({ entries, trackIndex, laps });
@@ -387,11 +408,51 @@ const humano = (s) => s.state.karts.find((k) => !k.isBot);
 // y un escenario que necesita una horquilla no puede depender de que siga siendo el número 2.
 const pista = (nombre) => trackDefs.findIndex((d) => d.name === nombre);
 
-// Busca en el circuito los dos tramos que pasan más cerca sin ser el mismo (la horquilla) y planta
-// al humano encima del tramo de enfrente, con el progreso del tramo por el que iba: es lo que le
-// pasa a un kart que sale despedido en la horquilla de Volcán Disco.
-function enElTramoDeEnfrente(sim, { bots, seed, hooks, trackIndex = pista('Volcán Disco') } = {}) {
-  const s = carrera(sim, { bots, seed, hooks, trackIndex });
+/*
+ * Una pista de pruebas con horquilla, **solo para este escenario**: dos rectas paralelas a 360 px
+ * unidas por dos curvas de 180º. No es un circuito de la fiesta y no sale en `tracks.js`.
+ *
+ * Antes este escenario cogía Volcán Disco, que tenía una horquilla de verdad. Al rehacer los cinco
+ * circuitos en mundos tres veces más grandes (generados con `tools/traza.js`, que no sabe hacer un
+ * giro de 180º sin curvas ilegales) ya no queda ninguna horquilla, y sin dos tramos pegados no hay
+ * manera de montar la situación que se quiere probar. Atar una prueba de regresión a la forma de
+ * un circuito era el error: la forma cambia cuando el dueño pide otra cosa, el bug no.
+ */
+const PISTA_HORQUILLA = [{
+  /*
+   * Es el trazado que tenía Volcán Disco hasta el 2026-09-20, con su horquilla: dos tramos que se
+   * cruzan a 255 px, que es lo que hace falta para montar la situación. Se guarda aquí, y no en
+   * `tracks.js`, porque ya no es un circuito de la fiesta: Volcán Disco se rehizo en un mundo tres
+   * veces más grande y sin horquillas (el generador de `tools/traza.js` no sabe hacer un giro de
+   * 180º sin curvas ilegales).
+   *
+   * Atar una prueba de regresión a la forma de un circuito era el error de antes: la forma cambia
+   * cuando el dueño pide otra cosa, y el bug que se arregló no. Con la pista aquí dentro, el
+   * escenario sigue midiendo lo mismo pase lo que pase con los cinco circuitos.
+   */
+  name: 'Horquilla de pruebas (el Volcán Disco de antes)', width: 110, gravity: 1,
+  boxes: [], pads: [], features: [], barriers: [],
+  theme: { sky: ['#2b0040', '#ff3d00'], fog: '#7a1c7a', ground: '#7a1fb8', groundAlt: '#4b0a80',
+    road: '#1c1c2e', curb: ['#ffea00', '#1a1a1a'], bumper: ['#ff2d95', '#00e5ff'], pad: '#ffea00',
+    decor: [], palette: ['#00e5ff'], clouds: null, sun: null, stars: false },
+  points: [
+    { x: 450, y: 250 }, { x: 900, y: 230 }, { x: 1350, y: 250 }, { x: 1680, y: 350 },
+    { x: 1760, y: 600 }, { x: 1720, y: 790 }, { x: 1630, y: 915 }, { x: 1520, y: 935 },
+    { x: 1430, y: 860 }, { x: 1410, y: 760 }, { x: 1405, y: 690 }, { x: 1388, y: 625 },
+    { x: 1340, y: 577 }, { x: 1275, y: 560 }, { x: 1210, y: 577 }, { x: 1162, y: 625 },
+    { x: 1145, y: 690 }, { x: 1140, y: 760 }, { x: 1115, y: 860 }, { x: 1020, y: 935 },
+    { x: 750, y: 950 }, { x: 400, y: 900 }, { x: 190, y: 720 }, { x: 170, y: 470 },
+    { x: 260, y: 300 },
+  ],
+}];
+
+/*
+ * Busca en la pista los dos tramos que pasan más cerca sin ser el mismo (la horquilla) y planta al
+ * humano encima del tramo de enfrente, con el progreso del tramo por el que iba: es lo que le pasa
+ * a un kart que sale despedido en una horquilla.
+ */
+function enElTramoDeEnfrente(sim, { bots, seed, hooks } = {}) {
+  const s = carrera(sim, { bots, seed, hooks, defs: PISTA_HORQUILLA, trackIndex: 0 });
   const k = humano(s);
   const t = s.state.track;
   for (let f = 0; f < 60 * 2; f++) { s.setInput(k, s.aiInput(k)); s.update(DT); }   // cruza la meta
@@ -403,7 +464,7 @@ function enElTramoDeEnfrente(sim, { bots, seed, hooks, trackIndex = pista('Volc�
       if (!mejor || d < mejor.d) mejor = { i, j: j % t.N, d };
     }
   }
-  if (!mejor || mejor.d > t.halfW + 400) return { error: 'este circuito no tiene dos tramos lo bastante cerca' };
+  if (!mejor || mejor.d > t.halfW + 400) return { error: 'la pista de pruebas no tiene dos tramos lo bastante cerca' };
   const cur = ((k.dist % t.N) + t.N) % t.N;
   const base = k.dist - cur;                     // vueltas ya contadas, en muestras
   k.dist = base + mejor.i;
@@ -1020,6 +1081,43 @@ const escenarios = [
       let delta = n.i - i; if (delta > t.N / 2) delta -= t.N; if (delta < -t.N / 2) delta += t.N;
       if (Math.abs(delta) > t.win) return `lo han dejado en el tramo equivocado (muestra ${n.i}, la suya era la ${i})`;
       return k.dist >= r.base + i - 5 ? null : `al recogerlo ha perdido progreso (${k.dist} < ${r.base + i})`;
+    },
+  },
+  {
+    /*
+     * «Curvas largas para derrapar al nivel 3» (IDEAS.md). El nivel 3 pide **1,4 s girando hacia el
+     * mismo lado sin soltar**, así que hace falta un curvón que dure eso a velocidad de carrera.
+     *
+     * Ojo con cómo se mide: los bots no valen para esto. Un bot sigue la línea corrigiendo sesenta
+     * veces por segundo, y cada corrección cruza el centro del volante y le rompe el derrape; por
+     * eso en una carrera de bots no sale **ni un** nivel 3, ni en los circuitos de ahora ni en los
+     * de antes. Una persona no conduce así: mueve el volante despacio y lo **sostiene** dentro de
+     * la curva. Eso es lo que imita el conductor de aquí abajo (el volante se mueve como mucho
+     * 0,06 por fotograma), y con él el nivel 3 sale en los circuitos que tienen curvón.
+     */
+    nombre: 'una persona que sostiene el volante llega al nivel 3 de derrape en algún circuito',
+    run(sim) {
+      const medidas = [];
+      for (const nombre of ['Playa Neón', 'Volcán Disco']) {
+        const s = carrera(sim, { bots: 0, laps: 2, trackIndex: pista(nombre) });
+        const k = humano(s);
+        const t = s.state.track;
+        let mejorT = 0, nivel = 0, val = 0;
+        for (let f = 0; f < 60 * 80 && k.lapCount < 1; f++) {
+          const near = t.nearestNear(k.x, k.y, ((k.dist % t.N) + t.N) % t.N, t.win);
+          const obj = t.samples[(near.i + 22) % t.N];
+          const diff = sim.wrapAngle(Math.atan2(obj.y - k.y, obj.x - k.x) - k.angle);
+          val += Math.max(-0.06, Math.min(0.06, diff * 3.2 - val));
+          s.setInput(k, { s: Math.max(-1, Math.min(1, val)), g: 1, b: 0, d: 0 });
+          s.update(DT);
+          if (k.driftT > mejorT) mejorT = k.driftT;
+          if (k.driftLevel > nivel) nivel = k.driftLevel;
+        }
+        medidas.push({ nombre, nivel, mejorT });
+      }
+      const resumen = medidas.map((m) => `${m.nombre} ${m.mejorT.toFixed(2)} s (nivel ${m.nivel})`).join(', ');
+      if (!medidas.some((m) => m.nivel >= 3)) return `nadie pasa del nivel 2: ${resumen}`;
+      return null;
     },
   },
   {

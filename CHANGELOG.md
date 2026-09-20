@@ -3,6 +3,104 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (noche) — Luna Loca, rehecha: un tercio de la carrera por el aire
+
+Cuarto y último de los circuitos cortos. Con esto **los cinco circuitos tienen vueltas de 25-60 s**,
+que es lo que pedía la hoja de ruta desde que se juega viendo desde detrás del kart.
+
+- **Luna Loca** pasa de 4.080 px a **13.152 px**, en un mundo propio de **5450x3650**. La vuelta de
+  los bots pasa de **10,9 s a 28,3 s**.
+- **Es el circuito de volar**: con la gravedad a 0,55 se cae despacio, así que las curvas son
+  abiertas a propósito (radio mínimo 325, el más generoso de los cinco) y hay **tres rampas**
+  grandes. En la simulación los bots pasan **un tercio de la carrera en el aire** (25 s de 79) y
+  hacen el doble de trucos que en cualquier otro circuito.
+- **Carretera de 220**, la más ancha después de Arcoíris, y los mares de la luna como sube y baja.
+- **9 cajas y 5 paneles** (antes 3 y 3) y más cráteres, rocas y banderas.
+- **Nuevo en `npm test`**: la fase 4 comprueba ahora que **la vuelta media de cada circuito está
+  entre 25 y 60 s**. No cuesta tiempo (se mide sobre las carreras que ya se corren) y evita que un
+  circuito nuevo —o un retoque de uno de ahora— vuelva a dejar vueltas de bolsillo.
+- `tools/referencia.json` rehecho a propósito (Luna Loca: 10,86 s → 28,28 s).
+
+- **Cómo probarlo en la fiesta**: `npm start`, elige Luna Loca y salta. **Pendiente de probar en
+  fiesta**: si tanto tiempo en el aire se hace incómodo con la cámara de detrás, se baja la altura
+  de las rampas (`features`) antes que tocar la gravedad, que es lo que le da la gracia.
+
+## 2026-09-20 (noche) — Volcán Disco, rehecho: el técnico de los cinco
+
+Tercero de los cuatro. Mismo molde (mundo propio, trazado por script, validado antes de pegarlo),
+pero con otra intención: aquí no se viene a ir rápido, se viene a trazar.
+
+- **Volcán Disco** pasa de 4.544 px a **13.512 px**, en un mundo propio de **5600x3600**. La vuelta
+  de los bots pasa de **12,7 s a 30,4 s**.
+- **Es el más apretado de los rehechos**: el zigzag, dos curvas cerradas de verdad y el radio más
+  pequeño de todos los circuitos (173). La carretera queda en **180** —más estrecha que los otros
+  dos rehechos, que van a 200— para que dé algo de respeto, pero lejos del pasillo de 110 de antes.
+- **Se sube al cráter y se baja**: 250 px de desnivel repartidos por la vuelta, **tres saltos** (el
+  grande, justo después de un panel turbo) y lomos en las rectas.
+- **8 cajas y 5 paneles** (antes 3 y 2), quitamiedos a los dos lados en el zigzag y en el salto
+  grande, y el doble de lava.
+- **Lo que se ha perdido: la horquilla.** El generador de trazados no sabe hacer un giro de 180º sin
+  curvas ilegales, así que los circuitos nuevos son circuitos de carreras, no laberintos. Dos
+  pruebas de regresión dependían de esa horquilla (la del kart que aparece en el tramo de enfrente
+  y se le cuela el contador de progreso): ahora **llevan su propia pista de pruebas dentro de
+  `tools/check-sim.js`**, que es el trazado viejo de Volcán Disco tal cual. Siguen midiendo
+  exactamente lo mismo, pero ya no se rompen cuando cambia un circuito de la fiesta.
+- `tools/referencia.json` rehecho a propósito (Volcán Disco: 12,74 s → 30,40 s).
+
+- **Cómo probarlo en la fiesta**: `npm start`, elige Volcán Disco y fíjate en el zigzag: es donde se
+  nota si el derrape automático encadena bien. **Pendiente de probar en fiesta**: si con 180 de
+  ancho las cerradas se hacen injustas con 8 karts, subirlo a 200 como los otros.
+
+## 2026-09-20 (noche) — Playa Neón, rehecha: el paseo marítimo de verdad
+
+Segundo de los cuatro circuitos cortos. Mismo molde que Chicle y Arcoíris (mundo propio, trazado
+generado por script y validado antes de pegarlo).
+
+- **Playa Neón** pasa de 4.088 px a **13.592 px**, en un mundo propio de **5700x3650**. La vuelta de
+  los bots pasa de **10,7 s a 30,6 s**.
+- **La recta más larga de los cinco**: 1.500 px seguidos frente al mar, con un salto en mitad. Al
+  volver hay curvas de todos los tipos y **la horquilla de la sombrilla**, que es la parte lenta de
+  verdad (radio 222): ahí es donde se gana o se pierde la vuelta.
+- **Carretera de 200** (antes 110) y **dunas**: el circuito sube hacia el interior a mitad de vuelta
+  y baja otra vez hasta la orilla. **Tres saltos** en vez de uno, cada uno en su recta.
+- **7 cajas y 5 paneles** (antes 3 y 2), quitamiedos en la horquilla y por fuera de las rápidas, y
+  más palmeras, sombrillas y charcos de agua, que ahora se plantan junto a la carretera.
+- `tools/referencia.json` rehecho a propósito (Playa Neón: 10,65 s → 30,64 s).
+
+- **Cómo probarlo en la fiesta**: `npm start`, elige Playa Neón y mira si la recta larga se hace
+  divertida o larga. **Pendiente de probar en fiesta**: la horquilla con 8 karts a la vez (puede ser
+  un tapón alegre o un desastre) y los fps con la tecla `P`.
+
+## 2026-09-20 (noche) — Chicle, rehecho: tres veces más largo, el doble de ancho y con cuestas
+
+Primero de los cuatro circuitos que quedaban en vueltas de 9-12 s. El molde es el de Arcoíris (el
+dueño ya eligió que cada circuito tenga **su propio mundo**, y allí salió bien): un polígono con las
+esquinas redondeadas, generado por script y validado antes de pegarlo.
+
+- **Chicle** pasa de 3.984 px a **12.832 px**, en un mundo propio de **5400x3600** (antes
+  1920x1080). La vuelta de los bots pasa de **9,4 s a 29,2 s**, dentro de los 25-60 s que pide la
+  hoja de ruta: ahora una vuelta da tiempo a que pasen cosas.
+- **La carretera es casi el doble de ancha** (110 → 200). Con la cámara de detrás, el pasillo de
+  antes obligaba a ir mirando el borde; ahora se puede trazar, adelantar por fuera y derrapar sin
+  acabar en la hierba. En la simulación nadie se sale ni una décima (columna «Fuera» a 0,0 s).
+- **Sube y baja**: cuestas suaves repartidas por la vuelta (ninguna llega al 6 %) y **dos saltos**
+  en vez de uno, cada uno en su recta. Es el circuito fácil de los cinco a propósito: curvas
+  abiertas, una sola chicane y ninguna curva cerrada de verdad.
+- Más sitio quiere más cosas: **7 cajas y 4 paneles turbo** (antes 3 y 2), quitamiedos por fuera de
+  las curvas rápidas y en la chicane, y algo más de decoración.
+- **La decoración se planta ahora junto a la carretera**, no sorteada por todo el mundo. Con mapas
+  ocho veces más grandes, media decoración caía donde no pasa nadie y las curvas se quedaban sin
+  referencias visuales. Mismo número de mallas, todas donde se juega. Vale para los cinco circuitos.
+- El motor de trazados vive ahora en `tools/traza.js`, compartido: `node tools/traza-circuitos.js
+  Chicle --escribir` vuelve a generar el trazado, y `npm run check` lo valida.
+- `tools/referencia.json` se ha rehecho **a propósito** (la vuelta de Chicle cambia de 9,42 s a
+  29,22 s; los otros cuatro siguen clavados).
+
+- **Cómo probarlo en la fiesta**: `npm start`, elige Chicle y da una vuelta. Debería notarse que la
+  carretera es ancha de verdad, que las curvas se ven venir y que la vuelta dura lo suyo.
+  **Pendiente de probar en fiesta**: si 3 vueltas (90 s) se hace largo, se baja a 2 desde la sala; y
+  medir los fps con la tecla `P` con 8 paneles, que hay más decoración que antes.
+
 ## 2026-09-20 (tarde) — Los siete de la fiesta, con cara propia y desfile en la sala
 
 - **Siete personajes, siete sitios**: El Loco (rapado y con un cigarro del que sale humo verde),

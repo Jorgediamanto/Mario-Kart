@@ -6,12 +6,12 @@ es la hora del último push de la sesión: si tiene más de 45 minutos, la sesi�
 retomar la rama.
 
 ## Sesión en curso
-- inicio (UTC): ninguna
-- último latido (UTC): ninguno
-- rama: ninguna
+- inicio (UTC): 2026-09-20 00:31
+- último latido (UTC): 2026-09-20 01:20
+- rama: noche/2026-09-20
 
 ## Punto en curso
-- IDEAS.md: ninguno
+- IDEAS.md: ninguno (recién cerrado «Mejorar los circuitos para la vista en tercera persona»)
 - hecho: —
 - siguiente paso: —
 - intentos fallidos en este punto: 0
