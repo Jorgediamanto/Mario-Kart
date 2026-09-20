@@ -3,6 +3,30 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (noche) — Calentamiento: probar el mando antes de que empiece la carrera
+
+Mientras el anfitrión no pulsa EMPEZAR, **los karts ya están en la pista**. Quien acaba de entrar
+puede pulsar **🕹️ Probar el mando** en su móvil y dar vueltas de prueba para aprenderse los botones
+sin que nadie le adelante ni le mire.
+
+- Calentando **no cuenta nada**: ni vueltas, ni cajas, ni objetos, ni posiciones. Se conduce, se
+  choca (que ya es medio divertido) y te recogen si te quedas clavado.
+- **Al pulsar EMPEZAR, todos vuelven a la parrilla**, así que calentar no da ventaja.
+- Quien entra en la sala mientras otros calientan **entra a jugar**, no de público, y a quien está
+  dando una vuelta no se le mueve de sitio. Si el anfitrión cambia de circuito, todos aparecen en la
+  parrilla del circuito nuevo.
+- En la tele, **la sala se ve igual que antes** mientras nadie toca el mando: el desfile de karts y
+  la vista general dando vueltas al circuito. En cuanto alguien se mueve, el desfile se aparta y la
+  cámara se va con los karts; si todos paran, a los seis segundos vuelve el desfile.
+- En el móvil, la barra de estado pone «🕹️ calentamiento» en vez de posición y vuelta.
+
+- **Cómo probarlo en la fiesta**: entra con un móvil y, sin que nadie pulse EMPEZAR, dale a
+  «🕹️ Probar el mando». Tu kart debería moverse en la tele y la cámara irse con él. Pulsa «↩ sala»
+  y comprueba que vuelves a ver el circuito y la lista. Luego empieza la carrera: todos tienen que
+  salir de la parrilla, quietos, con su cuenta atrás.
+  **Pendiente de probar en fiesta**: si con cinco personas calentando a la vez la cámara general se
+  vuelve loca siguiendo a todos, lo suyo sería que siguiera solo al último que se movió.
+
 ## 2026-09-20 (noche) — Modo fácil: un botón para quien nunca ha jugado
 
 En la sala de cada móvil hay ahora un interruptor **🦺 Modo fácil**. Es por jugador y se recuerda en
