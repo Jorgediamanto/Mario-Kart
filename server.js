@@ -323,6 +323,14 @@ function sanitizeName(n) {
   // eslint-disable-next-line no-control-regex
   return n.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, 12);
 }
+/*
+ * Dos nombres son «el mismo» si se escriben igual quitando mayúsculas, acentos y espacios de más:
+ * en una fiesta, «Jorge» y «jorge» son la misma persona entrando desde otro sitio.
+ */
+function mismoNombre(a, b) {
+  const limpia = (x) => String(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  return limpia(a) === limpia(b) && limpia(a) !== '';
+}
 function charTaken(char, exceptId) {
   for (const p of players.values()) if (p.char === char && p.id !== exceptId) return true;
   return false;
@@ -407,11 +415,27 @@ wss.on('connection', (ws) => {
         for (const q of players.values()) if (q.char === char && !isConnected(q)) { p = q; break; }
         if (p) log(`Vuelve por otra dirección: ${p.name} recupera su sitio`);
       }
+      /*
+       * Y por el nombre: si ya hay alguien llamado igual, **es él**, que entra desde otro sitio (el
+       * mando abierto en el ordenador de las pruebas, otra pestaña del móvil, el salto al volante…).
+       * Se queda con su sitio, su personaje y su corona, y al de antes se le echa avisándole. Sin
+       * esto aparecía «otro tú» en la sala, encima con la corona, y no había manera de empezar la
+       * carrera. Dos personas distintas que se llamen igual tendrán que escribir nombres distintos:
+       * el móvil lo avisa en la pantalla de entrar.
+       */
+      if (!p) {
+        for (const q of players.values()) if (mismoNombre(q.name, name)) { p = q; break; }
+        if (p) log(`${name} vuelve a entrar desde otro sitio: recupera su sitio`);
+      }
       if (p) {
         // Reconexión (o cambio de nombre/personaje)
         clearTimeout(p.timer);
         if (p.ws && p.ws !== ws && p.ws.readyState === WebSocket.OPEN) {
-          p.ws.playerId = null; try { p.ws.close(); } catch (_) { /* ignore */ }
+          // el mando de antes deja de mandar: se le avisa para que no se reconecte solo y se pelee
+          // con este por el mismo sitio
+          send(p.ws, { t: 'kicked', msg: 'Has entrado desde otro sitio: sigue la fiesta ahí.' });
+          p.ws.playerId = null;
+          try { p.ws.close(); } catch (_) { /* ignore */ }
         }
         if (char >= 0 && char !== p.char) {
           if (charTaken(char, p.id)) { send(ws, { t: 'err', msg: 'Ese personaje ya está cogido, elige otro.' }); return; }

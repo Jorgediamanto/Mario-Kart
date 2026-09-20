@@ -145,6 +145,27 @@ async function recorrido(PORT) {
     check(!!yo2 && !yo2.easy, 'apagar el interruptor vuelve a dejarlo en normal');
   }
 
+  // ---- el mismo nombre desde otro sitio: entra en su sitio y no aparece «otro tú» ----
+  {
+    const otroSitio = cliente(PORT, 'otroSitio');
+    await otroSitio.abierto;
+    const antes = moviles[2];
+    tele.olvida();
+    antes.olvida();
+    // sin token (otro navegador, otra dirección) pero con su nombre y su personaje
+    otroSitio.manda({ t: 'hello', name: 'Jugador 2', char: 2 });
+    const w = await otroSitio.espera('welcome');
+    check(w && w.id === antes.id, 'entrar con el mismo nombre desde otro sitio te devuelve tu sitio, no crea otro jugador');
+    const echado = await antes.espera('kicked');
+    check(!!echado, 'al mando de antes se le avisa (`kicked`) para que no se pelee por el mismo sitio');
+    const l = await otroSitio.espera('lobby');
+    const cuantos = l ? l.players.filter((p) => p.name === 'Jugador 2').length : -1;
+    check(cuantos === 1, `en la sala solo hay un «Jugador 2» (${cuantos})`);
+    const yo = l && l.players.find((p) => p.id === w.id);
+    check(!!yo && yo.char === 2, 'y sigue con su personaje de siempre');
+    moviles[2] = otroSitio; otroSitio.id = w && w.id; otroSitio.token = w && w.token;
+  }
+
   // ---- al conectarse, un móvil recibe los personajes que hay para elegir ----
   {
     const mirón = cliente(PORT, 'mirón');

@@ -3,6 +3,25 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 — Se acabó el «otro yo» con la corona
+
+- **Qué pasaba**: entrabas desde el móvil y en la sala aparecía otro jugador con tu nombre, encima
+  con la corona de anfitrión, así que no podías ni empezar la carrera. No era un fantasma del
+  servidor: era **tu propio mando abierto en otro sitio** (el ordenador donde lo probaste, otra
+  pestaña, el salto al volante…). Como entraba con otro token, el servidor lo daba por otra persona,
+  y como había entrado antes, la corona era suya.
+- **Qué se ha hecho**: el nombre manda. Si entras y ya hay alguien llamado igual (sin distinguir
+  mayúsculas ni acentos), **eres tú desde otro sitio**: te quedas con tu sitio, tu corona y el
+  personaje que acabes de elegir, y al mando de antes se le avisa («Has entrado desde otro sitio:
+  sigue la fiesta ahí») y deja de reconectarse solo, para que no se peleen por el mismo sitio.
+- Antes ya se recuperaba el sitio por token y por personaje si estabas desconectado; ahora también
+  por nombre, y **aunque el de antes siga conectado**, que era el caso que se colaba.
+- En la pantalla de entrar del móvil se avisa: si sois dos personas con el mismo nombre, poned
+  nombres distintos (si no, el segundo entra en el sitio del primero).
+
+- **Cómo probarlo**: abre el mando en dos sitios con el mismo nombre. El segundo entra en el sitio
+  del primero (misma corona, un solo jugador en la sala) y el primero se queda con el aviso.
+
 ## 2026-09-20 (noche) — Al entrar eliges personaje, y con su cara de verdad
 
 - **El móvil enseña los personajes que hay.** La pantalla de elegir ya existía, pero llevaba la
