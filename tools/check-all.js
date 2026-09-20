@@ -78,6 +78,8 @@ console.log('Pantalla');
     ["hay un compresor en la salida", /createDynamicsCompressor/],
     ["cada kart tiene su motor", /function actualizarMotores/],
     ["al quitar un kart se le para el motor", /pararMotor\(k\)/],
+    ["hay música y se programa por delante del reloj", /function actualizarMusica/],
+    ["la música no viene de ningún archivo", /const TEMAS = \{/],
   ];
   for (const [que, re] of audio) (re.test(screenSrc) ? ok : bad)(que);
 }

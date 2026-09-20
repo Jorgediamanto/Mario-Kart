@@ -95,6 +95,13 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   const MOTOR_HZ_MIN = 42;      // tono parado
   const MOTOR_HZ_MAX = 190;     // tono a tope de velocidad
   const MOTOR_TURBO = 1.28;     // cuánto sube el tono con turbo o estrella
+  /*
+   * Música, toda sintetizada (ni un archivo): un tema tranquilo en la sala y otro rápido en
+   * carrera, que se acelera en la última vuelta. Va bajita a propósito —por encima tienen que
+   * oírse los motores y los golpes— y se calla con la misma tecla `M` que todo lo demás.
+   */
+  const MUSICA_VOL = 0.055;     // volumen de la música (bajo: manda el juego, no la canción)
+  const MUSICA_ULTIMA = 1.18;   // cuánto se acelera el tema en la última vuelta
 
   // ===================== Utilidades =====================
   // clamp, lerp, smoothstep, mulberry32 y ordinal vienen de sim.mjs.
@@ -2169,6 +2176,70 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       m.gain.gain.setTargetAtTime(vol, ahora, 0.1);
     }
   }
+  /*
+   * Música: un secuenciador de corcheas. Cada frame se miran los 0,25 s siguientes y se dejan las
+   * notas ya programadas en el reloj de WebAudio, que es el único que no se salta un latido aunque
+   * la tele vaya justa de fps. Los temas son listas de notas MIDI (0 = silencio), una de bajo y
+   * otra de melodía, en do mayor porque es lo que suena alegre sin pensarlo mucho.
+   */
+  const NOTA = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const TEMAS = {
+    // sala: tranquilo, para que se oiga la gente entrar
+    sala: {
+      bpm: 96, tipo: 'triangle',
+      bajo: [48, 0, 0, 0, 55, 0, 0, 0, 53, 0, 0, 0, 50, 0, 0, 0],
+      lead: [72, 76, 79, 76, 74, 77, 81, 77, 72, 76, 79, 83, 81, 79, 76, 74],
+    },
+    // carrera: el mismo do mayor pero con prisa y con bombo
+    carrera: {
+      bpm: 132, tipo: 'square',
+      bajo: [40, 40, 47, 47, 45, 45, 47, 47, 40, 40, 47, 47, 45, 45, 43, 43],
+      lead: [76, 79, 83, 79, 77, 81, 84, 81, 76, 79, 83, 86, 84, 83, 79, 77],
+    },
+  };
+  const musica = { tema: null, paso: 0, hasta: 0, rapido: false };
+  function notaMusical(freq, t0, dur, tipo, vol) {
+    if (!ac || !bus) return;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = tipo;
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.9);
+    o.connect(g).connect(bus);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function temaAhora() {
+    if (state.phase === 'lobby' || state.phase === 'warmup') return TEMAS.sala;
+    if (state.phase === 'race' || state.phase === 'countdown') return TEMAS.carrera;
+    return null;     // resultados: la fanfarria de meta ya suena ahí (`sfx('finish')`), no hace falta más
+  }
+  // ¿última vuelta de alguna persona? entonces el tema corre más
+  function ultimaVuelta() {
+    if (state.phase !== 'race') return false;
+    for (const k of state.karts) if (k.isHuman && !k.finished && k.lapCount >= state.laps - 1) return true;
+    return false;
+  }
+  function actualizarMusica() {
+    if (!ac || ac.state !== 'running' || !bus) return;
+    const tema = temaAhora();
+    if (!tema) { musica.tema = null; return; }
+    const rapido = ultimaVuelta();
+    if (tema !== musica.tema || rapido !== musica.rapido) {
+      musica.tema = tema; musica.rapido = rapido;
+      musica.paso = 0; musica.hasta = Math.max(musica.hasta, ac.currentTime + 0.05);
+    }
+    const dur = 60 / (tema.bpm * (rapido ? MUSICA_ULTIMA : 1)) / 2;
+    if (musica.hasta < ac.currentTime) musica.hasta = ac.currentTime;
+    while (musica.hasta < ac.currentTime + 0.25) {
+      const i = musica.paso % tema.lead.length;
+      const b = tema.bajo[i], l = tema.lead[i];
+      if (b) notaMusical(NOTA(b), musica.hasta, dur * 0.9, 'triangle', MUSICA_VOL);
+      if (l) notaMusical(NOTA(l + (rapido ? 12 : 0)), musica.hasta, dur * 0.8, tema.tipo, MUSICA_VOL * 0.75);
+      musica.paso++;
+      musica.hasta += dur;
+    }
+  }
   function sfx(name) {
     switch (name) {
       case 'beep': tone(440, 0.18); break;
@@ -2245,6 +2316,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     altoActivo = paneles ? viewH / panelLayout(personasEnCarrera().length).length : viewH;
     updateVisuals(dt);
     actualizarMotores();
+    actualizarMusica();
     moverEscaparate(dt);
     if (paneles) {
       renderPaneles(dt);

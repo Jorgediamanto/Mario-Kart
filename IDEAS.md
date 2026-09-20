@@ -510,9 +510,17 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         exigir que nada vuelva a ir suelto a la salida).
       - ⏳ **Falta oírlo**: con 8 karts puede sonar a sartén. Lo primero que se toca es `MOTOR_VOL`
         (0,05) y `MOTOR_BOT` (0,34) en `screen.js`; con `M` se calla del todo.
-- [ ] **Música sintetizada.** Tema alegre en la sala, tema rápido en carrera, versión acelerada en la última
+- [x] **Música sintetizada.** Tema alegre en la sala, tema rápido en carrera, versión acelerada en la última
       vuelta y fanfarria de podio; todo generado con WebAudio (sin archivos). Tecla `M` para silenciar.
       Comprobación: código sin errores; «pendiente de probar en fiesta».
+      - ✅ **Hecho la noche del 2026-09-20.** Secuenciador de corcheas que programa las notas 0,25 s
+        por delante en el reloj de WebAudio (así no se salta un latido aunque la tele vaya justa de
+        fps). Dos temas en do mayor, listas de notas MIDI con bajo y melodía: uno tranquilo para la
+        sala y el calentamiento, y otro con prisa para la carrera, que en la **última vuelta** corre
+        un 18 % más y sube la melodía una octava. La fanfarria de podio ya existía (`sfx('finish')`)
+        y se ha dejado como estaba. Volumen bajo a propósito (`MUSICA_VOL` 0,055) y la tecla `M` lo
+        calla todo.
+      - ⏳ **Falta oírlo.** Si cansa, `MUSICA_VOL` a 0 lo quita sin tocar nada más.
 - [ ] **Callouts.** Carteles breves en el panel del jugador: «¡PRIMERO!», «¡Adelantamiento!», «¡Nivel 3!»,
       «¡Última vuelta!», «¡Golpe!». Comprobación: hooks de la simulación (`onOvertake`, `onLeader`) con prueba.
 - [ ] **Vibraciones con significado.** Patrones distintos en el móvil para golpe, turbo, subir de nivel de
