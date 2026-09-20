@@ -1085,6 +1085,42 @@ const escenarios = [
   },
   {
     /*
+     * Calentamiento (IDEAS.md, Fase 3): mientras el anfitrión no pulsa EMPEZAR, quien ya está en la
+     * sala puede conducir su kart en la parrilla para aprender los botones. Se conduce y se choca,
+     * y nada más: ni vueltas, ni cajas, ni objetos, ni clasificación. Y al empezar la carrera, todo
+     * el mundo vuelve a su sitio en la parrilla, que si no el que ha calentado saldría con ventaja.
+     */
+    nombre: 'en el calentamiento se conduce pero no se juega, y al empezar todos vuelven a la parrilla',
+    run(sim) {
+      const s = sim.createSim({ geom, trackDefs, random: mulberry32(51) });
+      const dos = [{ playerId: 1, name: 'A', char: 0 }, { playerId: 2, name: 'B', char: 1 }];
+      if (!s.warmup({ entries: dos, trackIndex: pista('Chicle') })) return 'no se puede empezar el calentamiento desde la sala';
+      if (s.state.phase !== 'warmup') return `la fase es «${s.state.phase}» y no «warmup»`;
+      if (s.state.karts.length !== 2) return `hay ${s.state.karts.length} karts y no 2`;
+      const k = s.state.karts.find((q) => q.playerId === 1);
+      const salida = { x: k.x, y: k.y, dist: k.dist };
+      // 45 s dando gas: da más de una vuelta al circuito y no tiene que contarle nada
+      for (let f = 0; f < 60 * 45; f++) { s.setInput(k, { s: 0, g: 1, b: 0, d: 0 }); s.update(DT); }
+      if (k.dist - salida.dist < 400) return `el kart no se mueve en el calentamiento (${(k.dist - salida.dist).toFixed(0)} muestras)`;
+      if (k.lapCount >= 0) return `le han contado ${k.lapCount + 1} vuelta(s) calentando`;
+      if (k.item) return `ha cogido un objeto (${k.item}) calentando`;
+      if (k.finished) return 'ha «terminado» la carrera calentando';
+      // entra alguien más: al que ya conducía no se le mueve de sitio
+      const antes = { x: k.x, y: k.y };
+      s.warmup({ entries: dos.concat([{ playerId: 3, name: 'C', char: 2 }]) });
+      if (s.state.karts.length !== 3) return 'el que entra nuevo no aparece en el calentamiento';
+      if (k.x !== antes.x || k.y !== antes.y) return 'al entrar alguien, a quien estaba conduciendo lo han teletransportado';
+      // y al empezar la carrera, todos a la parrilla
+      if (!s.startRace({ entries: dos, trackIndex: pista('Chicle'), laps: 2 })) return 'la carrera no arranca desde el calentamiento';
+      if (s.state.phase !== 'countdown') return `tras EMPEZAR la fase es «${s.state.phase}»`;
+      for (const q of s.state.karts) {
+        if (q.dist !== q.gridDist || q.lapCount !== -1 || q.speed !== 0) return `${q.name} no ha vuelto a la parrilla`;
+      }
+      return null;
+    },
+  },
+  {
+    /*
      * Modo fácil (IDEAS.md, Fase 3): el kart acelera solo y el volante ayuda a no salirse. La
      * prueba es la que pide el punto, y es la buena: **sin tocar el mando** tiene que dar la vuelta
      * entera y llegar, porque para eso está —que quien nunca ha jugado no se quede de cara al
