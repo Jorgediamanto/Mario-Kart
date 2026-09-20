@@ -59,6 +59,19 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   const CHASE_HFOV = 66;         // grados, campo de visión horizontal de la cámara de persecución
   const CHASE_FOV_MIN = 35, CHASE_FOV_MAX = 75;   // límites del vertical, para no marearse
   const CHASE_FOV_BOOST = 7;     // grados que se abre la cámara en turbo (sensación de velocidad)
+  /*
+   * Carácter de la cámara (solo imagen: la simulación no se entera de nada de esto).
+   *  - la sacudida es **de cada uno**: si te dan a ti, tiembla tu panel y no el de los demás;
+   *  - el «hit-stop» es el frenazo de imagen de los juegos de peleas: 30 ms congelado en un golpe
+   *    fuerte hacen que se sienta el golpe mucho más que cualquier partícula;
+   *  - y a más velocidad la cámara mira más lejos, que es lo que hace uno al ir rápido.
+   */
+  const CAM_SACUDIDA_MAX = 16;      // tope de la sacudida, en unidades de mundo
+  const CAM_SACUDIDA_CAIDA = 26;    // lo rápido que se calma (unidades por segundo)
+  const CAM_SACUDIDA_CAIDA_FUERTE = 500;   // velocidad de caída a partir de la cual el aterrizaje sacude
+  const CAM_HITSTOP = 0.03;         // segundos de imagen congelada en un golpe fuerte
+  const CAM_HITSTOP_MIN = 6;        // a partir de qué sacudida se congela (6 = golpe, 3 = quitamiedos, no)
+  const CHASE_AHEAD_SPEED = 170;    // cuánto más lejos mira la cámara a tope de velocidad
 
   // ===================== Utilidades =====================
   // clamp, lerp, smoothstep, mulberry32 y ordinal vienen de sim.mjs.
@@ -911,7 +924,12 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       onToast: (text, dur) => toast(text, dur),
       onStatus: (k) => sendStatus(k),
       onFx: (k, kind) => { if (k.playerId != null) toPlayer(k.playerId, { t: 'fx', kind }); },
-      onShake: (n) => { state.shake = Math.max(state.shake, n); },
+      onShake: (n, k) => {
+        state.shake = Math.max(state.shake, n);            // la cámara general (la de la tele sin paneles)
+        const c = k && chases.get(k);                      // y, si es cosa de un kart, su panel
+        if (c) c.shake = Math.max(c.shake, n);
+        if (n >= CAM_HITSTOP_MIN) hitStop = Math.max(hitStop, CAM_HITSTOP);
+      },
       onFlash: () => { flashEl.style.opacity = '0.85'; setTimeout(() => { flashEl.style.opacity = '0'; }, 60); },
       /*
        * Caracol: la carrera se para y quien lo ha usado elige a quién frenar. En la tele sale el
@@ -1575,7 +1593,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
       c = {
         cam: new THREE.PerspectiveCamera(fovVertical(16 / 9), 16 / 9, 12, 9000),
         x: k.x - Math.cos(k.angle) * CHASE_DIST, y: k.z + CHASE_HEIGHT, z: k.y - Math.sin(k.angle) * CHASE_DIST,
-        ang: k.angle, dist: CHASE_DIST, fovExtra: 0,
+        ang: k.angle, dist: CHASE_DIST, fovExtra: 0, shake: 0, enAire: !!k.air, vz: 0,
       };
       chases.set(k, c);
     }
@@ -1600,11 +1618,22 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     // en turbo la cámara se abre un poco y tiembla: velocidad sin tocar la física
     const turbo = k.boostUntil > state.simTime || k.starUntil > state.simTime;
     c.fovExtra = THREE.MathUtils.damp(c.fovExtra, turbo ? CHASE_FOV_BOOST : 0, 6, dt);
+    /*
+     * Aterrizajes: si venía cayendo fuerte y acaba de tocar suelo, sacudida. Se mira desde aquí, en
+     * la tele, porque la simulación no tiene que enterarse de cómo se ve el juego.
+     */
+    if (c.enAire && !k.air && c.vz < -CAM_SACUDIDA_CAIDA_FUERTE) {
+      c.shake = Math.max(c.shake, Math.min(CAM_SACUDIDA_MAX, -c.vz / 90));
+    }
+    c.enAire = !!k.air; c.vz = k.vz;
+    c.shake = Math.max(0, c.shake - dt * CAM_SACUDIDA_CAIDA);
     let sx = 0, sy = 0, sz = 0;
-    const meneo = state.shake + (turbo ? 2.5 : 0);
+    const meneo = Math.min(CAM_SACUDIDA_MAX, c.shake) + (turbo ? 2.5 : 0);
     if (meneo > 0) { sx = (Math.random() - 0.5) * meneo; sy = (Math.random() - 0.5) * meneo; sz = (Math.random() - 0.5) * meneo; }
     c.cam.position.set(c.x + sx, c.y + sy, c.z + sz);
-    c.cam.lookAt(k.x + cosA * CHASE_AHEAD, k.z + 40, k.y + sinA * CHASE_AHEAD);
+    // cuanto más rápido vas, más lejos mira: el kart baja en el panel y se ve venir más circuito
+    const mira = CHASE_AHEAD + CHASE_AHEAD_SPEED * vel;
+    c.cam.lookAt(k.x + cosA * mira, k.z + 40, k.y + sinA * mira);
     return c;
   }
   // vertical que hace falta para ver CHASE_HFOV grados a lo ancho en un panel de esta forma
@@ -2054,14 +2083,22 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   }
 
   let last = performance.now(), acc = 0, panelesPrev = false;
+  // «hit-stop»: segundos que queda la imagen congelada tras un golpe fuerte (ver CAM_HITSTOP)
+  let hitStop = 0;
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    acc += dt;
-    let n = 0;
-    pushInputs();
-    while (acc >= DT && n < 6) { sim.update(DT); acc -= DT; n++; }
-    if (n === 6) acc = 0;
+    if (hitStop > 0) {
+      // la simulación no avanza, pero el reloj sí: el frenazo dura lo que dura y no se acumula
+      hitStop = Math.max(0, hitStop - dt);
+      acc = 0;
+    } else {
+      acc += dt;
+      pushInputs();
+      let n = 0;
+      while (acc >= DT && n < 6) { sim.update(DT); acc -= DT; n++; }
+      if (n === 6) acc = 0;
+    }
     const paneles = modoPaneles();
     if (paneles !== panelesPrev) {
       panelesPrev = paneles;

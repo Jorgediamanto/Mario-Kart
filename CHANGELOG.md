@@ -22,6 +22,28 @@ llevan la fecha en que se hicieron.
 
 - **Cómo probarlo**: `npm start`, abre el mando en el móvil y mira la pantalla de entrar: siete
   caras, las cogidas apagadas. Elige una y entra: la misma cara sale arriba, en la tele y en tu kart.
+## 2026-09-20 (noche) — La cámara, con carácter
+
+Todo esto es **solo imagen**: `public/sim.mjs` no cambia ni una línea, así que las carreras se
+juegan exactamente igual que antes.
+
+- **La sacudida es tuya, no de todos.** Hasta ahora, un golpe a cualquiera hacía temblar la pantalla
+  entera, o sea los ocho paneles. La simulación ya decía de quién era el golpe y la tele no lo
+  miraba: ahora tiembla **el panel de quien se lo lleva**.
+- **Aterrizajes con peso**: caer fuerte sacude la cámara, y cuanto más fuerte más. Se mide en la
+  tele con la velocidad de caída, sin preguntarle nada a la simulación.
+- **Hit-stop de 30 ms**: en un golpe fuerte (caparazón, plátano, rayo) la imagen se congela una
+  décima de parpadeo. Es el truco de los juegos de peleas y hace que el golpe **se sienta**. Los
+  quitamiedos no lo disparan, que si no sería un tartamudeo constante.
+- **A más velocidad, la cámara mira más lejos** (hasta 170 unidades): el kart baja un poco en el
+  panel y se ve venir más circuito, que es lo que hace uno cuando va rápido de verdad.
+
+- **Cómo probarlo en la fiesta**: `npm start`, corre con dos o tres móviles y que alguien coma un
+  caparazón. Debería temblar **solo su panel** y notarse el frenazo de imagen. En una rampa grande
+  (Luna Loca), al caer tiene que dar un golpe de cámara.
+  **Pendiente de probar en fiesta**: si el hit-stop molesta con ocho jugadores (es un frenazo para
+  todos, aunque el golpe sea de uno), se baja `CAM_HITSTOP` a 0 y se queda solo la sacudida.
+
 ## 2026-09-20 (noche) — Calentamiento: probar el mando antes de que empiece la carrera
 
 Mientras el anfitrión no pulsa EMPEZAR, **los karts ya están en la pista**. Quien acaba de entrar
