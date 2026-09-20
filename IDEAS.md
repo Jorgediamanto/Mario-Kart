@@ -482,10 +482,20 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
         golpes y rayo (`CAM_HITSTOP`, no en los quitamiedos) y la cámara **mira hasta 170 unidades
         más lejos** a tope de velocidad (`CHASE_AHEAD_SPEED`). Todo en constantes al inicio de
         `screen.js` y `public/sim.mjs` sin tocar ni una línea.
-- [ ] **Estelas y marcas.** Estelas de velocidad en turbo, marcas de neumático en derrape (decal que se
+- [x] **Estelas y marcas.** Estelas de velocidad en turbo, marcas de neumático en derrape (decal que se
       desvanece), humo al aterrizar. Presupuesto: sin bajar de 60 fps con 4 paneles. Comprobación: partículas
       con tope máximo por panel (constante) y sin fugas (contador de instancias vivas acotado en una prueba de
       la simulación con hook de partículas).
+      - ✅ **Hecho la noche del 2026-09-20.** Los tres efectos salen del **saco de partículas que ya
+        había** (900 como mucho, un solo dibujado), así que no añaden **ni una llamada de dibujo**
+        más por panel: las marcas de neumático son partículas quietas y estiradas pegadas al suelo
+        (opción `ang`/`largo` nueva: se orientan en vez de dar volteretas), la estela son rayas
+        largas por detrás y el humo de aterrizaje sale de la velocidad de caída, mirada desde la
+        tele. Fuga no puede haber (el saco es un anillo fijo), así que lo que se vigila es el
+        **presupuesto**: escenario nuevo en `check-sim.js` que mide cuántas pediría una carrera de
+        8 karts (160 de 900) y la cuenta del peor caso está escrita junto a las constantes (≈700).
+      - ⏳ **Falta medirlo en la fiesta**: la tecla `P` con 4 y 8 paneles. Si baja de 60, lo primero
+        que hay que subir es `MARCA_CADA` (menos marcas).
 - [ ] **Sonido de motor por kart.** Oscilador por kart con tono según velocidad y turbo, mezclado sin saturar
       con 8 karts (compresor). Comprobación: código sin errores, tecla `M` silencia todo, volumen global
       constante; «pendiente de probar en fiesta».

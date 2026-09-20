@@ -72,6 +72,18 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
   const CAM_HITSTOP = 0.03;         // segundos de imagen congelada en un golpe fuerte
   const CAM_HITSTOP_MIN = 6;        // a partir de qué sacudida se congela (6 = golpe, 3 = quitamiedos, no)
   const CHASE_AHEAD_SPEED = 170;    // cuánto más lejos mira la cámara a tope de velocidad
+  /*
+   * Estelas y marcas. Todo sale del mismo saco de partículas de siempre (900 como mucho, en un solo
+   * dibujado), así que esto **no añade ni una llamada de dibujo**. Lo que sí hay que cuidar es no
+   * comerse el saco: cuando se llena, lo nuevo pisa lo viejo, y lo viejo son justo las marcas, que
+   * son las que más duran. La cuenta del peor caso, ocho karts derrapando y con turbo a la vez:
+   * marcas 8·2/0,11·1,5 ≈ 218 · estelas 8/0,045·0,3 ≈ 53 · polvo de derrape (el de siempre) ≈ 270 ·
+   * lo que emite la simulación, medido en `check-sim.js`, ≈ 160. Total ≈ 700 de 900.
+   */
+  const MARCA_CADA = 0.11;      // segundos entre marca y marca de neumático de un kart que derrapa
+  const MARCA_VIDA = 1.5;       // lo que tarda en borrarse una marca
+  const ESTELA_CADA = 0.045;    // segundos entre rayas de la estela de turbo
+  const HUMO_CAIDA = 420;       // velocidad de caída a partir de la cual el aterrizaje echa humo
 
   // ===================== Utilidades =====================
   // clamp, lerp, smoothstep, mulberry32 y ordinal vienen de sim.mjs.
@@ -860,7 +872,7 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
     const white = new THREE.Color(0xffffff);
     for (let i = 0; i < MAX; i++) mesh.setColorAt(i, white);
     scene.add(mesh);
-    const list = new Array(MAX).fill(null).map(() => ({ life: 0, t: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 1, g: 0, flat: false }));
+    const list = new Array(MAX).fill(null).map(() => ({ life: 0, t: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 1, g: 0, flat: false, ang: null, largo: 1 }));
     let cursor = 0;
     const dummy = new THREE.Object3D();
     const col = new THREE.Color();
@@ -873,6 +885,9 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         p.vx = (o.vx || 0) + (Math.random() - 0.5) * sp; p.vy = (o.vy || 0) + (Math.random() - 0.5) * sp; p.vz = (o.vz || 0) + (Math.random() - 0.5) * sp;
         p.life = (o.life || 0.5) * (0.7 + Math.random() * 0.6); p.t = 0;
         p.size = (o.size || 4) * (0.7 + Math.random() * 0.6); p.g = o.g == null ? 500 : o.g; p.flat = !!o.flat;
+        // `ang` (radianes) deja la partícula quieta y apuntando a donde se le diga, y `largo` la
+        // estira en esa dirección: así salen marcas de neumático y rayas de estela, no confeti
+        p.ang = o.ang == null ? null : o.ang; p.largo = o.largo || 1;
         const c = Array.isArray(o.color) ? o.color[Math.floor(Math.random() * o.color.length)] : o.color;
         if (c === 'rainbow') col.setHSL(Math.random(), 1, 0.55); else col.set(c || '#ffffff');
         mesh.setColorAt(idx, col);
@@ -888,8 +903,13 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
         const s = p.size * (1 - p.t / p.life);
         dummy.position.set(p.x, p.y, p.z);
-        dummy.scale.set(p.flat ? s * 1.6 : s, p.flat ? s * 0.3 : s, s);
-        dummy.rotation.set(p.t * 5, p.t * 3, 0);
+        if (p.ang != null) {
+          dummy.scale.set(s * p.largo, p.flat ? s * 0.25 : s, s);
+          dummy.rotation.set(0, -p.ang, 0);
+        } else {
+          dummy.scale.set(p.flat ? s * 1.6 : s, p.flat ? s * 0.3 : s, s);
+          dummy.rotation.set(p.t * 5, p.t * 3, 0);
+        }
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
       }
@@ -1854,6 +1874,37 @@ import { GLTFLoader } from '/vendor/jsm/loaders/GLTFLoader.js';
         for (const side of [-1, 1]) particles.emit(k.x - cosA * 13 - sinA * 13 * side, k.z + 3, k.y - sinA * 13 + cosA * 13 * side, { n: 1, color: c, vx: -cosA * 120, vz: -sinA * 120, spread: 90, vy: 60, life: 0.35, size: 3, g: 400 });
       }
       if (boosting && Math.random() < 0.9) particles.emit(k.x - Math.cos(k.angle) * 24, k.z + 7, k.y - Math.sin(k.angle) * 24, { n: 2, color: ['#ff9f1c', '#ffe74c', '#ff2d95'], vx: -Math.cos(k.angle) * 200, vz: -Math.sin(k.angle) * 200, spread: 60, life: 0.35, size: 4, g: 0 });
+      /*
+       * Marcas de neumático: mientras derrapa, dos rayas negras pegadas al suelo, una por rueda de
+       * atrás, que se van borrando. No son un decal aparte: son partículas quietas y estiradas del
+       * mismo saco, así que se borran solas y no hay nada que limpiar.
+       */
+      M.marcaT = (M.marcaT || 0) + dt;
+      if (drifting && !k.air && M.marcaT >= MARCA_CADA) {
+        M.marcaT = 0;
+        const cosA = Math.cos(k.angle), sinA = Math.sin(k.angle);
+        for (const side of [-1, 1]) {
+          particles.emit(k.x - cosA * 15 - sinA * 14 * side, k.ground + 2.2, k.y - sinA * 15 + cosA * 14 * side,
+            { n: 1, color: '#1a1526', spread: 0, jitter: 1, vy: 0, g: 0, life: MARCA_VIDA, size: 5, flat: true, ang: k.moveAngle, largo: 3.4 });
+        }
+      }
+      // Estela de velocidad: con turbo o estrella, rayas largas que salen por detrás
+      M.estelaT = (M.estelaT || 0) + dt;
+      if ((boosting || star) && !k.air && M.estelaT >= ESTELA_CADA) {
+        M.estelaT = 0;
+        const cosA = Math.cos(k.angle), sinA = Math.sin(k.angle);
+        particles.emit(k.x - cosA * 30, k.z + 16, k.y - sinA * 30,
+          { n: 1, color: star ? 'rainbow' : ['#ffe74c', '#ff9f1c', '#ffffff'], spread: 0, jitter: 10, vy: 0, g: 0, life: 0.3, size: 4, ang: k.angle, largo: 7 });
+      }
+      /*
+       * Humo al aterrizar: si venía cayendo fuerte y acaba de tocar suelo. Se mira aquí, en la
+       * tele, con lo que ya se sabe del kart: la simulación no tiene que enterarse.
+       */
+      if (M.enAire && !k.air && M.vzPrev < -HUMO_CAIDA) {
+        const fuerza = Math.min(2.2, -M.vzPrev / 600);
+        particles.emit(k.x, k.ground + 6, k.y, { n: Math.round(6 * fuerza), color: ['#ffffff', '#d5d8ff', '#aab0e8'], spread: 150 * fuerza, vy: 70, life: 0.55, size: 6, g: 260, flat: true });
+      }
+      M.enAire = !!k.air; M.vzPrev = k.vz;
       if (star && Math.random() < 0.7) particles.emit(k.x, k.z + 12, k.y, { n: 1, color: 'rainbow', spread: 80, vy: 70, life: 0.6, size: 4, g: 0 });
       // caracol: baba verde pegada al suelo mientras va frenado, para que se vea a quién le ha caído
       if (k.slowUntil > now && Math.random() < 0.8) particles.emit(k.x, k.z + 4, k.y, { n: 1, color: ['#7dff3f', '#39ff88', '#b9ff7a'], spread: 30, vy: 10, life: 0.9, size: 6, g: 40, flat: true });

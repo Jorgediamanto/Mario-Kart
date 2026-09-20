@@ -7,11 +7,11 @@ retomar la rama.
 
 ## Sesión en curso
 - inicio (UTC): 2026-09-20 00:31
-- último latido (UTC): 2026-09-20 02:05
+- último latido (UTC): 2026-09-20 02:13
 - rama: noche/2026-09-20
 
 ## Punto en curso
-- IDEAS.md: ninguno (recién cerrado «Cámara con carácter»)
+- IDEAS.md: ninguno (recién cerrado «Estelas y marcas»)
 - hecho: —
 - siguiente paso: —
 - intentos fallidos en este punto: 0

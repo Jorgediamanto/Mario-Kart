@@ -1085,6 +1085,44 @@ const escenarios = [
   },
   {
     /*
+     * Presupuesto de partículas (IDEAS.md, Fase 4 «Estelas y marcas»). La tele tiene **un solo saco
+     * de 900 partículas** en un único dibujado: cuando se llena, las nuevas pisan a las viejas. Eso
+     * hace imposible una fuga de memoria, pero no que una carrera pida tantas que las cosas se
+     * borren antes de verse. Aquí se cuenta, con el mismo reloj de la simulación, cuántas estarían
+     * vivas a la vez en una carrera llena de golpes: si algún día un efecto nuevo se dispara, esto
+     * se pone rojo antes que los fps de la fiesta.
+     */
+    nombre: 'una carrera de 8 karts no pide más partículas de las que caben en la tele',
+    run(sim) {
+      const SACO = 900;                 // el tamaño del saco en screen.js (MAX en `particles`)
+      const vivas = [];                 // cuándo muere cada una
+      let pico = 0, total = 0;
+      const s = sim.createSim({
+        geom, trackDefs, random: mulberry32(61),
+        hooks: {
+          onParticles: (x, h, z, o) => {
+            const n = (o && o.n) || 1, vida = (o && o.life) || 0.5;
+            total += n;
+            for (let i = 0; i < n; i++) vivas.push(s.now() + vida * 1.3);   // 1,3 = lo que alarga el azar
+          },
+        },
+      });
+      const entries = [];
+      for (let i = 0; i < 8; i++) entries.push({ playerId: null, bot: true, name: 'Bot ' + (i + 1), char: i });
+      s.startRace({ entries, trackIndex: pista('Volcán Disco'), laps: 1 });
+      for (let f = 0; f < 60 * 90 && !s.allFinished(); f++) {
+        s.update(DT);
+        const ahora = s.now();
+        for (let i = vivas.length - 1; i >= 0; i--) if (vivas[i] <= ahora) vivas.splice(i, 1);
+        if (vivas.length > pico) pico = vivas.length;
+      }
+      if (!total) return 'no se ha emitido ni una partícula en toda la carrera';
+      if (pico > SACO) return `hacen falta ${pico} partículas a la vez y en la tele solo caben ${SACO}`;
+      return null;
+    },
+  },
+  {
+    /*
      * Calentamiento (IDEAS.md, Fase 3): mientras el anfitrión no pulsa EMPEZAR, quien ya está en la
      * sala puede conducir su kart en la parrilla para aprender los botones. Se conduce y se choca,
      * y nada más: ni vueltas, ni cajas, ni objetos, ni clasificación. Y al empezar la carrera, todo
