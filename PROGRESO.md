@@ -6,14 +6,16 @@ es la hora del último push de la sesión: si tiene más de 45 minutos, la sesi�
 retomar la rama.
 
 ## Sesión en curso
-- inicio (UTC): ninguna
-- último latido (UTC): ninguno
-- rama: ninguna
+- inicio (UTC): 2026-09-20 00:31
+- último latido (UTC): 2026-09-20 00:31
+- rama: noche/2026-09-20
 
 ## Punto en curso
-- IDEAS.md: ninguno
-- hecho: —
-- siguiente paso: —
+- IDEAS.md: Fase 2 — «Mejorar los circuitos para la vista en tercera persona» (los cuatro circuitos
+  que siguen en 9-12 s de vuelta: Costa, Volcán, Bosque, Ciudad… el que toque según `tracks.js`).
+- hecho: nada todavía; candado puesto.
+- siguiente paso: leer `tracks.js` y `tools/traza-arcoiris.js`, medir las vueltas de cada circuito con
+  `npm run race`, y rehacer el primero con su propio `world` grande + `relieve`, uno por commit.
 - intentos fallidos en este punto: 0
 
 ## Última sesión
