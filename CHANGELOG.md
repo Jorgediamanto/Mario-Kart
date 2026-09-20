@@ -3,6 +3,29 @@
 Cada entrada dice qué cambió y cómo probarlo en la fiesta. Las entradas del agente nocturno
 llevan la fecha en que se hicieron.
 
+## 2026-09-20 (noche) — Modo fácil: un botón para quien nunca ha jugado
+
+En la sala de cada móvil hay ahora un interruptor **🦺 Modo fácil**. Es por jugador y se recuerda en
+ese móvil, así que quien lo enciende una vez lo tiene siempre.
+
+- Con el modo fácil, **el kart acelera solo** (mientras no frenes) y **el volante ayuda**: tira
+  hacia la carretera un poco más adelante. Cuanto menos toques tú, más manda la ayuda; si giras a
+  tope, mandas tú. Sin tocar nada, el kart da la vuelta entera sin salirse.
+- **No es un atajo para ir más rápido**: sin pisar el gas va al 94 % de la velocidad máxima. El
+  botón GAS pasa a ser un empujón opcional (y el texto del botón lo dice en la carrera).
+- La tele lo enseña en la sala con una etiqueta **🦺 modo fácil** junto al nombre, y en el móvil
+  cada jugador de la lista lleva su 🦺, para que se vea quién juega con ayuda.
+- **Compatibilidad**: un móvil con la página cargada de antes no manda el campo nuevo y se queda en
+  modo normal, como hasta ahora. Nadie tiene que recargar nada.
+- Medido en la simulación: un kart en modo fácil **sin que nadie toque el mando** termina la vuelta
+  en los cinco circuitos y siempre llega por detrás de un bot.
+
+- **Cómo probarlo en la fiesta**: entra con un móvil, pulsa 🦺 en la sala (tiene que ponerse verde y
+  salir la etiqueta en la tele) y empieza una carrera **sin tocar el móvil**: el kart debería irse
+  solo y dar la vuelta. Luego apágalo y comprueba que vuelve a hacer falta pisar GAS.
+  **Pendiente de probar en fiesta**: si la ayuda se nota demasiado para quien sí sabe jugar, baja
+  `EASY_AYUDA` (0,7) en `public/sim.mjs`; si aun así alguien se sale, súbela.
+
 ## 2026-09-20 (noche) — Luna Loca, rehecha: un tercio de la carrera por el aire
 
 Cuarto y último de los circuitos cortos. Con esto **los cinco circuitos tienen vueltas de 25-60 s**,

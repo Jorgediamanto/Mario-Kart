@@ -417,7 +417,7 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
 
 ## Fase 3 — Intuitivo y simple (que cualquiera juegue a la primera)
 
-- [ ] **Modo fácil por jugador.** Un interruptor en la sala del móvil («Modo fácil»): el kart acelera solo
+- [x] **Modo fácil por jugador.** Un interruptor en la sala del móvil («Modo fácil»): el kart acelera solo
       (GAS pasa a ser turbo suave opcional) y una asistencia de dirección leve lo atrae hacia el centro de la
       carretera. Se recuerda en el móvil. Comprobación: en la simulación un kart con «modo fácil» y sin
       entradas termina la carrera solo (más lento que un bot); el mensaje `hello` lleva el flag y la pantalla lo
@@ -425,6 +425,14 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       - ⏭ **Saltado a propósito la noche del 2026-09-19**: el interruptor va en la **sala del móvil**
         y el dueño estaba rehaciendo `play.html`/`play.js` esa misma tarde para el volante de
         giroscopio. Hacerlo a la vez era pisarse. Retomarlo cuando el volante esté dentro.
+      - ✅ **Hecho la noche del 2026-09-20**, ya con el volante dentro. Botón 🦺 en la sala del móvil
+        (se recuerda en `localStorage`), el flag viaja en `hello` (un mando con la página cargada de
+        antes no lo manda y se queda en normal), el servidor lo reparte en `lobby`/`join` y la tele
+        lo enseña con una etiqueta en la sala. En la simulación: `EASY_AYUDA` 0,7 (la ayuda manda
+        cuando tú no tocas el volante; girando a tope mandas tú), `EASY_MIRA` 22 muestras por
+        delante y `EASY_MAX` 0,94 si no pisas el gas, para que nadie lo encienda buscando ir más
+        rápido. Medido sin tocar el mando: termina los cinco circuitos, siempre por detrás del bot.
+        Escenario en `check-sim.js` y cuatro comprobaciones en `check-protocol.js`.
 - [x] **Aviso «¡Vas al revés!».** Si un kart avanza en sentido contrario más de 1,5 s: cartel en su panel,
       flecha grande hacia la dirección correcta y vibración larga en el móvil. Comprobación: simulación con un
       kart forzado al revés dispara el hook `onWrongWay` y deja de dispararlo al girar.

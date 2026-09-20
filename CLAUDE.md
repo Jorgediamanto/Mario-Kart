@@ -39,7 +39,7 @@ dependencia de render es three.js, servida desde `node_modules` en `/vendor/`.
   `http://localhost:3000/visor.html?m=kart.glb` (`?ang=90` lo gira, `?girar=0` lo para).
 - `Abrir Kart Party.command` — lanzador de doble clic para macOS.
 
-Protocolo móvil ↔ servidor ↔ pantalla (JSON por WebSocket): `hello/welcome`, `lobby`, `roster`,
+Protocolo móvil ↔ servidor ↔ pantalla (JSON por WebSocket): `hello/welcome` (con `easy`: el **modo fácil** por jugador, que un mando viejo no manda y se queda en normal), `lobby`, `roster`,
 `phase`, `i` (botones: s analógico de -1 a 1, g, b, d), `use`, `start`, `again`, `set`, `st`
 (estado al móvil), `fx`, `spectate`, `vaciar` (la tele echa a todos), `kicked` (al móvil: te han
 echado, deja de reconectarte solo), `pick` (al móvil: elige víctima del caracol) y `picked` (del

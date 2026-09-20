@@ -247,7 +247,7 @@ function toPlayer(id, obj) {
   if (p) send(p.ws, obj);
 }
 function publicPlayer(p) {
-  return { id: p.id, name: p.name, char: p.char, host: p.id === hostId, connected: !!(p.ws && p.ws.readyState === WebSocket.OPEN) };
+  return { id: p.id, name: p.name, char: p.char, easy: !!p.easy, host: p.id === hostId, connected: !!(p.ws && p.ws.readyState === WebSocket.OPEN) };
 }
 function lobbyMessage() {
   return {
@@ -376,6 +376,9 @@ wss.on('connection', (ws) => {
     if (m.t === 'hello') {
       const name = sanitizeName(m.name) || 'Jugador';
       const char = Number.isInteger(m.char) && m.char >= 0 && m.char < NUM_CHARS ? m.char : -1;
+      // modo fácil, uno por jugador (lo enciende cada cual en la sala de su móvil). Un mando con la
+      // página cargada de antes no manda el campo y se queda en normal, que es lo de siempre.
+      const easy = m.easy === true;
       let p = null;
       if (typeof m.token === 'string' && m.token.length <= 64) {
         for (const q of players.values()) if (q.token === m.token) { p = q; break; }
@@ -402,6 +405,7 @@ wss.on('connection', (ws) => {
           p.char = char;
         }
         p.name = name;
+        p.easy = easy;
         p.ws = ws;
         ws.role = 'player'; ws.playerId = p.id;
         log(`Reconectado: ${p.name}`);
@@ -410,14 +414,14 @@ wss.on('connection', (ws) => {
         if (char < 0) { send(ws, { t: 'err', msg: 'Elige un personaje.' }); return; }
         if (players.size >= MAX_PLAYERS) { send(ws, { t: 'err', msg: `La sala está llena (máximo ${MAX_PLAYERS} jugadores).` }); return; }
         if (charTaken(char, -1)) { send(ws, { t: 'err', msg: 'Ese personaje ya está cogido, elige otro.' }); return; }
-        p = { id: nextId++, token: crypto.randomBytes(16).toString('hex'), name, char, ws, timer: null };
+        p = { id: nextId++, token: crypto.randomBytes(16).toString('hex'), name, char, easy, ws, timer: null };
         players.set(p.id, p);
         ws.role = 'player'; ws.playerId = p.id;
         log(`Nuevo jugador: ${p.name} (personaje ${p.char})`);
         toScreen({ t: 'join', player: publicPlayer(p) });
       }
       ensureHost();
-      send(ws, { t: 'welcome', id: p.id, token: p.token, name: p.name, char: p.char, phase });
+      send(ws, { t: 'welcome', id: p.id, token: p.token, name: p.name, char: p.char, easy: !!p.easy, phase });
       broadcastLobby();
       return;
     }
