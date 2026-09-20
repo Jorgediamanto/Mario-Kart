@@ -458,15 +458,30 @@ para una sesión, se parte en subpasos anotados en `PROGRESO.md` y se sigue la n
       mantenido = derrape; dos giros = marcha atrás; giro en el aire = truco). Se muestra una vez y hay un botón
       «?» para volver a verla. Comprobación: `GET /play` contiene la ayuda y `play.js` guarda el flag en
       `localStorage`.
+      - ⏭ **Saltado la noche del 2026-09-20**: el dueño estaba despierto a las 3:52 de la mañana
+        tocando `play.html` y `play.js` (la pantalla de elegir personaje con retratos). Este punto
+        vive entero en esos dos archivos, así que hacerlo a la vez era pisarse. Se retoma en cuanto
+        él lo suelte; no hay nada que decidir, solo hacerlo.
 - [ ] **Móvil legible de un vistazo.** Posición y vuelta enormes en la barra de estado, fondo del móvil que
       cambia de color con el nivel de derrape y con el turbo, borde rojo mientras estás girando/golpeado.
       Comprobación: `play.js` reacciona a los campos de `st` y `fx` con clases CSS (prueba estática).
+      - ⏭ **Saltado la noche del 2026-09-20**: el dueño estaba despierto a las 3:52 de la mañana
+        tocando `play.html` y `play.js` (la pantalla de elegir personaje con retratos). Este punto
+        vive entero en esos dos archivos, así que hacerlo a la vez era pisarse. Se retoma en cuanto
+        él lo suelte; no hay nada que decidir, solo hacerlo.
 
 ## Fase 4 — Sensación de juego
 
-- [ ] **Cámara con carácter.** FOV que se abre con el turbo, sacudida corta en golpes y aterrizajes fuertes,
+- [x] **Cámara con carácter.** FOV que se abre con el turbo, sacudida corta en golpes y aterrizajes fuertes,
       pequeño «hit-stop» (20-40 ms) en choques, la cámara mira más lejos a más velocidad. Comprobación:
       parámetros como constantes; simulación intacta; «pendiente de probar en fiesta».
+      - ✅ **Hecho la noche del 2026-09-20.** El FOV en turbo ya estaba (`CHASE_FOV_BOOST`). Nuevo:
+        la **sacudida es de cada uno** (antes un golpe a cualquiera temblaba en los ocho paneles;
+        `onShake` ya traía el kart y la tele no lo usaba), **sacudida al aterrizar** medida desde la
+        tele con la velocidad de caída (`CAM_SACUDIDA_CAIDA_FUERTE`), **hit-stop de 30 ms** en
+        golpes y rayo (`CAM_HITSTOP`, no en los quitamiedos) y la cámara **mira hasta 170 unidades
+        más lejos** a tope de velocidad (`CHASE_AHEAD_SPEED`). Todo en constantes al inicio de
+        `screen.js` y `public/sim.mjs` sin tocar ni una línea.
 - [ ] **Estelas y marcas.** Estelas de velocidad en turbo, marcas de neumático en derrape (decal que se
       desvanece), humo al aterrizar. Presupuesto: sin bajar de 60 fps con 4 paneles. Comprobación: partículas
       con tope máximo por panel (constante) y sin fugas (contador de instancias vivas acotado en una prueba de
